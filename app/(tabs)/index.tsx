@@ -637,20 +637,21 @@ const styles = StyleSheet.create({
   },
   timelineRow: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 6,
     minHeight: 64,
   },
   timeColumn: {
     width: 50,
     alignItems: 'center',
     marginRight: 10,
-    marginTop: 4,
+    marginTop: 0,
   },
   timeText: {
     fontSize: 12,
     fontWeight: '700',
     color: Colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: 4,
+    marginTop: 2,
   },
   timeTextPast: {
     color: '#555A62',
@@ -663,9 +664,10 @@ const styles = StyleSheet.create({
   dottedLineContainer: { 
     flex: 1, 
     alignItems: 'center', 
-    justifyContent: 'space-between', // Espalha as 6 bolinhas preenchendo a coluna inteira
-    paddingVertical: 2, 
-    minHeight: 60, // Aumentamos um pouco a altura mínima para caber as 6 bolinhas confortavelmente
+    justifyContent: 'space-evenly', 
+    paddingTop: 4,
+    paddingBottom: 2, 
+    minHeight: 56, 
   },
   smallDot: { 
     width: 4, 
