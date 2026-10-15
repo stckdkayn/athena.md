@@ -217,34 +217,74 @@ export default function DashboardScreen() {
 
   // Renderizador de cada linha da timeline vertical (com bolinhas conectoras e pílula "Agora" embutida)
   const renderItemTimeline = ({ item }: { item: any }) => {
+    const todayStr = toLocalDateStr(new Date());
+    const isToday = dataSelecionada === todayStr;
+    const isDayPast = dataSelecionada < todayStr;
+    const isDayFuture = dataSelecionada > todayStr;
+    const currentHour = new Date().getHours();
+    const currentMin = new Date().getMinutes();
+    const currentTotalMinutes = currentHour * 60 + currentMin;
+
+    const calcTimePassed = (startHour: number, startMin: number = 0) => {
+      if (isDayPast) return 9999;
+      if (isDayFuture) return -9999;
+      const startMinutes = startHour * 60 + startMin;
+      return currentTotalMinutes - startMinutes;
+    };
+
+    const renderDottedProgress = (timePassed: number) => (
+      <View style={styles.dottedLineContainer}>
+        {[0, 1, 2, 3, 4, 5].map((i) => {
+          const threshold = i * 10;
+          const nextThreshold = (i + 1) * 10;
+
+          const isPastDot = timePassed >= nextThreshold;
+          const isNowDot = timePassed >= threshold && timePassed < nextThreshold;
+
+          // Se for hoje e for a bolinha exata do momento, renderiza o "Agora"
+          if (isToday && isNowDot) {
+            return (
+              <View key={i} style={styles.nowDotWrapper}>
+                <View style={styles.nowDotPill}>
+                  <Text style={styles.nowDotText} numberOfLines={1}>
+                    AGORA
+                  </Text>
+                </View>
+              </View>
+            );
+          }
+
+          // Senão, renderiza a bolinha contínua normal
+          const dotColor = (isPastDot || timePassed > threshold) ? Colors.primary : '#2E3236';
+          return <View key={i} style={[styles.smallDot, { backgroundColor: dotColor }]} />;
+        })}
+      </View>
+    );
+
     // 1. Renderiza âncoras fixas (6h e 00h)
     if (item.type === 'anchor_start') {
+      const timePassed = calcTimePassed(6, 0);
+      const isPastOrCurrent = timePassed >= 0;
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <Feather name="sunrise" size={20} color="#CCC" style={{ marginBottom: 4 }} />
-            <Text style={styles.timeText}>06:00</Text>
-            <View style={styles.dottedLineContainer}>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <View key={i} style={[styles.smallDot, { backgroundColor: '#EAEAEA' }]} />
-              ))}
-            </View>
+            <Feather name="sunrise" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>06:00</Text>
+            {renderDottedProgress(timePassed)}
           </View>
         </View>
       );
     }
 
     if (item.type === 'anchor_end') {
+      const timePassed = calcTimePassed(23, 0); // O pontilhado que precede 00:00 (23:00 às 00:00)
+      const isPastOrCurrent = timePassed >= 60;
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <View style={styles.dottedLineContainer}>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <View key={i} style={[styles.smallDot, { backgroundColor: '#EAEAEA' }]} />
-              ))}
-            </View>
-            <Text style={styles.timeText}>00:00</Text>
-            <Feather name="moon" size={20} color="#CCC" style={{ marginTop: 4 }} />
+            {renderDottedProgress(timePassed)}
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>00:00</Text>
+            <Feather name="moon" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginTop: 4 }} />
           </View>
         </View>
       );
@@ -253,25 +293,7 @@ export default function DashboardScreen() {
     // 2. Renderiza a Atividade Normal (com trilha contínua e indicador 'Agora' embutido)
     const horaItemStr = item.hora_inicio || item.time || '00:00';
     const [itemHour, itemMin] = horaItemStr.split(':').map((v: string) => parseInt(v, 10));
-    const currentHour = new Date().getHours();
-    const currentMin = new Date().getMinutes();
-
-    const todayStr = toLocalDateStr(new Date());
-    const isToday = dataSelecionada === todayStr;
-    const isDayPast = dataSelecionada < todayStr;
-    const isDayFuture = dataSelecionada > todayStr;
-
-    // Tempo passado em minutos desde o início desta atividade
-    let timePassed = 0;
-    if (isDayPast) {
-      timePassed = 9999;
-    } else if (isDayFuture) {
-      timePassed = -9999;
-    } else {
-      const itemStartMinutes = itemHour * 60 + (itemMin || 0);
-      const currentTotalMinutes = currentHour * 60 + currentMin;
-      timePassed = currentTotalMinutes - itemStartMinutes;
-    }
+    const timePassed = calcTimePassed(itemHour, itemMin || 0);
 
     const isPast = timePassed >= 60;
     const isCurrentHour = isToday && timePassed >= 0 && timePassed < 60;
@@ -284,31 +306,7 @@ export default function DashboardScreen() {
           </Text>
 
           {/* Trilha de Progresso do Tempo */}
-          <View style={styles.dottedLineContainer}>
-            {[0, 1, 2, 3, 4, 5].map((i) => {
-              // Agora são 6 bolinhas, cada uma representando um degrau de 10 min.
-              const threshold = i * 10;
-              const nextThreshold = (i + 1) * 10;
-
-              const isPastDot = timePassed >= nextThreshold;
-              const isNowDot = timePassed >= threshold && timePassed < nextThreshold;
-
-              // Se for hoje e for a bolinha exata do momento, renderiza o novo "Agora"
-              if (isToday && isNowDot) {
-                return (
-                  <View key={i} style={styles.nowDotWrapper}>
-                    <View style={styles.nowDotPill}>
-                      <Text style={styles.nowDotText} numberOfLines={1}>AGORA</Text>
-                    </View>
-                  </View>
-                );
-              }
-
-              // Senão, renderiza a bolinha contínua normal
-              const dotColor = (isPastDot || timePassed > threshold) ? Colors.primary : '#2E3236';
-              return <View key={i} style={[styles.smallDot, { backgroundColor: dotColor }]} />;
-            })}
-          </View>
+          {renderDottedProgress(timePassed)}
         </View>
 
         <TouchableOpacity
