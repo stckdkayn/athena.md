@@ -56,6 +56,20 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
       CREATE INDEX IF NOT EXISTS idx_progresso_tema ON progresso (tema);
       CREATE INDEX IF NOT EXISTS idx_progresso_especialidade ON progresso (especialidade);
       CREATE INDEX IF NOT EXISTS idx_progresso_correta ON progresso (correta);
+
+      CREATE TABLE IF NOT EXISTS AtividadesAgenda (
+        id TEXT PRIMARY KEY,
+        titulo TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        data_agendada TEXT NOT NULL,
+        hora_inicio TEXT,
+        hora_fim TEXT,
+        feedback_cansaco INTEGER DEFAULT 0,
+        concluida INTEGER DEFAULT 0,
+        timestamp INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_agenda_data ON AtividadesAgenda (data_agendada);
+      CREATE INDEX IF NOT EXISTS idx_agenda_tipo ON AtividadesAgenda (tipo);
     `);
   } catch (err) {
     console.error('[database] Erro ao inicializar schema SQLite:', err);
@@ -624,4 +638,75 @@ export async function clearAllProgressRecords(): Promise<void> {
     console.error('[database] Erro ao limpar todo o progresso no SQLite:', err);
   }
 }
+
+export interface AtividadeAgenda {
+  id: string;
+  titulo: string;
+  tipo: string; // ex: 'estudo', 'lazer', 'faculdade'
+  data_agendada: string; // Formato YYYY-MM-DD
+  hora_inicio?: string | null; // Formato HH:MM
+  hora_fim?: string | null; // Formato HH:MM
+  feedback_cansaco?: number; // 0 a 5
+  concluida: boolean;
+  timestamp?: number;
+}
+
+/**
+ * Insere ou atualiza uma atividade na agenda diária.
+ */
+export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise<void> {
+  try {
+    const database = getDatabase();
+    const ts = atividade.timestamp || Date.now();
+    await database.runAsync(
+      `INSERT INTO AtividadesAgenda (
+        id, titulo, tipo, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        titulo = excluded.titulo,
+        tipo = excluded.tipo,
+        data_agendada = excluded.data_agendada,
+        hora_inicio = excluded.hora_inicio,
+        hora_fim = excluded.hora_fim,
+        feedback_cansaco = excluded.feedback_cansaco,
+        concluida = excluded.concluida,
+        timestamp = excluded.timestamp;`,
+      [
+        atividade.id,
+        atividade.titulo.trim(),
+        atividade.tipo.trim(),
+        atividade.data_agendada,
+        atividade.hora_inicio || null,
+        atividade.hora_fim || null,
+        atividade.feedback_cansaco || 0,
+        atividade.concluida ? 1 : 0,
+        ts,
+      ]
+    );
+  } catch (err) {
+    console.error('[database] Erro ao salvar atividade da agenda:', err);
+  }
+}
+
+/**
+ * Busca todas as atividades de um dia específico (ex: '2026-10-15'),
+ * ordenadas cronologicamente pela hora de início.
+ */
+export async function getAtividadesPorData(dataYYYYMMDD: string): Promise<AtividadeAgenda[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<any>(
+      `SELECT * FROM AtividadesAgenda WHERE data_agendada = ? ORDER BY hora_inicio ASC;`,
+      [dataYYYYMMDD]
+    );
+    return rows.map((r) => ({
+      ...r,
+      concluida: !!r.concluida,
+    }));
+  } catch (err) {
+    console.error('[database] Erro ao buscar atividades por data:', err);
+    return [];
+  }
+}
+
 
