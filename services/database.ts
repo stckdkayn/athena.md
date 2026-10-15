@@ -57,8 +57,10 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
       CREATE INDEX IF NOT EXISTS idx_progresso_especialidade ON progresso (especialidade);
       CREATE INDEX IF NOT EXISTS idx_progresso_correta ON progresso (correta);
 
+      -- Tabela de Atividades Únicas ou Instâncias Modificadas/Concluídas
       CREATE TABLE IF NOT EXISTS AtividadesAgenda (
         id TEXT PRIMARY KEY,
+        id_recorrente TEXT, -- Se vier de uma rotina fixa
         titulo TEXT NOT NULL,
         tipo TEXT NOT NULL,
         data_agendada TEXT NOT NULL,
@@ -69,8 +71,28 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         timestamp INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_agenda_data ON AtividadesAgenda (data_agendada);
-      CREATE INDEX IF NOT EXISTS idx_agenda_tipo ON AtividadesAgenda (tipo);
+
+      -- Tabela de Atividades Fixas / Recorrentes
+      CREATE TABLE IF NOT EXISTS AtividadesRecorrentes (
+        id TEXT PRIMARY KEY,
+        titulo TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        frequencia TEXT NOT NULL, -- 'diaria', 'dias_uteis', 'semanal'
+        dias_semana TEXT, -- Ex: '[1,3,5]' (0=Dom, 1=Seg...)
+        data_inicio TEXT NOT NULL,
+        data_fim TEXT, -- Opcional: até quando se repete
+        hora_inicio TEXT,
+        hora_fim TEXT,
+        feedback_cansaco INTEGER DEFAULT 0,
+        timestamp INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_recorrentes_datas ON AtividadesRecorrentes (data_inicio, data_fim);
     `);
+
+    // Migração transparente de coluna id_recorrente caso tabela já existisse
+    try {
+      database.execSync(`ALTER TABLE AtividadesAgenda ADD COLUMN id_recorrente TEXT;`);
+    } catch {}
   } catch (err) {
     console.error('[database] Erro ao inicializar schema SQLite:', err);
   }
@@ -641,13 +663,29 @@ export async function clearAllProgressRecords(): Promise<void> {
 
 export interface AtividadeAgenda {
   id: string;
+  id_recorrente?: string | null;
   titulo: string;
-  tipo: string; // ex: 'estudo', 'lazer', 'faculdade'
-  data_agendada: string; // Formato YYYY-MM-DD
-  hora_inicio?: string | null; // Formato HH:MM
-  hora_fim?: string | null; // Formato HH:MM
-  feedback_cansaco?: number; // 0 a 5
+  tipo: string;
+  data_agendada: string;
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
+  feedback_cansaco?: number;
   concluida: boolean;
+  timestamp?: number;
+  isVirtual?: boolean; // Flag para UI saber se é um "molde" que ainda não foi alterado/concluído
+}
+
+export interface AtividadeRecorrente {
+  id: string;
+  titulo: string;
+  tipo: string;
+  frequencia: 'diaria' | 'dias_uteis' | 'semanal';
+  dias_semana?: string | null; // JSON stringfied array
+  data_inicio: string;
+  data_fim?: string | null;
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
+  feedback_cansaco?: number;
   timestamp?: number;
 }
 
@@ -660,9 +698,10 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
     const ts = atividade.timestamp || Date.now();
     await database.runAsync(
       `INSERT INTO AtividadesAgenda (
-        id, titulo, tipo, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, id_recorrente, titulo, tipo, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        id_recorrente = excluded.id_recorrente,
         titulo = excluded.titulo,
         tipo = excluded.tipo,
         data_agendada = excluded.data_agendada,
@@ -673,6 +712,7 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
         timestamp = excluded.timestamp;`,
       [
         atividade.id,
+        atividade.id_recorrente || null,
         atividade.titulo.trim(),
         atividade.tipo.trim(),
         atividade.data_agendada,
@@ -689,24 +729,122 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
 }
 
 /**
- * Busca todas as atividades de um dia específico (ex: '2026-10-15'),
- * ordenadas cronologicamente pela hora de início.
+ * Insere ou atualiza uma atividade recorrente fixa.
+ */
+export async function upsertAtividadeRecorrente(recorrente: AtividadeRecorrente): Promise<void> {
+  try {
+    const database = getDatabase();
+    const ts = recorrente.timestamp || Date.now();
+    await database.runAsync(
+      `INSERT INTO AtividadesRecorrentes (
+        id, titulo, tipo, frequencia, dias_semana, data_inicio, data_fim, hora_inicio, hora_fim, feedback_cansaco, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        titulo = excluded.titulo,
+        tipo = excluded.tipo,
+        frequencia = excluded.frequencia,
+        dias_semana = excluded.dias_semana,
+        data_inicio = excluded.data_inicio,
+        data_fim = excluded.data_fim,
+        hora_inicio = excluded.hora_inicio,
+        hora_fim = excluded.hora_fim,
+        feedback_cansaco = excluded.feedback_cansaco,
+        timestamp = excluded.timestamp;`,
+      [
+        recorrente.id,
+        recorrente.titulo.trim(),
+        recorrente.tipo.trim(),
+        recorrente.frequencia,
+        recorrente.dias_semana || null,
+        recorrente.data_inicio,
+        recorrente.data_fim || null,
+        recorrente.hora_inicio || null,
+        recorrente.hora_fim || null,
+        recorrente.feedback_cansaco || 0,
+        ts,
+      ]
+    );
+  } catch (err) {
+    console.error('[database] Erro ao salvar atividade recorrente:', err);
+  }
+}
+
+/**
+ * Busca as atividades de um dia específico, mesclando eventos únicos
+ * com as regras ativas de atividades recorrentes.
  */
 export async function getAtividadesPorData(dataYYYYMMDD: string): Promise<AtividadeAgenda[]> {
   try {
     const database = getDatabase();
-    const rows = await database.getAllAsync<any>(
-      `SELECT * FROM AtividadesAgenda WHERE data_agendada = ? ORDER BY hora_inicio ASC;`,
+
+    // 1. Busca as atividades únicas ou instâncias já salvas/concluídas neste dia
+    const rowsUnicas = await database.getAllAsync<any>(
+      `SELECT * FROM AtividadesAgenda WHERE data_agendada = ?;`,
       [dataYYYYMMDD]
     );
-    return rows.map((r) => ({
-      ...r,
-      concluida: !!r.concluida,
-    }));
+
+    const unicas = rowsUnicas.map((r) => ({ ...r, concluida: !!r.concluida }));
+    const idsRecorrentesProcessados = new Set(unicas.map((u) => u.id_recorrente).filter(Boolean));
+
+    // 2. Busca as atividades recorrentes válidas para esta data
+    const rowsRecorrentes = await database.getAllAsync<any>(
+      `SELECT * FROM AtividadesRecorrentes 
+       WHERE data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?);`,
+      [dataYYYYMMDD, dataYYYYMMDD]
+    );
+
+    const targetDate = new Date(dataYYYYMMDD + 'T12:00:00Z');
+    const dayOfWeek = targetDate.getUTCDay(); // 0 = Dom, 1 = Seg, 6 = Sáb
+
+    const atividadesVirtuais: AtividadeAgenda[] = [];
+
+    for (const rec of rowsRecorrentes) {
+      // Se já existe um registro físico (ex: usuário marcou como concluído hoje), pula.
+      if (idsRecorrentesProcessados.has(rec.id)) continue;
+
+      let deveIncluir = false;
+      if (rec.frequencia === 'diaria') {
+        deveIncluir = true;
+      } else if (rec.frequencia === 'dias_uteis') {
+        deveIncluir = dayOfWeek >= 1 && dayOfWeek <= 5;
+      } else if (rec.frequencia === 'semanal' && rec.dias_semana) {
+        try {
+          const dias = JSON.parse(rec.dias_semana) as number[];
+          deveIncluir = dias.includes(dayOfWeek);
+        } catch {
+          deveIncluir = false;
+        }
+      }
+
+      if (deveIncluir) {
+        atividadesVirtuais.push({
+          id: `virtual_${rec.id}_${dataYYYYMMDD}`,
+          id_recorrente: rec.id,
+          titulo: rec.titulo,
+          tipo: rec.tipo,
+          data_agendada: dataYYYYMMDD,
+          hora_inicio: rec.hora_inicio,
+          hora_fim: rec.hora_fim,
+          feedback_cansaco: rec.feedback_cansaco,
+          concluida: false,
+          isVirtual: true,
+        });
+      }
+    }
+
+    // 3. Junta tudo e ordena pelo horário de início
+    const resultadoFinal = [...unicas, ...atividadesVirtuais].sort((a, b) => {
+      const horaA = a.hora_inicio || '24:00';
+      const horaB = b.hora_inicio || '24:00';
+      return horaA.localeCompare(horaB);
+    });
+
+    return resultadoFinal;
   } catch (err) {
-    console.error('[database] Erro ao buscar atividades por data:', err);
+    console.error('[database] Erro ao mesclar atividades por data:', err);
     return [];
   }
 }
+
 
 
