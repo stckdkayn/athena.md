@@ -9,10 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { criarNovaAtividade } from '@/services/database';
+import { canScheduleActivity } from '@/services/scheduleService';
 
 interface Props {
   visible: boolean;
@@ -52,7 +54,7 @@ export default function ModalNovaAtividade({
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
   const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<number[]>([1, 3, 5]);
-  const [salvando, setSalvando] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -62,7 +64,7 @@ export default function ModalNovaAtividade({
       setDemanda(3);
       setHoraInicio('');
       setHoraFim('');
-      setSalvando(false);
+      setIsChecking(false);
     }
   }, [visible]);
 
@@ -73,29 +75,82 @@ export default function ModalNovaAtividade({
   };
 
   const handleSave = async () => {
-    if (!titulo.trim() || salvando) return;
-    setSalvando(true);
+    if (!titulo.trim()) {
+      Alert.alert('Atenção', 'Dê um nome para a atividade.');
+      return;
+    }
+    if (isChecking) return;
+
+    setIsChecking(true);
+    const dataSelecionada = dataInicial || toLocalDateStr(new Date());
 
     try {
-      const dataInicio = dataInicial || toLocalDateStr(new Date());
+      // 1. O Algoritmo avalia o Orçamento de Energia
+      const analise = await canScheduleActivity(dataSelecionada, demanda);
 
+      if (!analise.canSchedule) {
+        setIsChecking(false);
+        // O limite rígido estourou.
+        Alert.alert(
+          '🔥 Carga Mental Excedida!',
+          `Adicionar essa tarefa vai elevar sua carga de hoje para ${analise.futureLoad} pontos, passando do seu limite crítico de tolerância.\n\nO Athena recomenda remanejar esse estudo/tarefa para amanhã. Tem certeza que deseja forçar o agendamento?`,
+          [
+            { text: 'Cancelar, vou remanejar', style: 'cancel' },
+            { 
+              text: 'Sim, forçar agendamento', 
+              style: 'destructive',
+              onPress: () => executarSalvamento(dataSelecionada) 
+            }
+          ]
+        );
+      } else if (analise.futureLoad > 15) {
+        setIsChecking(false);
+        // Passou do limite ideal, mas está dentro da margem de tolerância. Avisa da dívida.
+        Alert.alert(
+          '⚠️ Limite de Tolerância',
+          `Sua carga vai para ${analise.futureLoad} pontos hoje. Amanhã o seu teto de energia será reduzido para compensar esse esforço extra.`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Continuar', onPress: () => executarSalvamento(dataSelecionada) }
+          ]
+        );
+      } else {
+        // Tudo dentro do normal
+        await executarSalvamento(dataSelecionada);
+      }
+    } catch (error) {
+      console.error('[ModalNovaAtividade] Erro ao validar atividade:', error);
+      setIsChecking(false);
+    }
+  };
+
+  // 3. Função auxiliar de salvamento real (isola o código do banco)
+  const executarSalvamento = async (data: string) => {
+    setIsChecking(true);
+    try {
       await criarNovaAtividade({
         titulo: titulo.trim(),
         tipo,
         frequencia,
-        data_inicio: dataInicio,
+        data_inicio: data,
         hora_inicio: horaInicio.trim() || undefined,
         hora_fim: horaFim.trim() || undefined,
         feedback_cansaco: demanda,
         dias_semana: frequencia === 'semanal' ? diasSemanaSelecionados : undefined,
       });
 
+      setTitulo('');
+      setHoraInicio('');
+      setHoraFim('');
+      setDemanda(3); // reseta para o padrão
+      setFrequencia('unica'); // reseta
       onSaveSuccess();
       onClose();
-    } catch (err) {
-      console.error('[ModalNovaAtividade] Erro ao salvar atividade:', err);
+    } catch (error) {
+      console.error('[ModalNovaAtividade] Erro ao salvar atividade:', error);
+      Alert.alert('Erro', 'Não foi possível salvar a atividade.');
     } finally {
-      setSalvando(false);
+      setIsChecking(false);
     }
   };
 
@@ -280,13 +335,17 @@ export default function ModalNovaAtividade({
 
             {/* Botão Salvar */}
             <TouchableOpacity
-              style={[styles.saveButton, !titulo.trim() && styles.saveButtonDisabled]}
+              style={[
+                styles.saveButton,
+                (!titulo.trim() || isChecking) && styles.saveButtonDisabled,
+                isChecking && { opacity: 0.7 },
+              ]}
               onPress={handleSave}
-              disabled={!titulo.trim() || salvando}
+              disabled={!titulo.trim() || isChecking}
               activeOpacity={0.85}
             >
               <Text style={styles.saveButtonText}>
-                {salvando ? 'Salvando...' : 'Adicionar à Agenda'}
+                {isChecking ? 'Analisando...' : 'Adicionar à Agenda'}
               </Text>
             </TouchableOpacity>
           </ScrollView>
