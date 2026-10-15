@@ -192,19 +192,27 @@ export default function DashboardScreen() {
     }
   }, [timelineItems, dataSelecionada]);
 
-  // Renderizador de cada linha da timeline vertical (com bolinhas, âncoras e marcador "Agora")
+  // Renderizador de cada linha da timeline vertical (com bolinhas conectoras, âncoras e marcador "Agora")
   const renderItemTimeline = ({ item }: { item: any }) => {
     const horaItemStr = item.hora_inicio || item.time || '00:00';
     const hourItemNum = parseInt(horaItemStr.split(':')[0], 10);
+    const currentHour = new Date().getHours();
+    const currentMin = new Date().getMinutes();
+
     const todayStr = toLocalDateStr(new Date());
-    const isPast =
-      dataSelecionada < todayStr ||
-      (dataSelecionada === todayStr && hourItemNum < new Date().getHours());
+    const isToday = dataSelecionada === todayStr;
+    const isDayPast = dataSelecionada < todayStr;
+
+    const isPast = isDayPast || (isToday && hourItemNum < currentHour);
+    const isCurrentHour = isToday && hourItemNum === currentHour;
+    // Calcula a proporção da hora atual para ir "pintando" as bolinhas
+    const percentHour = isCurrentHour ? currentMin / 60 : isPast ? 1 : 0;
+
     const circleColor = item.concluida
       ? Colors.primary
-      : isPast
-      ? '#484D54'
-      : Colors.primary;
+      : (isPast || isCurrentHour)
+      ? Colors.primary
+      : '#383D42';
 
     // 1. Renderiza âncoras fixas (6h e 22h)
     if (item.type === 'anchor') {
@@ -230,12 +238,30 @@ export default function DashboardScreen() {
       );
     }
 
-    // 3. Renderiza a Atividade Normal (usando as bolinhas de horário)
+    // 3. Renderiza a Atividade Normal (com bolinhas de horário e conectoras dinâmicas)
     return (
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
-          <Text style={[styles.timeText, isPast && styles.timeTextPast]}>{horaItemStr}</Text>
+          <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: Colors.text } : styles.timeTextPast]}>
+            {horaItemStr}
+          </Text>
           <View style={[styles.timeCircle, { backgroundColor: circleColor }]} />
+
+          {/* As bolinhas de conexão que preenchem com o tempo */}
+          <View style={styles.dottedConnection}>
+            {[0.2, 0.4, 0.6, 0.8].map((step, index) => {
+              const isDotColored = isPast || (isCurrentHour && percentHour >= step);
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.smallDot,
+                    { backgroundColor: isDotColored ? Colors.primary : '#2E3236' },
+                  ]}
+                />
+              );
+            })}
+          </View>
         </View>
 
         <TouchableOpacity
@@ -251,7 +277,7 @@ export default function DashboardScreen() {
               ]}
               numberOfLines={2}
             >
-              {item.titulo}
+              {item.icone ? `${item.icone} ` : ''}{item.titulo}
             </Text>
 
             <View style={styles.badgesRow}>
@@ -592,6 +618,18 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  dottedConnection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingVertical: 4,
+    minHeight: 30,
+  },
+  smallDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   anchorRow: {
     flexDirection: 'row',
