@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { criarNovaAtividade } from '@/services/database';
 import { canScheduleActivity } from '@/services/scheduleService';
@@ -25,7 +24,7 @@ interface Props {
 }
 
 const TIPOS_DISPONIVEIS = ['Estudo', 'Faculdade', 'Pessoal', 'Lazer'];
-const EMOJIS_PRONTOS = ['📝', '📚', '🏥', '🧑🏻‍🏫', '🏋🏻', '🍽️', '🛌', '🚗'];
+const ICONES_DISPONIVEIS = ['book', 'monitor', 'briefcase', 'coffee', 'activity', 'moon', 'sun', 'edit-2'];
 const DIAS_SEMANA_NOMES = [
   { id: 0, label: 'D' },
   { id: 1, label: 'S' },
@@ -51,21 +50,38 @@ export default function ModalNovaAtividade({
 }: Props) {
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState('Estudo');
-  const [iconeSelecionado, setIconeSelecionado] = useState('📝');
-  const [horaInicioObj, setHoraInicioObj] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [iconeSelecionado, setIconeSelecionado] = useState('book');
+  const [horaSelecionada, setHoraSelecionada] = useState('08:00');
   const [frequencia, setFrequencia] = useState<'unica' | 'diaria' | 'dias_uteis' | 'semanal'>('unica');
   const [demanda, setDemanda] = useState(3);
   const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<number[]>([1, 3, 5]);
   const [isChecking, setIsChecking] = useState(false);
 
+  // Gera horários de 15 em 15 min (ex: 00:00, 00:15... até 23:45)
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+    }
+    return slots;
+  };
+  const timeSlots = useMemo(() => generateTimeSlots(), []);
+
+  // Função para somar 1 hora automaticamente
+  const calculaHoraFim = (inicio: string) => {
+    const [h, m] = inicio.split(':').map(Number);
+    const endH = (h + 1) % 24;
+    return `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     if (visible) {
       setTitulo('');
       setTipo('Estudo');
-      setIconeSelecionado('📝');
-      setHoraInicioObj(new Date());
-      setShowTimePicker(false);
+      setIconeSelecionado('book');
+      setHoraSelecionada('08:00');
       setFrequencia('unica');
       setDemanda(3);
       setIsChecking(false);
@@ -76,13 +92,6 @@ export default function ModalNovaAtividade({
     setDiasSemanaSelecionados((prev) =>
       prev.includes(diaId) ? prev.filter((d) => d !== diaId) : [...prev, diaId]
     );
-  };
-
-  // Lógica para duração de 1 hora
-  const getHoraFim = (inicio: Date) => {
-    const fim = new Date(inicio);
-    fim.setHours(fim.getHours() + 1);
-    return `${String(fim.getHours()).padStart(2, '0')}:${String(fim.getMinutes()).padStart(2, '0')}`;
   };
 
   const handleSave = async () => {
@@ -139,23 +148,21 @@ export default function ModalNovaAtividade({
   const executarSalvamento = async (data: string) => {
     setIsChecking(true);
     try {
-      const horaInicioFormatada = `${String(horaInicioObj.getHours()).padStart(2, '0')}:${String(horaInicioObj.getMinutes()).padStart(2, '0')}`;
-
       await criarNovaAtividade({
         titulo: titulo.trim(),
         tipo,
         icone: iconeSelecionado,
         frequencia,
         data_inicio: data,
-        hora_inicio: horaInicioFormatada,
-        hora_fim: getHoraFim(horaInicioObj),
+        hora_inicio: horaSelecionada,
+        hora_fim: calculaHoraFim(horaSelecionada),
         feedback_cansaco: demanda,
         dias_semana: frequencia === 'semanal' ? diasSemanaSelecionados : undefined,
       });
 
       setTitulo('');
-      setIconeSelecionado('📝');
-      setHoraInicioObj(new Date());
+      setIconeSelecionado('book');
+      setHoraSelecionada('08:00');
       setDemanda(3); // reseta para o padrão
       setFrequencia('unica'); // reseta
       onSaveSuccess();
@@ -201,15 +208,19 @@ export default function ModalNovaAtividade({
             {/* Seletor de Ícone */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Ícone da Atividade</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-                {EMOJIS_PRONTOS.map((emoji) => (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollPillContainer}>
+                {ICONES_DISPONIVEIS.map((ic) => (
                   <TouchableOpacity
-                    key={emoji}
-                    style={[styles.emojiBtn, iconeSelecionado === emoji && styles.emojiBtnActive]}
-                    onPress={() => setIconeSelecionado(emoji)}
+                    key={ic}
+                    style={[styles.iconPill, iconeSelecionado === ic && styles.iconPillActive]}
+                    onPress={() => setIconeSelecionado(ic)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.emojiText}>{emoji}</Text>
+                    <Feather
+                      name={ic as any}
+                      size={20}
+                      color={iconeSelecionado === ic ? '#000000' : Colors.textSecondary}
+                    />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -217,36 +228,24 @@ export default function ModalNovaAtividade({
 
             {/* Seletor de Horário de Início */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Horário de Início (Duração padrão: 1h)</Text>
-              <TouchableOpacity
-                style={styles.timeSelectBtn}
-                onPress={() => setShowTimePicker(true)}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="time-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.timeSelectText}>
-                    {String(horaInicioObj.getHours()).padStart(2, '0')}:{String(horaInicioObj.getMinutes()).padStart(2, '0')}
-                  </Text>
-                </View>
-                <Text style={styles.timeSelectEndText}>
-                  Até {getHoraFim(horaInicioObj)}
-                </Text>
-              </TouchableOpacity>
-
-              {showTimePicker && (
-                <DateTimePicker
-                  value={horaInicioObj}
-                  mode="time"
-                  is24Hour={true}
-                  minuteInterval={15}
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowTimePicker(false);
-                    if (selectedDate) setHoraInicioObj(selectedDate);
-                  }}
-                />
-              )}
+              <View style={styles.sectionTitleWithSub}>
+                <Text style={styles.sectionLabel}>Horário de Início (Duração padrão: 1h)</Text>
+                <Text style={styles.sectionSublabel}>Até {calculaHoraFim(horaSelecionada)}</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollPillContainer}>
+                {timeSlots.map((time) => (
+                  <TouchableOpacity
+                    key={time}
+                    style={[styles.timePill, horaSelecionada === time && styles.timePillActive]}
+                    onPress={() => setHoraSelecionada(time)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.timePillText, horaSelecionada === time && styles.timePillTextActive]}>
+                      {time}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
             {/* Seleção de Categoria / Tipo */}
@@ -439,44 +438,45 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 18,
   },
-  emojiBtn: {
+  scrollPillContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 20,
+  },
+  iconPill: {
     width: 44,
     height: 44,
     borderRadius: 12,
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
     borderColor: '#2e3235',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    alignItems: 'center',
   },
-  emojiBtnActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.15)',
+  iconPillActive: {
+    backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  emojiText: {
-    fontSize: 22,
-  },
-  timeSelectBtn: {
+  timePill: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
     borderColor: '#2e3235',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  timeSelectText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
+  timePillActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  timeSelectEndText: {
-    fontSize: 13,
+  timePillText: {
+    fontSize: 14,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  timePillTextActive: {
+    color: '#000000',
+    fontWeight: '800',
   },
   section: {
     marginBottom: 18,

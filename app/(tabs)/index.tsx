@@ -293,15 +293,18 @@ export default function DashboardScreen() {
           activeOpacity={0.75}
         >
           <View style={styles.cardHeader}>
-            <Text
-              style={[
-                styles.activityTitle,
-                item.concluida && styles.textStrikethrough,
-              ]}
-              numberOfLines={2}
-            >
-              {item.icone ? `${item.icone} ` : ''}{item.titulo}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+              <Feather name={(item.icone as any) || 'circle'} size={18} color="#888" style={{ marginRight: 8 }} />
+              <Text
+                style={[
+                  styles.activityTitle,
+                  item.concluida && styles.textStrikethrough,
+                ]}
+                numberOfLines={2}
+              >
+                {item.titulo}
+              </Text>
+            </View>
 
             <View style={styles.badgesRow}>
               {/* Badge de Demanda Cognitiva */}
