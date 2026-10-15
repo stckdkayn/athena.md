@@ -170,15 +170,18 @@ export default function DashboardScreen() {
     let items: any[] = [...atividades];
 
     // Injeta âncora de início
-    items.push({ id: 'ancora_6h', type: 'anchor', time: '06:00', icon: 'sunrise' as const });
+    items.push({ id: 'ancora_6h', type: 'anchor_start', time: '06:00' });
     // Injeta âncora de fim
-    items.push({ id: 'ancora_22h', type: 'anchor', time: '22:00', icon: 'moon' as const });
+    items.push({ id: 'ancora_00h', type: 'anchor_end', time: '24:00' });
 
     // Ordena tudo pelo horário
     items.sort((a, b) => {
-      const horaA = a.hora_inicio || a.time || '24:00';
-      const horaB = b.hora_inicio || b.time || '24:00';
-      return horaA.localeCompare(horaB);
+      const getHora = (item: any) => {
+        if (item.type === 'anchor_start') return '05:59:59';
+        if (item.type === 'anchor_end') return '24:00';
+        return item.hora_inicio || item.time || '24:00';
+      };
+      return getHora(a).localeCompare(getHora(b));
     });
 
     return items;
@@ -214,6 +217,40 @@ export default function DashboardScreen() {
 
   // Renderizador de cada linha da timeline vertical (com bolinhas conectoras e pílula "Agora" embutida)
   const renderItemTimeline = ({ item }: { item: any }) => {
+    // 1. Renderiza âncoras fixas (6h e 00h)
+    if (item.type === 'anchor_start') {
+      return (
+        <View style={styles.anchorRow}>
+          <View style={styles.timeColumn}>
+            <Feather name="sunrise" size={20} color="#CCC" style={{ marginBottom: 4 }} />
+            <Text style={styles.timeText}>06:00</Text>
+            <View style={styles.dottedLineContainer}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <View key={i} style={[styles.smallDot, { backgroundColor: '#EAEAEA' }]} />
+              ))}
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    if (item.type === 'anchor_end') {
+      return (
+        <View style={styles.anchorRow}>
+          <View style={styles.timeColumn}>
+            <View style={styles.dottedLineContainer}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <View key={i} style={[styles.smallDot, { backgroundColor: '#EAEAEA' }]} />
+              ))}
+            </View>
+            <Text style={styles.timeText}>00:00</Text>
+            <Feather name="moon" size={20} color="#CCC" style={{ marginTop: 4 }} />
+          </View>
+        </View>
+      );
+    }
+
+    // 2. Renderiza a Atividade Normal (com trilha contínua e indicador 'Agora' embutido)
     const horaItemStr = item.hora_inicio || item.time || '00:00';
     const [itemHour, itemMin] = horaItemStr.split(':').map((v: string) => parseInt(v, 10));
     const currentHour = new Date().getHours();
@@ -239,19 +276,6 @@ export default function DashboardScreen() {
     const isPast = timePassed >= 60;
     const isCurrentHour = isToday && timePassed >= 0 && timePassed < 60;
 
-    // 1. Renderiza âncoras fixas (6h e 22h)
-    if (item.type === 'anchor') {
-      return (
-        <View style={styles.anchorRow}>
-          <View style={styles.timeColumn}>
-            <Feather name={item.icon} size={18} color="#656B73" />
-          </View>
-          <View style={styles.anchorDivider} />
-        </View>
-      );
-    }
-
-    // 2. Renderiza a Atividade Normal (com trilha contínua e indicador 'Agora' embutido)
     return (
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
@@ -686,14 +710,8 @@ const styles = StyleSheet.create({
   },
   anchorRow: {
     flexDirection: 'row',
-    marginBottom: 18,
-    alignItems: 'center',
-  },
-  anchorDivider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#282C30',
-    marginLeft: 14,
+    marginBottom: 6,
+    alignItems: 'flex-start',
   },
   activityCard: {
     flex: 1,

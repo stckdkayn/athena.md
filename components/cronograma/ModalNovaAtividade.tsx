@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
 import { criarNovaAtividade } from '@/services/database';
 import { canScheduleActivity } from '@/services/scheduleService';
@@ -24,7 +25,11 @@ interface Props {
 }
 
 const TIPOS_DISPONIVEIS = ['Estudo', 'Faculdade', 'Pessoal', 'Lazer'];
-const ICONES_DISPONIVEIS = ['book', 'monitor', 'briefcase', 'coffee', 'activity', 'moon', 'sun', 'edit-2'];
+const ICONES_DISPONIVEIS = [
+  'book', 'book-open', 'activity', 'heart', 'users', 'user', 'home', 
+  'briefcase', 'monitor', 'coffee', 'edit-2', 'zap', 'target', 
+  'award', 'clock', 'map-pin', 'folder', 'file-text'
+];
 const DIAS_SEMANA_NOMES = [
   { id: 0, label: 'D' },
   { id: 1, label: 'S' },
@@ -51,29 +56,19 @@ export default function ModalNovaAtividade({
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState('Estudo');
   const [iconeSelecionado, setIconeSelecionado] = useState('book');
-  const [horaSelecionada, setHoraSelecionada] = useState('08:00');
+  const [horaInicio, setHoraInicio] = useState(new Date());
+  const [horaFim, setHoraFim] = useState(new Date(new Date().getTime() + 60 * 60 * 1000)); // +1 hora padrão
+  const [showPickerInicio, setShowPickerInicio] = useState(false);
+  const [showPickerFim, setShowPickerFim] = useState(false);
   const [frequencia, setFrequencia] = useState<'unica' | 'diaria' | 'dias_uteis' | 'semanal'>('unica');
   const [demanda, setDemanda] = useState(3);
   const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<number[]>([1, 3, 5]);
   const [isChecking, setIsChecking] = useState(false);
 
-  // Gera horários de 15 em 15 min (ex: 00:00, 00:15... até 23:45)
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let h = 0; h < 24; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-      }
-    }
-    return slots;
-  };
-  const timeSlots = useMemo(() => generateTimeSlots(), []);
-
-  // Função para somar 1 hora automaticamente
-  const calculaHoraFim = (inicio: string) => {
-    const [h, m] = inicio.split(':').map(Number);
-    const endH = (h + 1) % 24;
-    return `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const formatTimeStr = (d: Date) => {
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
   };
 
   useEffect(() => {
@@ -81,7 +76,11 @@ export default function ModalNovaAtividade({
       setTitulo('');
       setTipo('Estudo');
       setIconeSelecionado('book');
-      setHoraSelecionada('08:00');
+      const now = new Date();
+      setHoraInicio(now);
+      setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
+      setShowPickerInicio(false);
+      setShowPickerFim(false);
       setFrequencia('unica');
       setDemanda(3);
       setIsChecking(false);
@@ -154,15 +153,17 @@ export default function ModalNovaAtividade({
         icone: iconeSelecionado,
         frequencia,
         data_inicio: data,
-        hora_inicio: horaSelecionada,
-        hora_fim: calculaHoraFim(horaSelecionada),
+        hora_inicio: formatTimeStr(horaInicio),
+        hora_fim: formatTimeStr(horaFim),
         feedback_cansaco: demanda,
         dias_semana: frequencia === 'semanal' ? diasSemanaSelecionados : undefined,
       });
 
       setTitulo('');
       setIconeSelecionado('book');
-      setHoraSelecionada('08:00');
+      const now = new Date();
+      setHoraInicio(now);
+      setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
       setDemanda(3); // reseta para o padrão
       setFrequencia('unica'); // reseta
       onSaveSuccess();
@@ -226,26 +227,65 @@ export default function ModalNovaAtividade({
               </ScrollView>
             </View>
 
-            {/* Seletor de Horário de Início */}
+            {/* Seletor de Horário (Início e Fim) */}
             <View style={styles.section}>
-              <View style={styles.sectionTitleWithSub}>
-                <Text style={styles.sectionLabel}>Horário de Início (Duração padrão: 1h)</Text>
-                <Text style={styles.sectionSublabel}>Até {calculaHoraFim(horaSelecionada)}</Text>
+              <Text style={styles.sectionLabel}>Horário (Início e Fim)</Text>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                <TouchableOpacity
+                  style={styles.nativeTimeButton}
+                  onPress={() => setShowPickerInicio(true)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="clock" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.nativeTimeText}>
+                    {horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.nativeTimeButton}
+                  onPress={() => setShowPickerFim(true)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="clock" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.nativeTimeText}>
+                    {horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollPillContainer}>
-                {timeSlots.map((time) => (
-                  <TouchableOpacity
-                    key={time}
-                    style={[styles.timePill, horaSelecionada === time && styles.timePillActive]}
-                    onPress={() => setHoraSelecionada(time)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.timePillText, horaSelecionada === time && styles.timePillTextActive]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+
+              {showPickerInicio && (
+                <DateTimePicker
+                  value={horaInicio}
+                  mode="time"
+                  is24Hour={true}
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    setShowPickerInicio(false);
+                    if (selectedDate) {
+                      setHoraInicio(selectedDate);
+                      if (horaFim <= selectedDate) {
+                        setHoraFim(new Date(selectedDate.getTime() + 60 * 60 * 1000));
+                      }
+                    }
+                  }}
+                />
+              )}
+
+              {showPickerFim && (
+                <DateTimePicker
+                  value={horaFim}
+                  mode="time"
+                  is24Hour={true}
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    setShowPickerFim(false);
+                    if (selectedDate) {
+                      setHoraFim(selectedDate);
+                    }
+                  }}
+                />
+              )}
             </View>
 
             {/* Seleção de Categoria / Tipo */}
@@ -457,26 +497,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  timePill: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  nativeTimeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
     borderColor: '#2e3235',
   },
-  timePillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  timePillText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+  nativeTimeText: {
+    fontSize: 16,
+    color: Colors.text,
     fontWeight: '600',
-  },
-  timePillTextActive: {
-    color: '#000000',
-    fontWeight: '800',
   },
   section: {
     marginBottom: 18,
