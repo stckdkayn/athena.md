@@ -80,10 +80,33 @@ export default function DashboardScreen() {
     if (diffDays === -1) return 'Ontem';
     if (diffDays === 1) return 'Amanhã';
 
-    const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    if (diffDays > 1 && diffDays < 7) return `Próxima ${weekDays[target.getDay()]}`;
+    if (diffDays > 1 && diffDays < 7) {
+      const day = target.getDay();
+      const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      // Se for Domingo (0) ou Sábado (6), usa masculino
+      const prefixo = (day === 0 || day === 6) ? 'Próximo' : 'Próxima';
+      return `${prefixo} ${weekDays[day]}`;
+    }
 
     return target.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+  };
+
+  // Lógica de Cálculo da Segunda-feira da Semana
+  const getWeekLabel = (dateString: string) => {
+    const target = new Date(dateString + 'T12:00:00Z');
+    const day = target.getDay();
+
+    // Calcula quantos dias voltar para chegar na Segunda-feira
+    // No JS, Domingo é 0. Então se for Domingo, volta 6 dias. Senão, volta (day - 1)
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+
+    const monday = new Date(target.getTime());
+    monday.setDate(target.getDate() + diffToMonday);
+
+    const dayStr = monday.getDate();
+    const monthStr = monday.toLocaleDateString('pt-BR', { month: 'long' });
+
+    return `Semana de ${dayStr} de ${monthStr}`;
   };
 
   const carregarAgenda = useCallback(async () => {
@@ -346,6 +369,9 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* NOVO: Título da Semana */}
+      <Text style={styles.weekLabel}>{getWeekLabel(dataSelecionada)}</Text>
+
       {/* 2. Seletor de Semana Estilo Calendário Folha */}
       <View style={styles.weekSelector}>
         <FlatList
@@ -458,6 +484,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  weekLabel: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: '#888', 
+    textTransform: 'uppercase', 
+    paddingHorizontal: 20, 
+    marginBottom: 12,
   },
   greeting: {
     fontSize: 22,
