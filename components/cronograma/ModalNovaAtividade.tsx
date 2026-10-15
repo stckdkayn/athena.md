@@ -254,36 +254,35 @@ export default function ModalNovaAtividade({
                 </TouchableOpacity>
               </View>
 
+              {/* Picker de Início */}
               {showPickerInicio && (
                 <DateTimePicker
                   value={horaInicio}
                   mode="time"
                   is24Hour={true}
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowPickerInicio(false);
+                  onValueChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') setShowPickerInicio(false);
                     if (selectedDate) {
                       setHoraInicio(selectedDate);
-                      if (horaFim <= selectedDate) {
-                        setHoraFim(new Date(selectedDate.getTime() + 60 * 60 * 1000));
-                      }
+                      // Atualiza automaticamente o fim para 1 hora depois
+                      setHoraFim(new Date(selectedDate.getTime() + 60 * 60 * 1000));
                     }
                   }}
+                  onDismiss={() => setShowPickerInicio(false)}
                 />
               )}
 
+              {/* Picker de Fim */}
               {showPickerFim && (
                 <DateTimePicker
                   value={horaFim}
                   mode="time"
                   is24Hour={true}
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowPickerFim(false);
-                    if (selectedDate) {
-                      setHoraFim(selectedDate);
-                    }
+                  onValueChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') setShowPickerFim(false);
+                    if (selectedDate) setHoraFim(selectedDate);
                   }}
+                  onDismiss={() => setShowPickerFim(false)}
                 />
               )}
             </View>
