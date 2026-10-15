@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     fontSize: 14, 
     fontWeight: '600', 
     color: '#888', 
-    textTransform: 'uppercase', 
+    textAlign: 'center', 
     paddingHorizontal: 20, 
     marginBottom: 12,
   },
@@ -658,10 +658,10 @@ const styles = StyleSheet.create({
     minHeight: 56, 
   },
   smallDot: { 
-    width: 4, 
-    height: 4, 
-    borderRadius: 2, 
-    marginVertical: 2, // Margem reduzida para caber mais bolinhas
+    width: 6, 
+    height: 6, 
+    borderRadius: 3, 
+    marginVertical: 1.5, 
   },
   nowDotWrapper: {
     marginVertical: 2,
