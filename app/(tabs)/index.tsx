@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,10 +29,22 @@ function toLocalDateStr(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const NOMES_MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
+// Gera um array com 15 dias (7 dias para trás, o dia atual, e 7 dias para frente)
+const gerarDiasVisiveis = () => {
+  const dias = [];
+  const hoje = new Date();
+
+  for (let i = -7; i <= 7; i++) {
+    const data = new Date(hoje);
+    data.setDate(hoje.getDate() + i);
+    dias.push({
+      dataISO: toLocalDateStr(data),
+      diaSemana: data.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+      diaMes: data.getDate(),
+    });
+  }
+  return dias;
+};
 
 export default function DashboardScreen() {
   const [atividades, setAtividades] = useState<AtividadeAgenda[]>([]);
@@ -121,47 +132,17 @@ export default function DashboardScreen() {
     ? '#FACC15'
     : Colors.primary;
 
-  // Gera os 7 dias da semana correspondente à dataSelecionada
-  const diasDaSemana = useMemo(() => {
-    const parts = dataSelecionada.split('-');
-    const refDate = parts.length === 3
-      ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
-      : new Date();
+  // Gera os dias da janela visível (15 dias centralizados no dia de hoje)
+  const diasVisiveis = useMemo(() => gerarDiasVisiveis(), []);
 
-    const dayOfWeek = refDate.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(refDate);
-    monday.setDate(refDate.getDate() + diffToMonday);
+  // Função para facilitar a formatação de "Hoje" ou data extensa no header
+  const getHeaderDateText = () => {
+    const hoje = toLocalDateStr(new Date());
+    if (dataSelecionada === hoje) return 'Hoje';
 
-    const dias = [];
-    const NOMES_DIAS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
-    const todayStr = toLocalDateStr(new Date());
-
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const dStr = toLocalDateStr(d);
-      dias.push({
-        dateStr: dStr,
-        dayNumber: d.getDate(),
-        dayAbbr: NOMES_DIAS[i],
-        isToday: dStr === todayStr,
-        isSelected: dStr === dataSelecionada,
-      });
-    }
-    return dias;
-  }, [dataSelecionada]);
-
-  // Texto descritivo do mês/semana
-  const labelSemana = useMemo(() => {
-    const parts = dataSelecionada.split('-');
-    if (parts.length === 3) {
-      const mesIdx = parseInt(parts[1], 10) - 1;
-      const ano = parts[0];
-      return `${NOMES_MESES[mesIdx]} de ${ano}`;
-    }
-    return 'Semana atual';
-  }, [dataSelecionada]);
+    const data = new Date(dataSelecionada + 'T12:00:00Z');
+    return data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  };
 
   // Renderizador de cada linha da timeline vertical
   const renderItemTimeline = ({ item, index }: { item: AtividadeAgenda; index: number }) => {
@@ -245,7 +226,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{getGreetingText()}</Text>
-          <Text style={styles.headerSubtitle}>{labelSemana}</Text>
+          <Text style={styles.dateSubtitle}>{getHeaderDateText()}</Text>
         </View>
         <TouchableOpacity
           style={styles.calendarButton}
@@ -256,43 +237,35 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 2. Seletor de Semana (Pílulas de Dias) */}
-      <View style={styles.weekSelectorContainer}>
-        <ScrollView
+      {/* 2. Seletor de Semana Horizontal */}
+      <View style={styles.weekSelector}>
+        <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.weekSelectorContent}
-        >
-          {diasDaSemana.map((dia) => (
-            <TouchableOpacity
-              key={dia.dateStr}
-              style={[
-                styles.dayPill,
-                dia.isSelected && styles.dayPillSelected,
-              ]}
-              onPress={() => setDataSelecionada(dia.dateStr)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.dayPillAbbr,
-                  dia.isSelected ? styles.dayPillTextSelected : styles.dayPillTextInactive,
-                ]}
+          data={diasVisiveis}
+          keyExtractor={(item) => item.dataISO}
+          initialScrollIndex={7} // Começa centralizado no dia de hoje
+          getItemLayout={(data, index) => ({ length: 60, offset: 60 * index, index })}
+          onScrollToIndexFailed={() => {}}
+          contentContainerStyle={styles.weekSelectorList}
+          renderItem={({ item }) => {
+            const isSelected = item.dataISO === dataSelecionada;
+            return (
+              <TouchableOpacity
+                style={[styles.dayPill, isSelected && styles.dayPillActive]}
+                onPress={() => setDataSelecionada(item.dataISO)}
+                activeOpacity={0.7}
               >
-                {dia.dayAbbr}
-              </Text>
-              <Text
-                style={[
-                  styles.dayPillNumber,
-                  dia.isSelected ? styles.dayPillTextSelected : styles.dayPillTextInactive,
-                ]}
-              >
-                {dia.dayNumber}
-              </Text>
-              {dia.isToday && !dia.isSelected && <View style={styles.todayIndicatorDot} />}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Text style={[styles.dayWeekText, isSelected && styles.dayTextActive]}>
+                  {item.diaSemana}
+                </Text>
+                <Text style={[styles.dayMonthText, isSelected && styles.dayTextActive]}>
+                  {item.diaMes}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
       </View>
 
       {/* 3. Card de Orçamento de Energia (Carga Mental Diária HUD) */}
@@ -394,10 +367,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: 13,
+  dateSubtitle: {
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
+    textTransform: 'capitalize',
   },
   calendarButton: {
     width: 40,
@@ -410,53 +384,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  /* 2. Pílulas de Semana */
-  weekSelectorContainer: {
-    marginVertical: 14,
+  /* 2. Seletor de Semana Horizontal */
+  weekSelector: {
+    marginBottom: 20,
+    marginHorizontal: -16, // margem negativa para o scroll ir até a borda da tela
   },
-  weekSelectorContent: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 2,
+  weekSelectorList: {
+    paddingHorizontal: 12,
   },
   dayPill: {
-    width: 46,
+    width: 52,
     height: 64,
-    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
     backgroundColor: Colors.surface,
+    marginHorizontal: 4,
     borderWidth: 1,
     borderColor: '#2e3235',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
   },
-  dayPillSelected: {
+  dayPillActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  dayPillAbbr: {
+  dayWeekText: {
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  dayPillNumber: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  dayPillTextSelected: {
-    color: '#000000',
-  },
-  dayPillTextInactive: {
     color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  todayIndicatorDot: {
-    position: 'absolute',
-    bottom: 5,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
+  dayMonthText: {
+    fontSize: 16,
+    color: Colors.text,
+    fontWeight: 'bold',
+  },
+  dayTextActive: {
+    color: '#000000',
   },
 
   /* 3. Card de Orçamento de Energia (HUD) */
