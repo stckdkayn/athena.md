@@ -15,10 +15,13 @@ import { Colors } from '@/constants/Colors';
 import { storage } from '@/services/storage';
 import {
   getAtividadesPorData,
-  upsertAtividadeAgenda,
+  toggleAtividadeStatus,
   AtividadeAgenda,
 } from '@/services/database';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
+
+// Limite ideal diário de carga cognitiva
+const BASE_DAILY_BUDGET = 15;
 
 function toLocalDateStr(date: Date): string {
   const year = date.getFullYear();
@@ -76,30 +79,47 @@ export default function DashboardScreen() {
     }, [carregarAgenda])
   );
 
-  // Alterna o status de concluída de uma atividade
-  const toggleConcluirAtividade = async (item: AtividadeAgenda) => {
-    const novaConcluida = !item.concluida;
-    const atualizada: AtividadeAgenda = {
-      ...item,
-      concluida: novaConcluida,
-    };
-
-    // Atualização otimista
+  // Alterna o status de concluída (materializando tarefas virtuais se necessário)
+  const handleToggle = async (atividade: AtividadeAgenda) => {
+    // Atualização otimista imediata para feedback instantâneo na UI
+    const novoStatus = !atividade.concluida;
     setAtividades((prev) =>
-      prev.map((a) => (a.id === item.id ? atualizada : a))
+      prev.map((a) => (a.id === atividade.id ? { ...a, concluida: novoStatus } : a))
     );
 
     try {
-      await upsertAtividadeAgenda(atualizada);
+      await toggleAtividadeStatus(atividade);
+      await carregarAgenda(); // Recarrega para refletir a materialização
     } catch (err) {
-      console.error('[Dashboard] Erro ao atualizar status da atividade:', err);
+      console.error('[Dashboard] Erro ao alternar status da atividade:', err);
+      carregarAgenda();
     }
   };
 
-  // Cálculos para o Card de Progresso
-  const atividadesConcluidas = atividades.filter((a) => a.concluida).length;
+  // Cálculos do Orçamento de Energia
+  const cargaTotalDoDia = useMemo(() => {
+    return atividades.reduce((acc, curr) => acc + (curr.feedback_cansaco || 0), 0);
+  }, [atividades]);
+
+  const cargaConcluida = useMemo(() => {
+    return atividades
+      .filter((a) => a.concluida)
+      .reduce((acc, curr) => acc + (curr.feedback_cansaco || 0), 0);
+  }, [atividades]);
+
+  const atividadesConcluidas = useMemo(() => {
+    return atividades.filter((a) => a.concluida).length;
+  }, [atividades]);
+
   const totalAtividades = atividades.length;
-  const progressoPorcentagem = totalAtividades > 0 ? Math.round((atividadesConcluidas / totalAtividades) * 100) : 0;
+
+  // Define a cor baseada no consumo (Vermelho se estourar, Amarelo se perto do limite, Verde/Primary normal)
+  const isOverloaded = cargaTotalDoDia > BASE_DAILY_BUDGET;
+  const energyBarColor = isOverloaded
+    ? '#EF4444'
+    : cargaTotalDoDia >= 12
+    ? '#FACC15'
+    : Colors.primary;
 
   // Gera os 7 dias da semana correspondente à dataSelecionada
   const diasDaSemana = useMemo(() => {
@@ -143,57 +163,75 @@ export default function DashboardScreen() {
     return 'Semana atual';
   }, [dataSelecionada]);
 
-  // Função para renderizar cada item da timeline (marcador na esquerda, card na direita)
+  // Renderizador de cada linha da timeline vertical
   const renderItemTimeline = ({ item, index }: { item: AtividadeAgenda; index: number }) => {
     const isLast = index === atividades.length - 1;
 
     return (
       <View style={styles.timelineRow}>
-        {/* Coluna da Esquerda: Horário e Marcador */}
+        {/* Coluna da Esquerda: Horário e Marcador Clicável */}
         <View style={styles.timeColumn}>
           <Text style={styles.timeText}>{item.hora_inicio || '--:--'}</Text>
           <TouchableOpacity
             style={[styles.timeDot, item.concluida && styles.timeDotCompleted]}
-            onPress={() => toggleConcluirAtividade(item)}
+            onPress={() => handleToggle(item)}
             activeOpacity={0.7}
           >
-            {item.concluida && <Ionicons name="checkmark" size={10} color="#000000" />}
+            {item.concluida && <Ionicons name="checkmark" size={11} color="#000000" />}
           </TouchableOpacity>
           {!isLast && <View style={styles.timeLine} />}
         </View>
 
-        {/* Coluna da Direita: Card da Atividade */}
+        {/* Coluna da Direita: Card Clicável da Atividade */}
         <TouchableOpacity
           style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
-          onPress={() => toggleConcluirAtividade(item)}
-          activeOpacity={0.8}
+          onPress={() => handleToggle(item)}
+          activeOpacity={0.75}
         >
-          <View style={styles.activityHeaderRow}>
-            <Text style={[styles.activityTitle, item.concluida && styles.activityTitleCompleted]}>
+          <View style={styles.cardHeader}>
+            <Text
+              style={[
+                styles.activityTitle,
+                item.concluida && styles.textStrikethrough,
+              ]}
+              numberOfLines={2}
+            >
               {item.titulo}
             </Text>
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{item.tipo.toUpperCase()}</Text>
+
+            <View style={styles.badgesRow}>
+              {/* Badge de Demanda Cognitiva */}
+              {typeof item.feedback_cansaco === 'number' && item.feedback_cansaco > 0 && (
+                <View style={styles.energyBadge}>
+                  <Text style={styles.energyBadgeText}>⚡ {item.feedback_cansaco}</Text>
+                </View>
+              )}
+
+              {/* Badge de Categoria */}
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>{item.tipo.toUpperCase()}</Text>
+              </View>
             </View>
           </View>
 
-          {item.hora_fim && (
-            <View style={styles.activityMetaRow}>
-              <Ionicons name="time-outline" size={13} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-              <Text style={styles.activityMetaText}>
-                {item.hora_inicio} - {item.hora_fim}
-              </Text>
-            </View>
-          )}
+          {/* Linha Meta: Horários e Indicador de Rotina */}
+          <View style={styles.metaRow}>
+            {item.hora_fim ? (
+              <View style={styles.timeRangeBox}>
+                <Ionicons name="time-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                <Text style={styles.timeRangeText}>
+                  {item.hora_inicio} - {item.hora_fim}
+                </Text>
+              </View>
+            ) : null}
 
-          {typeof item.feedback_cansaco === 'number' && item.feedback_cansaco > 0 && (
-            <View style={styles.activityCansacoRow}>
-              <Ionicons name="flash-outline" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
-              <Text style={styles.activityCansacoText}>
-                Demanda: {item.feedback_cansaco}/5
-              </Text>
-            </View>
-          )}
+            {item.isVirtual && (
+              <View style={styles.routineBox}>
+                <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
+                <Text style={styles.routineText}>Rotina</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
     );
@@ -257,37 +295,44 @@ export default function DashboardScreen() {
         </ScrollView>
       </View>
 
-      {/* 3. Card de Progresso Diário */}
-      <View style={styles.progressCard}>
-        <View style={styles.progressCardHeader}>
-          <View style={styles.progressTitleRow}>
-            <Ionicons name="checkbox-outline" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
-            <Text style={styles.progressCardTitle}>Meta Diária</Text>
+      {/* 3. Card de Orçamento de Energia (Carga Mental Diária HUD) */}
+      <View style={styles.energyCard}>
+        <View style={styles.energyHeader}>
+          <View style={styles.energyTitleRow}>
+            <Ionicons name="flash" size={17} color={energyBarColor} style={{ marginRight: 6 }} />
+            <Text style={styles.energyTitle}>Carga Mental Diária</Text>
           </View>
-          {totalAtividades > 0 && (
-            <Text style={styles.progressPercentageText}>{progressoPorcentagem}%</Text>
-          )}
+          <Text style={[styles.energyFraction, { color: energyBarColor }]}>
+            {cargaTotalDoDia} / {BASE_DAILY_BUDGET} pts
+          </Text>
         </View>
 
-        <Text style={styles.progressText}>
-          {totalAtividades > 0
-            ? `Hoje você completou ${atividadesConcluidas} de ${totalAtividades} atividades`
-            : 'Nenhuma atividade agendada para hoje'}
-        </Text>
+        {/* Barra de Progresso do Orçamento de Energia */}
+        <View style={styles.energyTrack}>
+          <View
+            style={[
+              styles.energyFill,
+              {
+                backgroundColor: energyBarColor,
+                width: `${Math.min((cargaTotalDoDia / BASE_DAILY_BUDGET) * 100, 100)}%`,
+              },
+            ]}
+          />
+        </View>
 
-        {totalAtividades > 0 && (
-          <View style={styles.progressBarTrack}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${progressoPorcentagem}%` },
-              ]}
-            />
-          </View>
-        )}
+        <View style={styles.energyFooterRow}>
+          <Text style={styles.energySubtitle}>
+            {cargaConcluida} pontos gastos • {atividadesConcluidas}/{totalAtividades} concluídas
+          </Text>
+          {isOverloaded && (
+            <View style={styles.overloadBadge}>
+              <Text style={styles.overloadBadgeText}>SOBRECARGA</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      {/* 4. Timeline Vertical (Agenda) */}
+      {/* 4. Timeline Vertical (Agenda Diária) */}
       <FlatList
         data={atividades}
         keyExtractor={(item) => item.id}
@@ -298,16 +343,16 @@ export default function DashboardScreen() {
           !loading ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={40} color="#383D42" style={{ marginBottom: 12 }} />
-              <Text style={styles.emptyTitle}>Nenhuma atividade para hoje</Text>
+              <Text style={styles.emptyTitle}>Dia livre! Nenhuma atividade agendada</Text>
               <Text style={styles.emptySubtitle}>
-                Toque no botão + para adicionar um novo compromisso ou estudo ao seu cronograma.
+                Toque no botão + abaixo para adicionar uma tarefa ou agendar um bloco de estudos.
               </Text>
             </View>
           ) : null
         }
       />
 
-      {/* 5. Floating Action Button (FAB) para adicionar nova tarefa */}
+      {/* 5. Floating Action Button (FAB) para Adicionar Nova Tarefa */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -414,51 +459,67 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
 
-  /* 3. Card de Progresso */
-  progressCard: {
+  /* 3. Card de Orçamento de Energia (HUD) */
+  energyCard: {
     backgroundColor: Colors.surface,
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#2e3235',
     marginBottom: 16,
   },
-  progressCardHeader: {
+  energyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  progressTitleRow: {
+  energyTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  progressCardTitle: {
-    fontSize: 14,
+  energyTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
   },
-  progressPercentageText: {
-    fontSize: 13,
+  energyFraction: {
+    fontSize: 15,
     fontWeight: '800',
-    color: Colors.primary,
   },
-  progressText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  progressBarTrack: {
-    height: 6,
+  energyTrack: {
+    height: 7,
     backgroundColor: '#1b1d1f',
-    borderRadius: 3,
-    marginTop: 12,
+    borderRadius: 4,
     overflow: 'hidden',
+    marginBottom: 8,
   },
-  progressBarFill: {
+  energyFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 3,
+    borderRadius: 4,
+  },
+  energyFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  energySubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  overloadBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  overloadBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#EF4444',
+    letterSpacing: 0.5,
   },
 
   /* 4. Timeline Vertical */
@@ -482,9 +543,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   timeDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: '#43484e',
     backgroundColor: Colors.surface,
@@ -507,15 +568,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.surface,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#2e3235',
   },
   activityCardCompleted: {
-    opacity: 0.55,
-    borderColor: '#222628',
+    opacity: 0.5,
+    borderColor: '#202325',
+    backgroundColor: '#1b1d1f',
   },
-  activityHeaderRow: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -527,45 +589,71 @@ const styles = StyleSheet.create({
     color: Colors.text,
     flex: 1,
   },
-  activityTitleCompleted: {
+  textStrikethrough: {
     textDecorationLine: 'line-through',
     color: Colors.textSecondary,
   },
-  typeBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  energyBadge: {
+    backgroundColor: 'rgba(234, 225, 21, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
+    borderColor: 'rgba(234, 225, 21, 0.3)',
+  },
+  energyBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  typeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   typeBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.5,
+    color: '#D1D5DB',
+    letterSpacing: 0.4,
   },
-  activityMetaRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
+    gap: 10,
   },
-  activityMetaText: {
+  timeRangeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeRangeText: {
     fontSize: 12,
     color: Colors.textSecondary,
   },
-  activityCansacoRow: {
+  routineBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    backgroundColor: 'rgba(234, 225, 21, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
-  activityCansacoText: {
-    fontSize: 11,
+  routineText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: Colors.primary,
-    fontWeight: '600',
   },
 
-  /* Empty state */
+  /* Empty State */
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',

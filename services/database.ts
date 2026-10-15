@@ -911,6 +911,49 @@ export async function criarNovaAtividade(dados: {
   }
 }
 
+/**
+ * Altera o status de conclusão de uma atividade.
+ * Se for uma ocorrência virtual de uma rotina recorrente, materializa ela no banco para este dia.
+ */
+export async function toggleAtividadeStatus(atividade: AtividadeAgenda): Promise<void> {
+  try {
+    const database = getDatabase();
+    const novoStatus = atividade.concluida ? 0 : 1;
+    const ts = Date.now();
+
+    if (atividade.isVirtual) {
+      // Materializa a atividade recorrente para este dia específico
+      const novoId = generateUUID();
+      await database.runAsync(
+        `INSERT INTO AtividadesAgenda (
+          id, id_recorrente, titulo, tipo, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          novoId,
+          atividade.id_recorrente || null,
+          atividade.titulo,
+          atividade.tipo,
+          atividade.data_agendada,
+          atividade.hora_inicio || null,
+          atividade.hora_fim || null,
+          atividade.feedback_cansaco || 0,
+          novoStatus,
+          ts,
+        ]
+      );
+    } else {
+      // Atualiza uma atividade que já existe fisicamente no dia
+      await database.runAsync(
+        `UPDATE AtividadesAgenda SET concluida = ?, timestamp = ? WHERE id = ?;`,
+        [novoStatus, ts, atividade.id]
+      );
+    }
+  } catch (err) {
+    console.error('[database] Erro ao alternar status da atividade:', err);
+  }
+}
+
+
 
 
 
