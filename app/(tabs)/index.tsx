@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,24 +51,39 @@ export default function DashboardScreen() {
   const [limiteDiario, setLimiteDiario] = useState<number>(15);
   const [loading, setLoading] = useState<boolean>(true);
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
+  const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
 
   // Busca o nome do usuário salvo localmente ou fallback
   const userName = storage.getString('@athena_user_name') || '';
 
-  const getSaudacao = (): string => {
-    const hora = new Date().getHours();
-    if (hora >= 5 && hora < 12) return 'Bom dia';
-    if (hora >= 12 && hora < 18) return 'Boa tarde';
-    return 'Boa noite';
+  // Lógica de Saudação (Sol/Lua)
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const nome = userName && userName.trim() ? userName.trim() : 'Dr.';
+    if (hour >= 5 && hour < 12) return { text: `Bom dia, ${nome}!`, icon: '🌅' };
+    if (hour >= 12 && hour < 18) return { text: `Boa tarde, ${nome}!`, icon: '☀️' };
+    return { text: `Boa noite, ${nome}!`, icon: '🌙' };
   };
+  const greeting = getGreeting();
 
-  const getGreetingText = (): string => {
-    const saudacao = getSaudacao();
-    if (userName && userName.trim()) {
-      const clean = userName.trim();
-      return `${saudacao}, ${clean}!`;
-    }
-    return `${saudacao}, Dr.!`;
+  // Lógica de Título Relativo de Datas
+  const getRelativeDateTitle = (dateString: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateString + 'T12:00:00Z');
+    target.setHours(0, 0, 0, 0);
+
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === -1) return 'Ontem';
+    if (diffDays === 1) return 'Amanhã';
+
+    const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    if (diffDays > 1 && diffDays < 7) return `Próxima ${weekDays[target.getDay()]}`;
+
+    return target.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
   };
 
   const carregarAgenda = useCallback(async () => {
@@ -116,43 +132,12 @@ export default function DashboardScreen() {
     }
   };
 
-  // Cálculos do Orçamento de Energia
-  const cargaTotalDoDia = useMemo(() => {
-    return atividades.reduce((acc, curr) => acc + (curr.feedback_cansaco || 0), 0);
-  }, [atividades]);
-
-  const cargaConcluida = useMemo(() => {
-    return atividades
-      .filter((a) => a.concluida)
-      .reduce((acc, curr) => acc + (curr.feedback_cansaco || 0), 0);
-  }, [atividades]);
-
-  const atividadesConcluidas = useMemo(() => {
-    return atividades.filter((a) => a.concluida).length;
-  }, [atividades]);
-
-  const totalAtividades = atividades.length;
-
-  // Define a cor baseada no consumo (Vermelho se estourar, Amarelo se perto do limite de 80%, Colors.primary normal)
-  const isOverloaded = cargaTotalDoDia > limiteDiario;
-  const limiteAviso = limiteDiario * 0.8;
-  const energyBarColor = isOverloaded
-    ? '#EF4444'
-    : cargaTotalDoDia >= limiteAviso
-    ? '#FACC15'
-    : Colors.primary;
+  // Variáveis para o contador de atividades
+  const concluidas = useMemo(() => atividades.filter((a) => a.concluida).length, [atividades]);
+  const total = atividades.length;
 
   // Gera os dias da janela visível (15 dias centralizados no dia de hoje)
   const diasVisiveis = useMemo(() => gerarDiasVisiveis(), []);
-
-  // Função para facilitar a formatação de "Hoje" ou data extensa no header
-  const getHeaderDateText = () => {
-    const hoje = toLocalDateStr(new Date());
-    if (dataSelecionada === hoje) return 'Hoje';
-
-    const data = new Date(dataSelecionada + 'T12:00:00Z');
-    return data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  };
 
   // Renderizador de cada linha da timeline vertical
   const renderItemTimeline = ({ item, index }: { item: AtividadeAgenda; index: number }) => {
@@ -232,30 +217,29 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
-      {/* 1. Header (Saudação e Botão Calendário) */}
+      {/* 1. Header Dinâmico (Sem barra cinza inferior) */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{getGreetingText()}</Text>
-          <Text style={styles.dateSubtitle}>{getHeaderDateText()}</Text>
-        </View>
+        <Text style={styles.greeting}>
+          {greeting.text} {greeting.icon}
+        </Text>
         <TouchableOpacity
-          style={styles.calendarButton}
-          onPress={() => setDataSelecionada(toLocalDateStr(new Date()))}
+          style={styles.calendarIconButton}
+          onPress={() => setCalendarVisible(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
+          <Text style={styles.calendarIconEmoji}>📅</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 2. Seletor de Semana Horizontal */}
+      {/* 2. Seletor de Semana Estilo Calendário Folha */}
       <View style={styles.weekSelector}>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
           data={diasVisiveis}
           keyExtractor={(item) => item.dataISO}
-          initialScrollIndex={7} // Começa centralizado no dia de hoje
-          getItemLayout={(data, index) => ({ length: 60, offset: 60 * index, index })}
+          initialScrollIndex={7}
+          getItemLayout={(data, index) => ({ length: 64, offset: 64 * index, index })}
           onScrollToIndexFailed={() => {}}
           contentContainerStyle={styles.weekSelectorList}
           renderItem={({ item }) => {
@@ -266,76 +250,50 @@ export default function DashboardScreen() {
                 onPress={() => setDataSelecionada(item.dataISO)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.dayWeekText, isSelected && styles.dayTextActive]}>
-                  {item.diaSemana}
-                </Text>
-                <Text style={[styles.dayMonthText, isSelected && styles.dayTextActive]}>
-                  {item.diaMes}
-                </Text>
+                <View style={[styles.dayWeekContainer, isSelected && styles.dayWeekContainerActive]}>
+                  <Text style={[styles.dayWeekText, isSelected && styles.dayTextActive]}>
+                    {item.diaSemana}
+                  </Text>
+                </View>
+                <View style={styles.dayMonthContainer}>
+                  <Text style={[styles.dayMonthText, isSelected && styles.dayTextActive]}>
+                    {item.diaMes}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           }}
         />
       </View>
 
-      {/* 3. Card de Orçamento de Energia (Carga Mental Diária HUD) */}
-      <View style={styles.energyCard}>
-        <View style={styles.energyHeader}>
-          <View style={styles.energyTitleRow}>
-            <Ionicons name="flash" size={17} color={energyBarColor} style={{ marginRight: 6 }} />
-            <Text style={styles.energyTitle}>Carga Mental Diária</Text>
-          </View>
-          <Text style={[styles.energyFraction, { color: energyBarColor }]}>
-            {cargaTotalDoDia} / {limiteDiario} pts
-          </Text>
-        </View>
+      {/* 3. Container Board das Atividades */}
+      <View style={styles.boardContainer}>
+        <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
+        <Text style={styles.boardSubtitle}>
+          Você completou {concluidas}/{total} {total === 1 ? 'atividade programada' : 'atividades programadas'} para {getRelativeDateTitle(dataSelecionada).toLowerCase()}!
+        </Text>
 
-        {/* Barra de Progresso do Orçamento de Energia */}
-        <View style={styles.energyTrack}>
-          <View
-            style={[
-              styles.energyFill,
-              {
-                backgroundColor: energyBarColor,
-                width: `${Math.min((cargaTotalDoDia / limiteDiario) * 100, 100)}%`,
-              },
-            ]}
-          />
-        </View>
-
-        <View style={styles.energyFooterRow}>
-          <Text style={styles.energySubtitle}>
-            {cargaConcluida} pontos gastos • {atividadesConcluidas}/{totalAtividades} concluídas
-          </Text>
-          {isOverloaded && (
-            <View style={styles.overloadBadge}>
-              <Text style={styles.overloadBadgeText}>SOBRECARGA</Text>
-            </View>
-          )}
-        </View>
+        <FlatList
+          data={atividades}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItemTimeline}
+          contentContainerStyle={styles.timelineContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="calendar-outline" size={38} color="#383D42" style={{ marginBottom: 10 }} />
+                <Text style={styles.emptyTitle}>Nenhuma atividade programada</Text>
+                <Text style={styles.emptySubtitle}>
+                  Toque no botão + abaixo para adicionar uma tarefa ou agendar um bloco de estudos.
+                </Text>
+              </View>
+            ) : null
+          }
+        />
       </View>
 
-      {/* 4. Timeline Vertical (Agenda Diária) */}
-      <FlatList
-        data={atividades}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItemTimeline}
-        contentContainerStyle={styles.timelineContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="calendar-outline" size={40} color="#383D42" style={{ marginBottom: 12 }} />
-              <Text style={styles.emptyTitle}>Dia livre! Nenhuma atividade agendada</Text>
-              <Text style={styles.emptySubtitle}>
-                Toque no botão + abaixo para adicionar uma tarefa ou agendar um bloco de estudos.
-              </Text>
-            </View>
-          ) : null
-        }
-      />
-
-      {/* 5. Floating Action Button (FAB) para Adicionar Nova Tarefa */}
+      {/* 4. Floating Action Button (FAB) para Adicionar Nova Tarefa */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -351,6 +309,21 @@ export default function DashboardScreen() {
         onSaveSuccess={carregarAgenda}
         dataInicial={dataSelecionada}
       />
+
+      {/* Modal Temporário do Calendário Mensal */}
+      <Modal visible={calendarVisible} transparent animationType="fade" onRequestClose={() => setCalendarVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCalendarVisible(false)}>
+          <View style={styles.calendarModalContent}>
+            <Text style={styles.calendarModalTitle}>Navegação Mensal</Text>
+            <Text style={styles.calendarModalSubtitle}>
+              Selecione um dia (Implementação do react-native-calendars pendente)
+            </Text>
+            <TouchableOpacity style={styles.closeCalButton} onPress={() => setCalendarVisible(false)}>
+              <Text style={styles.closeCalButtonText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -360,16 +333,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e2124',
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   greeting: {
     fontSize: 22,
@@ -377,55 +348,66 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.5,
   },
-  dateSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    textTransform: 'capitalize',
-  },
-  calendarButton: {
+  calendarIconButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: '#2e3235',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarIconEmoji: {
+    fontSize: 18,
   },
 
-  /* 2. Seletor de Semana Horizontal */
+  /* 2. Seletor de Semana Folha */
   weekSelector: {
-    marginBottom: 20,
-    marginHorizontal: -16, // margem negativa para o scroll ir até a borda da tela
+    marginBottom: 16,
   },
   weekSelectorList: {
     paddingHorizontal: 12,
   },
   dayPill: {
-    width: 52,
-    height: 64,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
+    width: 56,
+    height: 70,
+    borderRadius: 12,
     backgroundColor: Colors.surface,
     marginHorizontal: 4,
     borderWidth: 1,
     borderColor: '#2e3235',
+    overflow: 'hidden',
   },
   dayPillActive: {
-    backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+  },
+  dayWeekContainer: {
+    backgroundColor: '#1c1f22',
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#282b2e',
+  },
+  dayWeekContainerActive: {
+    backgroundColor: '#D1CA10',
+    borderBottomColor: '#B8B20E',
+  },
+  dayMonthContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayWeekText: {
     fontSize: 11,
     color: Colors.textSecondary,
     textTransform: 'uppercase',
     fontWeight: '700',
-    marginBottom: 4,
   },
   dayMonthText: {
-    fontSize: 16,
+    fontSize: 18,
     color: Colors.text,
     fontWeight: 'bold',
   },
@@ -433,67 +415,71 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
 
-  /* 3. Card de Orçamento de Energia (HUD) */
-  energyCard: {
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2e3235',
+  /* 3. Board Container */
+  boardContainer: {
+    flex: 1,
+    backgroundColor: '#181a1c',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#282c30',
+  },
+  boardTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  boardSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
     marginBottom: 16,
   },
-  energyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+
+  /* Modal Calendário */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    padding: 20,
   },
-  energyTitleRow: {
-    flexDirection: 'row',
+  calendarModalContent: {
+    backgroundColor: Colors.surface,
+    padding: 24,
+    borderRadius: 20,
+    width: '90%',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2e3235',
   },
-  energyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  energyFraction: {
-    fontSize: 15,
+  calendarModalTitle: {
+    fontSize: 20,
     fontWeight: '800',
-  },
-  energyTrack: {
-    height: 7,
-    backgroundColor: '#1b1d1f',
-    borderRadius: 4,
-    overflow: 'hidden',
+    color: Colors.text,
     marginBottom: 8,
   },
-  energyFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  energyFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  energySubtitle: {
-    fontSize: 12,
+  calendarModalSubtitle: {
+    fontSize: 14,
     color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
   },
-  overloadBadge: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.35)',
+  closeCalButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  overloadBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#EF4444',
-    letterSpacing: 0.5,
+  closeCalButtonText: {
+    color: '#000000',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 
   /* 4. Timeline Vertical */
