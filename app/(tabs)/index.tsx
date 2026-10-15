@@ -17,10 +17,8 @@ import {
   toggleAtividadeStatus,
   AtividadeAgenda,
 } from '@/services/database';
+import { getAdjustedDailyBudget } from '@/services/scheduleService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
-
-// Limite ideal diário de carga cognitiva
-const BASE_DAILY_BUDGET = 15;
 
 function toLocalDateStr(date: Date): string {
   const year = date.getFullYear();
@@ -49,6 +47,7 @@ const gerarDiasVisiveis = () => {
 export default function DashboardScreen() {
   const [atividades, setAtividades] = useState<AtividadeAgenda[]>([]);
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => toLocalDateStr(new Date()));
+  const [limiteDiario, setLimiteDiario] = useState<number>(15);
   const [loading, setLoading] = useState<boolean>(true);
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
 
@@ -74,8 +73,18 @@ export default function DashboardScreen() {
   const carregarAgenda = useCallback(async () => {
     setLoading(true);
     try {
+      // 1. Busca as atividades do dia selecionado
       const dados = await getAtividadesPorData(dataSelecionada);
       setAtividades(dados);
+
+      // 2. Calcula a data do dia anterior (para verificar eventual "dívida de cansaço")
+      const dataAtual = new Date(dataSelecionada + 'T12:00:00Z');
+      dataAtual.setDate(dataAtual.getDate() - 1);
+      const dataAnteriorISO = toLocalDateStr(dataAtual);
+
+      // 3. Busca o orçamento ajustado (limite dinâmico)
+      const orcamentoAjustado = await getAdjustedDailyBudget(dataSelecionada, dataAnteriorISO);
+      setLimiteDiario(orcamentoAjustado);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar agenda:', error);
     } finally {
@@ -124,11 +133,12 @@ export default function DashboardScreen() {
 
   const totalAtividades = atividades.length;
 
-  // Define a cor baseada no consumo (Vermelho se estourar, Amarelo se perto do limite, Verde/Primary normal)
-  const isOverloaded = cargaTotalDoDia > BASE_DAILY_BUDGET;
+  // Define a cor baseada no consumo (Vermelho se estourar, Amarelo se perto do limite de 80%, Colors.primary normal)
+  const isOverloaded = cargaTotalDoDia > limiteDiario;
+  const limiteAviso = limiteDiario * 0.8;
   const energyBarColor = isOverloaded
     ? '#EF4444'
-    : cargaTotalDoDia >= 12
+    : cargaTotalDoDia >= limiteAviso
     ? '#FACC15'
     : Colors.primary;
 
@@ -276,7 +286,7 @@ export default function DashboardScreen() {
             <Text style={styles.energyTitle}>Carga Mental Diária</Text>
           </View>
           <Text style={[styles.energyFraction, { color: energyBarColor }]}>
-            {cargaTotalDoDia} / {BASE_DAILY_BUDGET} pts
+            {cargaTotalDoDia} / {limiteDiario} pts
           </Text>
         </View>
 
@@ -287,7 +297,7 @@ export default function DashboardScreen() {
               styles.energyFill,
               {
                 backgroundColor: energyBarColor,
-                width: `${Math.min((cargaTotalDoDia / BASE_DAILY_BUDGET) * 100, 100)}%`,
+                width: `${Math.min((cargaTotalDoDia / limiteDiario) * 100, 100)}%`,
               },
             ]}
           />
