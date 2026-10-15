@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { storage } from '@/services/storage';
@@ -56,13 +56,13 @@ export default function DashboardScreen() {
   // Busca o nome do usuário salvo localmente ou fallback
   const userName = storage.getString('@athena_user_name') || '';
 
-  // Lógica de Saudação (Sol/Lua)
+  // Lógica de Saudação (Sol/Lua com Feather Icons)
   const getGreeting = () => {
     const hour = new Date().getHours();
     const nome = userName && userName.trim() ? userName.trim() : 'Dr.';
-    if (hour >= 5 && hour < 12) return { text: `Bom dia, ${nome}!`, icon: '🌅' };
-    if (hour >= 12 && hour < 18) return { text: `Boa tarde, ${nome}!`, icon: '☀️' };
-    return { text: `Boa noite, ${nome}!`, icon: '🌙' };
+    if (hour >= 5 && hour < 12) return { text: `Bom dia, ${nome}!`, icon: 'sunrise' as const };
+    if (hour >= 12 && hour < 18) return { text: `Boa tarde, ${nome}!`, icon: 'sun' as const };
+    return { text: `Boa noite, ${nome}!`, icon: 'moon' as const };
   };
   const greeting = getGreeting();
 
@@ -139,26 +139,105 @@ export default function DashboardScreen() {
   // Gera os dias da janela visível (15 dias centralizados no dia de hoje)
   const diasVisiveis = useMemo(() => gerarDiasVisiveis(), []);
 
-  // Renderizador de cada linha da timeline vertical
-  const renderItemTimeline = ({ item, index }: { item: AtividadeAgenda; index: number }) => {
-    const isLast = index === atividades.length - 1;
+  // Referência para o auto-scroll
+  const flatListRef = useRef<FlatList>(null);
 
+  // Processamento da Timeline (Injetando âncoras e o marcador 'Agora')
+  const timelineItems = useMemo(() => {
+    const todayStr = toLocalDateStr(new Date());
+    const isToday = dataSelecionada === todayStr;
+    const currentHour = new Date().getHours();
+    const currentMin = new Date().getMinutes();
+    const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
+
+    let items: any[] = [...atividades];
+
+    // Injeta âncora de início
+    items.push({ id: 'ancora_6h', type: 'anchor', time: '06:00', icon: 'sunrise' as const });
+    // Injeta âncora de fim
+    items.push({ id: 'ancora_22h', type: 'anchor', time: '22:00', icon: 'moon' as const });
+
+    // Se for o dia de hoje, injeta o marcador "Agora"
+    if (isToday) {
+      items.push({ id: 'marcador_agora', type: 'now_marker', time: currentTimeStr });
+    }
+
+    // Ordena tudo pelo horário
+    items.sort((a, b) => {
+      const horaA = a.hora_inicio || a.time || '24:00';
+      const horaB = b.hora_inicio || b.time || '24:00';
+      return horaA.localeCompare(horaB);
+    });
+
+    return items;
+  }, [atividades, dataSelecionada]);
+
+  // Efeito de auto-scroll para o momento atual (se for hoje)
+  useEffect(() => {
+    if (timelineItems.length > 0 && flatListRef.current) {
+      const todayStr = toLocalDateStr(new Date());
+      const isToday = dataSelecionada === todayStr;
+      if (isToday) {
+        const indexAgora = timelineItems.findIndex((i) => i.id === 'marcador_agora');
+        if (indexAgora > 0) {
+          const timer = setTimeout(() => {
+            flatListRef.current?.scrollToIndex({
+              index: Math.max(0, indexAgora - 1),
+              animated: true,
+            });
+          }, 350);
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [timelineItems, dataSelecionada]);
+
+  // Renderizador de cada linha da timeline vertical (com bolinhas, âncoras e marcador "Agora")
+  const renderItemTimeline = ({ item }: { item: any }) => {
+    const horaItemStr = item.hora_inicio || item.time || '00:00';
+    const hourItemNum = parseInt(horaItemStr.split(':')[0], 10);
+    const todayStr = toLocalDateStr(new Date());
+    const isPast =
+      dataSelecionada < todayStr ||
+      (dataSelecionada === todayStr && hourItemNum < new Date().getHours());
+    const circleColor = item.concluida
+      ? Colors.primary
+      : isPast
+      ? '#484D54'
+      : Colors.primary;
+
+    // 1. Renderiza âncoras fixas (6h e 22h)
+    if (item.type === 'anchor') {
+      return (
+        <View style={styles.anchorRow}>
+          <View style={styles.timeColumn}>
+            <Feather name={item.icon} size={18} color="#656B73" />
+          </View>
+          <View style={styles.anchorDivider} />
+        </View>
+      );
+    }
+
+    // 2. Renderiza o Marcador "Agora"
+    if (item.type === 'now_marker') {
+      return (
+        <View style={styles.nowMarkerRow}>
+          <View style={styles.nowMarkerPill}>
+            <Text style={styles.nowMarkerText}>Agora</Text>
+          </View>
+          <View style={styles.nowMarkerLine} />
+        </View>
+      );
+    }
+
+    // 3. Renderiza a Atividade Normal (usando as bolinhas de horário)
     return (
       <View style={styles.timelineRow}>
-        {/* Coluna da Esquerda: Horário e Marcador Clicável */}
         <View style={styles.timeColumn}>
-          <Text style={styles.timeText}>{item.hora_inicio || '--:--'}</Text>
-          <TouchableOpacity
-            style={[styles.timeDot, item.concluida && styles.timeDotCompleted]}
-            onPress={() => handleToggle(item)}
-            activeOpacity={0.7}
-          >
-            {item.concluida && <Ionicons name="checkmark" size={11} color="#000000" />}
-          </TouchableOpacity>
-          {!isLast && <View style={styles.timeLine} />}
+          <Text style={[styles.timeText, isPast && styles.timeTextPast]}>{horaItemStr}</Text>
+          <View style={[styles.timeCircle, { backgroundColor: circleColor }]} />
         </View>
 
-        {/* Coluna da Direita: Card Clicável da Atividade */}
         <TouchableOpacity
           style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
           onPress={() => handleToggle(item)}
@@ -219,15 +298,16 @@ export default function DashboardScreen() {
 
       {/* 1. Header Dinâmico (Sem barra cinza inferior) */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>
-          {greeting.text} {greeting.icon}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={styles.greeting}>{greeting.text}</Text>
+          <Feather name={greeting.icon} size={24} color={Colors.primary} />
+        </View>
         <TouchableOpacity
           style={styles.calendarIconButton}
           onPress={() => setCalendarVisible(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.calendarIconEmoji}>📅</Text>
+          <Feather name="calendar" size={20} color={Colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -239,7 +319,7 @@ export default function DashboardScreen() {
           data={diasVisiveis}
           keyExtractor={(item) => item.dataISO}
           initialScrollIndex={7}
-          getItemLayout={(data, index) => ({ length: 64, offset: 64 * index, index })}
+          getItemLayout={(data, index) => ({ length: 60, offset: 60 * index, index })}
           onScrollToIndexFailed={() => {}}
           contentContainerStyle={styles.weekSelectorList}
           renderItem={({ item }) => {
@@ -274,11 +354,13 @@ export default function DashboardScreen() {
         </Text>
 
         <FlatList
-          data={atividades}
+          ref={flatListRef}
+          data={timelineItems}
           keyExtractor={(item) => item.id}
           renderItem={renderItemTimeline}
           contentContainerStyle={styles.timelineContainer}
           showsVerticalScrollIndicator={false}
+          onScrollToIndexFailed={() => {}}
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyContainer}>
@@ -370,11 +452,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   dayPill: {
-    width: 56,
-    height: 70,
-    borderRadius: 12,
+    width: 48,
+    height: 60,
+    borderRadius: 10,
     backgroundColor: Colors.surface,
-    marginHorizontal: 4,
+    marginHorizontal: 6,
     borderWidth: 1,
     borderColor: '#2e3235',
     overflow: 'hidden',
@@ -407,7 +489,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dayMonthText: {
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.text,
     fontWeight: 'bold',
   },
@@ -492,37 +574,60 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   timeColumn: {
-    width: 54,
+    width: 50,
     alignItems: 'center',
     marginRight: 10,
+    marginTop: 4,
   },
   timeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.textSecondary,
     marginBottom: 6,
   },
-  timeDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: '#43484e',
-    backgroundColor: Colors.surface,
+  timeTextPast: {
+    color: '#555A62',
+  },
+  timeCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  anchorRow: {
+    flexDirection: 'row',
+    marginBottom: 18,
     alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
   },
-  timeDotCompleted: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  timeLine: {
-    width: 2,
+  anchorDivider: {
     flex: 1,
-    backgroundColor: '#282c30',
-    marginTop: 2,
-    zIndex: 0,
+    height: 1,
+    backgroundColor: '#282C30',
+    marginLeft: 14,
+  },
+  nowMarkerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    marginTop: -4,
+  },
+  nowMarkerPill: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  nowMarkerText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  nowMarkerLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#3B82F6',
+    marginLeft: 12,
+    opacity: 0.4,
   },
   activityCard: {
     flex: 1,
