@@ -239,12 +239,6 @@ export default function DashboardScreen() {
     const isPast = timePassed >= 60;
     const isCurrentHour = isToday && timePassed >= 0 && timePassed < 60;
 
-    const circleColor = item.concluida
-      ? Colors.primary
-      : (isPast || isCurrentHour)
-      ? Colors.primary
-      : '#383D42';
-
     // 1. Renderiza âncoras fixas (6h e 22h)
     if (item.type === 'anchor') {
       return (
@@ -264,7 +258,6 @@ export default function DashboardScreen() {
           <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: Colors.text } : styles.timeTextPast]}>
             {horaItemStr}
           </Text>
-          <View style={[styles.timeCircle, { backgroundColor: circleColor }]} />
 
           {/* Trilha de Progresso do Tempo */}
           <View style={styles.dottedLineContainer}>
@@ -650,22 +643,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.textSecondary,
-    marginBottom: 4,
     marginTop: 2,
+    marginBottom: 6,
   },
   timeTextPast: {
     color: '#555A62',
-  },
-  timeCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
   dottedLineContainer: { 
     flex: 1, 
     alignItems: 'center', 
     justifyContent: 'space-evenly', 
-    paddingTop: 4,
+    paddingTop: 2,
     paddingBottom: 2, 
     minHeight: 56, 
   },
