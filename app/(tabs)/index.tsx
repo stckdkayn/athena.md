@@ -18,6 +18,7 @@ import {
   upsertAtividadeAgenda,
   AtividadeAgenda,
 } from '@/services/database';
+import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 
 function toLocalDateStr(date: Date): string {
   const year = date.getFullYear();
@@ -35,6 +36,7 @@ export default function DashboardScreen() {
   const [atividades, setAtividades] = useState<AtividadeAgenda[]>([]);
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => toLocalDateStr(new Date()));
   const [loading, setLoading] = useState<boolean>(true);
+  const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
 
   // Busca o nome do usuário salvo localmente ou fallback
   const userName = storage.getString('@athena_user_name') || '';
@@ -55,31 +57,23 @@ export default function DashboardScreen() {
     return `${saudacao}, Dr.!`;
   };
 
+  const carregarAgenda = useCallback(async () => {
+    setLoading(true);
+    try {
+      const dados = await getAtividadesPorData(dataSelecionada);
+      setAtividades(dados);
+    } catch (error) {
+      console.error('[Dashboard] Erro ao carregar agenda:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [dataSelecionada]);
+
   // Busca as atividades sempre que a tela ganha foco ou a data muda
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      const carregarAgenda = async () => {
-        setLoading(true);
-        try {
-          const dados = await getAtividadesPorData(dataSelecionada);
-          if (isActive) {
-            setAtividades(dados);
-          }
-        } catch (error) {
-          console.error('[Dashboard] Erro ao carregar agenda:', error);
-        } finally {
-          if (isActive) setLoading(false);
-        }
-      };
-
       carregarAgenda();
-
-      return () => {
-        isActive = false;
-      };
-    }, [dataSelecionada])
+    }, [carregarAgenda])
   );
 
   // Alterna o status de concluída de uma atividade
@@ -317,12 +311,18 @@ export default function DashboardScreen() {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => {
-          // Ação para criar nova atividade na agenda
-        }}
+        onPress={() => setModalNovaVisible(true)}
       >
         <Ionicons name="add" size={28} color="#000000" />
       </TouchableOpacity>
+
+      {/* Modal para Adicionar Nova Atividade */}
+      <ModalNovaAtividade
+        visible={modalNovaVisible}
+        onClose={() => setModalNovaVisible(false)}
+        onSaveSuccess={carregarAgenda}
+        dataInicial={dataSelecionada}
+      />
     </SafeAreaView>
   );
 }

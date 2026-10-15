@@ -846,5 +846,71 @@ export async function getAtividadesPorData(dataYYYYMMDD: string): Promise<Ativid
   }
 }
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Cria uma nova atividade, gravando como única em AtividadesAgenda
+ * ou como molde recorrente em AtividadesRecorrentes.
+ */
+export async function criarNovaAtividade(dados: {
+  titulo: string;
+  tipo: string;
+  frequencia: 'unica' | 'diaria' | 'dias_uteis' | 'semanal';
+  data_inicio: string; // YYYY-MM-DD
+  hora_inicio?: string;
+  hora_fim?: string;
+  feedback_cansaco: number;
+  dias_semana?: number[]; // Para semanal ex: [1, 3, 5]
+}): Promise<void> {
+  const database = getDatabase();
+  const id = generateUUID();
+  const ts = Date.now();
+
+  if (dados.frequencia === 'unica') {
+    await database.runAsync(
+      `INSERT INTO AtividadesAgenda (id, titulo, tipo, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?);`,
+      [
+        id,
+        dados.titulo.trim(),
+        dados.tipo.trim(),
+        dados.data_inicio,
+        dados.hora_inicio || null,
+        dados.hora_fim || null,
+        dados.feedback_cansaco || 0,
+        ts,
+      ]
+    );
+  } else {
+    const diasStr = dados.dias_semana && dados.dias_semana.length > 0 ? JSON.stringify(dados.dias_semana) : null;
+    await database.runAsync(
+      `INSERT INTO AtividadesRecorrentes (id, titulo, tipo, frequencia, dias_semana, data_inicio, hora_inicio, hora_fim, feedback_cansaco, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        id,
+        dados.titulo.trim(),
+        dados.tipo.trim(),
+        dados.frequencia,
+        diasStr,
+        dados.data_inicio,
+        dados.hora_inicio || null,
+        dados.hora_fim || null,
+        dados.feedback_cansaco || 0,
+        ts,
+      ]
+    );
+  }
+}
+
+
 
 
