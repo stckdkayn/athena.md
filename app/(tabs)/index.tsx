@@ -258,8 +258,6 @@ export default function DashboardScreen() {
     }
 
     // 2. Renderiza a Atividade Normal (com trilha contínua e indicador 'Agora' embutido)
-    const trilhaDots = [0, 1, 2, 3];
-
     return (
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
@@ -270,10 +268,10 @@ export default function DashboardScreen() {
 
           {/* Trilha de Progresso do Tempo */}
           <View style={styles.dottedLineContainer}>
-            {trilhaDots.map((dot, i) => {
-              // Cada bolinha representa um salto de 15 min.
-              const threshold = i * 15;
-              const nextThreshold = (i + 1) * 15;
+            {[0, 1, 2, 3, 4, 5].map((i) => {
+              // Agora são 6 bolinhas, cada uma representando um degrau de 10 min.
+              const threshold = i * 10;
+              const nextThreshold = (i + 1) * 10;
 
               const isPastDot = timePassed >= nextThreshold;
               const isNowDot = timePassed >= threshold && timePassed < nextThreshold;
@@ -283,7 +281,7 @@ export default function DashboardScreen() {
                 return (
                   <View key={i} style={styles.nowDotWrapper}>
                     <View style={styles.nowDotPill}>
-                      <Text style={styles.nowDotText}>Agora</Text>
+                      <Text style={styles.nowDotText} numberOfLines={1}>AGORA</Text>
                     </View>
                   </View>
                 );
@@ -665,33 +663,33 @@ const styles = StyleSheet.create({
   dottedLineContainer: { 
     flex: 1, 
     alignItems: 'center', 
-    justifyContent: 'space-evenly', 
+    justifyContent: 'space-between', // Espalha as 6 bolinhas preenchendo a coluna inteira
     paddingVertical: 2, 
-    minHeight: 50,
+    minHeight: 60, // Aumentamos um pouco a altura mínima para caber as 6 bolinhas confortavelmente
   },
   smallDot: { 
     width: 4, 
     height: 4, 
     borderRadius: 2, 
-    marginVertical: 4,
+    marginVertical: 2, // Margem reduzida para caber mais bolinhas
   },
   nowDotWrapper: {
-    marginVertical: 4,
+    marginVertical: 2,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
   nowDotPill: {
-    backgroundColor: Colors.primary, // Mesma cor das bolinhas ativas
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 4, // Reduzido para caber na coluna
+    paddingVertical: 3,
+    borderRadius: 8, // Borda um pouco menor para acompanhar o tamanho
   },
   nowDotText: {
     color: '#000000',
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontSize: 8, // Fonte reduzida para não quebrar linha
+    fontWeight: '800',
+    letterSpacing: 0.5, // Dá um pequeno respiro entre as letras
   },
   anchorRow: {
     flexDirection: 'row',
