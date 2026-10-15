@@ -142,25 +142,14 @@ export default function DashboardScreen() {
   // Referência para o auto-scroll
   const flatListRef = useRef<FlatList>(null);
 
-  // Processamento da Timeline (Injetando âncoras e o marcador 'Agora')
+  // Processamento da Timeline (Injetando âncoras de 6h e 22h)
   const timelineItems = useMemo(() => {
-    const todayStr = toLocalDateStr(new Date());
-    const isToday = dataSelecionada === todayStr;
-    const currentHour = new Date().getHours();
-    const currentMin = new Date().getMinutes();
-    const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
-
     let items: any[] = [...atividades];
 
     // Injeta âncora de início
     items.push({ id: 'ancora_6h', type: 'anchor', time: '06:00', icon: 'sunrise' as const });
     // Injeta âncora de fim
     items.push({ id: 'ancora_22h', type: 'anchor', time: '22:00', icon: 'moon' as const });
-
-    // Se for o dia de hoje, injeta o marcador "Agora"
-    if (isToday) {
-      items.push({ id: 'marcador_agora', type: 'now_marker', time: currentTimeStr });
-    }
 
     // Ordena tudo pelo horário
     items.sort((a, b) => {
@@ -170,7 +159,7 @@ export default function DashboardScreen() {
     });
 
     return items;
-  }, [atividades, dataSelecionada]);
+  }, [atividades]);
 
   // Efeito de auto-scroll para o momento atual (se for hoje)
   useEffect(() => {
@@ -178,11 +167,19 @@ export default function DashboardScreen() {
       const todayStr = toLocalDateStr(new Date());
       const isToday = dataSelecionada === todayStr;
       if (isToday) {
-        const indexAgora = timelineItems.findIndex((i) => i.id === 'marcador_agora');
-        if (indexAgora > 0) {
+        const currentHour = new Date().getHours();
+        const currentMin = new Date().getMinutes();
+        const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
+
+        let targetIndex = timelineItems.findIndex((i) => {
+          const itemHora = i.hora_inicio || i.time || '24:00';
+          return itemHora >= currentTimeStr;
+        });
+
+        if (targetIndex > 0) {
           const timer = setTimeout(() => {
             flatListRef.current?.scrollToIndex({
-              index: Math.max(0, indexAgora - 1),
+              index: Math.max(0, targetIndex - 1),
               animated: true,
             });
           }, 350);
@@ -192,21 +189,32 @@ export default function DashboardScreen() {
     }
   }, [timelineItems, dataSelecionada]);
 
-  // Renderizador de cada linha da timeline vertical (com bolinhas conectoras, âncoras e marcador "Agora")
+  // Renderizador de cada linha da timeline vertical (com bolinhas conectoras e pílula "Agora" embutida)
   const renderItemTimeline = ({ item }: { item: any }) => {
     const horaItemStr = item.hora_inicio || item.time || '00:00';
-    const hourItemNum = parseInt(horaItemStr.split(':')[0], 10);
+    const [itemHour, itemMin] = horaItemStr.split(':').map((v: string) => parseInt(v, 10));
     const currentHour = new Date().getHours();
     const currentMin = new Date().getMinutes();
 
     const todayStr = toLocalDateStr(new Date());
     const isToday = dataSelecionada === todayStr;
     const isDayPast = dataSelecionada < todayStr;
+    const isDayFuture = dataSelecionada > todayStr;
 
-    const isPast = isDayPast || (isToday && hourItemNum < currentHour);
-    const isCurrentHour = isToday && hourItemNum === currentHour;
-    // Calcula a proporção da hora atual para ir "pintando" as bolinhas
-    const percentHour = isCurrentHour ? currentMin / 60 : isPast ? 1 : 0;
+    // Tempo passado em minutos desde o início desta atividade
+    let timePassed = 0;
+    if (isDayPast) {
+      timePassed = 9999;
+    } else if (isDayFuture) {
+      timePassed = -9999;
+    } else {
+      const itemStartMinutes = itemHour * 60 + (itemMin || 0);
+      const currentTotalMinutes = currentHour * 60 + currentMin;
+      timePassed = currentTotalMinutes - itemStartMinutes;
+    }
+
+    const isPast = timePassed >= 60;
+    const isCurrentHour = isToday && timePassed >= 0 && timePassed < 60;
 
     const circleColor = item.concluida
       ? Colors.primary
@@ -226,19 +234,9 @@ export default function DashboardScreen() {
       );
     }
 
-    // 2. Renderiza o Marcador "Agora"
-    if (item.type === 'now_marker') {
-      return (
-        <View style={styles.nowMarkerRow}>
-          <View style={styles.nowMarkerPill}>
-            <Text style={styles.nowMarkerText}>Agora</Text>
-          </View>
-          <View style={styles.nowMarkerLine} />
-        </View>
-      );
-    }
+    // 2. Renderiza a Atividade Normal (com trilha contínua e indicador 'Agora' embutido)
+    const trilhaDots = [0, 1, 2, 3];
 
-    // 3. Renderiza a Atividade Normal (com bolinhas de horário e conectoras dinâmicas)
     return (
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
@@ -247,19 +245,30 @@ export default function DashboardScreen() {
           </Text>
           <View style={[styles.timeCircle, { backgroundColor: circleColor }]} />
 
-          {/* As bolinhas de conexão que preenchem com o tempo */}
-          <View style={styles.dottedConnection}>
-            {[0.2, 0.4, 0.6, 0.8].map((step, index) => {
-              const isDotColored = isPast || (isCurrentHour && percentHour >= step);
-              return (
-                <View
-                  key={index}
-                  style={[
-                    styles.smallDot,
-                    { backgroundColor: isDotColored ? Colors.primary : '#2E3236' },
-                  ]}
-                />
-              );
+          {/* Trilha de Progresso do Tempo */}
+          <View style={styles.dottedLineContainer}>
+            {trilhaDots.map((dot, i) => {
+              // Cada bolinha representa um salto de 15 min.
+              const threshold = i * 15;
+              const nextThreshold = (i + 1) * 15;
+
+              const isPastDot = timePassed >= nextThreshold;
+              const isNowDot = timePassed >= threshold && timePassed < nextThreshold;
+
+              // Se for hoje e for a bolinha exata do momento, renderiza o novo "Agora"
+              if (isToday && isNowDot) {
+                return (
+                  <View key={i} style={styles.nowDotWrapper}>
+                    <View style={styles.nowDotPill}>
+                      <Text style={styles.nowDotText}>Agora</Text>
+                    </View>
+                  </View>
+                );
+              }
+
+              // Senão, renderiza a bolinha contínua normal
+              const dotColor = (isPastDot || timePassed > threshold) ? Colors.primary : '#2E3236';
+              return <View key={i} style={[styles.smallDot, { backgroundColor: dotColor }]} />;
             })}
           </View>
         </View>
@@ -619,17 +628,36 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
-  dottedConnection: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    paddingVertical: 4,
-    minHeight: 30,
+  dottedLineContainer: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'space-evenly', 
+    paddingVertical: 2, 
+    minHeight: 50,
   },
-  smallDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  smallDot: { 
+    width: 4, 
+    height: 4, 
+    borderRadius: 2, 
+    marginVertical: 4,
+  },
+  nowDotWrapper: {
+    marginVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  nowDotPill: {
+    backgroundColor: Colors.primary, // Mesma cor das bolinhas ativas
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  nowDotText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   anchorRow: {
     flexDirection: 'row',
@@ -641,31 +669,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#282C30',
     marginLeft: 14,
-  },
-  nowMarkerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-    marginTop: -4,
-  },
-  nowMarkerPill: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  nowMarkerText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  nowMarkerLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#3B82F6',
-    marginLeft: 12,
-    opacity: 0.4,
   },
   activityCard: {
     flex: 1,
