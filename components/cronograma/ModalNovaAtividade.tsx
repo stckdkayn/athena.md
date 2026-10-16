@@ -264,11 +264,11 @@ export default function ModalNovaAtividade({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
-              <Ionicons name="calendar" size={20} color="#000000" style={{ marginRight: 8 }} />
+              <Ionicons name="calendar" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
               <Text style={styles.modalTitle}>{atividadeEmEdicao ? 'Editar Evento' : 'Novo Evento'}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color="#666666" />
+              <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -282,8 +282,9 @@ export default function ModalNovaAtividade({
               <TouchableOpacity 
                 style={styles.iconBox} 
                 onPress={() => setShowIconMenu(!showIconMenu)}
+                activeOpacity={0.7}
               >
-                <Feather name={iconeSelecionado as any} size={24} color="#000" />
+                <Feather name={iconeSelecionado as any} size={22} color={Colors.primary} />
               </TouchableOpacity>
               
               <TextInput
@@ -291,7 +292,7 @@ export default function ModalNovaAtividade({
                 placeholder="Nome do evento..."
                 value={titulo}
                 onChangeText={setTitulo}
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textSecondary}
               />
             </View>
 
@@ -301,7 +302,7 @@ export default function ModalNovaAtividade({
               placeholder="Detalhes..."
               value={detalhes}
               onChangeText={setDetalhes}
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.textSecondary}
               multiline={true}
               numberOfLines={4}
               textAlignVertical="top"
@@ -320,7 +321,7 @@ export default function ModalNovaAtividade({
                           onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
                           activeOpacity={0.7}
                         >
-                          <Feather name={ic as any} size={24} color={iconeSelecionado === ic ? '#FFFFFF' : '#4B5563'} />
+                          <Feather name={ic as any} size={24} color={iconeSelecionado === ic ? '#000000' : Colors.textSecondary} />
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -443,20 +444,20 @@ export default function ModalNovaAtividade({
                   activeOpacity={0.7}
                 >
                   <Text style={styles.dropdownButtonText}>{tipo}</Text>
-                  <Feather name="chevron-down" size={16} color="#888" />
+                  <Feather name="chevron-down" size={16} color={Colors.textSecondary} />
                 </TouchableOpacity>
                 {showCategoriaDrop && (
                   <View style={styles.dropdownList}>
                     {['Estudos', 'Faculdade', 'Saúde', 'Lazer', 'Outros'].map((cat) => (
                       <TouchableOpacity
                         key={cat}
-                        style={styles.dropdownListItem}
+                        style={[styles.dropdownListItem, tipo === cat && styles.dropdownListItemActive]}
                         onPress={() => {
                           setTipo(cat);
                           setShowCategoriaDrop(false);
                         }}
                       >
-                        <Text style={styles.dropdownListItemText}>{cat}</Text>
+                        <Text style={[styles.dropdownListItemText, tipo === cat && styles.dropdownListItemTextActive]}>{cat}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -475,20 +476,20 @@ export default function ModalNovaAtividade({
                   activeOpacity={0.7}
                 >
                   <Text style={styles.dropdownButtonText}>{demanda}</Text>
-                  <Feather name="chevron-down" size={16} color="#888" />
+                  <Feather name="chevron-down" size={16} color={Colors.textSecondary} />
                 </TouchableOpacity>
                 {showDemandaDrop && (
                   <View style={styles.dropdownList}>
                     {[1, 2, 3, 4, 5].map((peso) => (
                       <TouchableOpacity
                         key={peso}
-                        style={styles.dropdownListItem}
+                        style={[styles.dropdownListItem, demanda === peso && styles.dropdownListItemActive]}
                         onPress={() => {
                           setDemanda(peso);
                           setShowDemandaDrop(false);
                         }}
                       >
-                        <Text style={styles.dropdownListItemText}>{peso}</Text>
+                        <Text style={[styles.dropdownListItemText, demanda === peso && styles.dropdownListItemTextActive]}>{peso}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -537,18 +538,23 @@ export default function ModalNovaAtividade({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
   backdrop: {
     flex: 1,
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: Colors.surface,
     width: '100%',
-    padding: 24,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#2e3235',
     minHeight: '50%',
     maxHeight: '90%',
   },
@@ -556,7 +562,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   titleRow: {
     flexDirection: 'row',
@@ -565,95 +571,116 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#000000',
+    color: Colors.text,
     letterSpacing: -0.3,
   },
   title: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#000000',
+    color: Colors.text,
     letterSpacing: -0.3,
   },
   mainInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    gap: 8,
+    gap: 10,
   },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#1b1d1f',
+    borderWidth: 1,
+    borderColor: '#2e3235',
     justifyContent: 'center',
     alignItems: 'center',
   },
   textInputBox: {
     flex: 1,
-    fontSize: 18,
-    color: '#000000',
+    height: 46,
+    backgroundColor: '#1b1d1f',
+    borderWidth: 1,
+    borderColor: '#2e3235',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: Colors.text,
     fontWeight: '500',
-    paddingVertical: 8,
   },
   detailsInputBox: {
     minHeight: 80,
-    fontSize: 15,
-    color: '#444444',
-    backgroundColor: '#FAFAFA',
+    fontSize: 14,
+    color: Colors.text,
+    backgroundColor: '#1b1d1f',
+    borderWidth: 1,
+    borderColor: '#2e3235',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   dropdownsRow: { 
     flexDirection: 'row', 
     gap: 16, 
-    marginBottom: 20,
+    marginBottom: 18,
     alignItems: 'flex-start',
   },
   dropdownColumn: { 
-    flex: 1 
+    flex: 1,
   },
   dropdownButton: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    backgroundColor: '#F5F5F5', 
+    backgroundColor: '#1b1d1f', 
+    borderWidth: 1,
+    borderColor: '#2e3235',
     padding: 12, 
-    borderRadius: 10 
+    borderRadius: 12,
   },
   dropdownButtonText: {
     fontSize: 14,
-    color: '#000000',
+    color: Colors.text,
     fontWeight: '500',
   },
   dropdownList: { 
     marginTop: 6,
-    backgroundColor: '#FFF', 
-    borderRadius: 10, 
+    backgroundColor: '#1b1d1f', 
+    borderRadius: 12, 
     borderWidth: 1, 
-    borderColor: '#EEE',
+    borderColor: '#2e3235',
+    overflow: 'hidden',
   },
   dropdownListItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F9F9F9',
+    borderBottomColor: '#2e3235',
+  },
+  dropdownListItemActive: {
+    backgroundColor: 'rgba(234, 225, 21, 0.08)',
   },
   dropdownListItemText: {
     fontSize: 14,
-    color: '#333333',
+    color: Colors.text,
+  },
+  dropdownListItemTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
   gridOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   gridContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderRadius: 20,
     width: '85%',
     maxHeight: '70%',
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#2e3235',
   },
   gridGrid: {
     flexDirection: 'row',
@@ -664,16 +691,16 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '22%',
     aspectRatio: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#2e3235',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   gridItemActive: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   timeRow: {
     flexDirection: 'row',
@@ -682,7 +709,7 @@ const styles = StyleSheet.create({
   },
   subLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     marginBottom: 6,
     fontWeight: '600',
   },
@@ -697,21 +724,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#2e3235',
   },
   freqPillActive: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   freqPillText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: Colors.textSecondary,
     fontWeight: '600',
   },
   freqPillTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '800',
   },
   nativeTimeButton: {
@@ -722,13 +749,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#2e3235',
   },
   nativeTimeText: {
     fontSize: 16,
-    color: '#000000',
+    color: Colors.text,
     fontWeight: '600',
   },
   section: {
@@ -743,27 +770,27 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#2e3235',
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayCircleSelected: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   weekDayText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4B5563',
+    color: Colors.textSecondary,
   },
   weekDayTextSelected: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '800',
   },
   saveButton: {
-    backgroundColor: '#000000',
+    backgroundColor: Colors.primary,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -775,7 +802,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 15,
     fontWeight: '800',
   },
