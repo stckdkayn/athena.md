@@ -567,10 +567,8 @@ export default function DashboardScreen() {
             end={{ x: 1, y: 0 }}
             style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
           >
-            <View style={styles.cardHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                {/* Ícone com a cor da categoria */}
-                <Feather name={(item.icone as any) || 'circle'} size={18} color={corBase} style={{ marginRight: 8 }} />
+            <View style={styles.cardContentRow}>
+              <View style={styles.cardMainContent}>
                 <Text
                   style={[
                     styles.activityTitle,
@@ -580,50 +578,54 @@ export default function DashboardScreen() {
                 >
                   {item.titulo}
                 </Text>
-              </View>
-            </View>
 
-            {/* Subtítulo: Label (Material / Tipo de Atividade) */}
-            {!!item.detalhes && (
-              <View style={styles.detailsRow}>
-                <Ionicons name="bookmark-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={styles.detailsText} numberOfLines={2}>
-                  {item.detalhes}
-                </Text>
-              </View>
-            )}
+                {/* Subtítulo: Label (Material / Tipo de Atividade) */}
+                {!!item.detalhes && (
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsText} numberOfLines={2}>
+                      {item.detalhes}
+                    </Text>
+                  </View>
+                )}
 
-            {/* Linha Meta: Horários, Indicador de Rotina e Botão Praticar */}
-            <View style={styles.metaRow}>
-              {item.hora_fim ? (
-                <View style={styles.timeRangeBox}>
-                  <Ionicons name="time-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                  <Text style={styles.timeRangeText}>
-                    {item.hora_inicio} - {item.hora_fim}
-                  </Text>
+                {/* Linha Meta: Horários, Indicador de Rotina e Botão Praticar */}
+                <View style={styles.metaRow}>
+                  {item.hora_fim ? (
+                    <View style={styles.timeRangeBox}>
+                      <Ionicons name="time-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                      <Text style={styles.timeRangeText}>
+                        {item.hora_inicio} - {item.hora_fim}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {item.isVirtual && (
+                    <View style={styles.routineBox}>
+                      <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
+                      <Text style={styles.routineText}>Rotina</Text>
+                    </View>
+                  )}
+
+                  {item.icone === 'check-square' && !item.concluida && (
+                    <TouchableOpacity
+                      style={styles.praticarBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleIniciarTreinoBloco(item);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="play" size={10} color="#000" />
+                      <Text style={styles.praticarBtnText}>Praticar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              ) : null}
+              </View>
 
-              {item.isVirtual && (
-                <View style={styles.routineBox}>
-                  <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
-                  <Text style={styles.routineText}>Rotina</Text>
-                </View>
-              )}
-
-              {item.icone === 'check-square' && !item.concluida && (
-                <TouchableOpacity
-                  style={styles.praticarBtn}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleIniciarTreinoBloco(item);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="play" size={10} color="#000" />
-                  <Text style={styles.praticarBtnText}>Praticar</Text>
-                </TouchableOpacity>
-              )}
+              {/* Ícone maior posicionado à direita e centralizado */}
+              <View style={styles.cardRightIconWrapper}>
+                <Feather name={(item.icone as any) || 'circle'} size={26} color={corBase} />
+              </View>
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -1006,18 +1008,26 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     borderColor: '#202325',
   },
-  cardHeader: {
+  cardContentRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
+  },
+  cardMainContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  cardRightIconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 4,
+    paddingRight: 2,
   },
   activityTitle: {
     fontSize: 15,
     fontWeight: '700',
     fontFamily: Fonts.bold,
     color: Colors.text,
-    flex: 1,
   },
   textStrikethrough: {
     textDecorationLine: 'line-through',
@@ -1053,16 +1063,13 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    paddingHorizontal: 2,
+    marginTop: 4,
+    marginBottom: 2,
   },
   detailsText: {
     fontSize: 12,
     fontFamily: Fonts.medium,
     color: Colors.textSecondary,
-    flex: 1,
     lineHeight: 16,
   },
   noTimeIndicator: {
