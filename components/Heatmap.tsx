@@ -1,11 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { getHeatmapData } from '@/services/streakService';
 import { useAppTheme } from '@/context/ThemeContext';
+import { ActiveThemeColors } from '@/constants/Colors';
 
 const WEEKS_TO_SHOW = 12;
 const DAYS_TO_SHOW = WEEKS_TO_SHOW * 7;
@@ -34,14 +32,11 @@ export interface HeatmapProps {
 }
 
 export default function Heatmap({ onDayPress, style }: HeatmapProps) {
-  const colorScheme = useColorScheme();
-
   const { isDark, accentColor, colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const textColor = colors.text;
-  const textSecondaryColor = colors.textSecondary;
-  const borderColor = colors.border;
-  const emptySquareBg = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
+  const emptySquareBg = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
+  const emptySquareBorder = isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.04)';
 
   const [data, setData] = useState<Record<string, number>>({});
   const [selectedDay, setSelectedDay] = useState<{ date: string; count: number } | null>(null);
@@ -100,7 +95,7 @@ export default function Heatmap({ onDayPress, style }: HeatmapProps) {
     if (!count || count === 0) {
       return {
         backgroundColor: emptySquareBg,
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)',
+        borderColor: emptySquareBorder,
       };
     }
     if (count < 10) {
@@ -134,25 +129,8 @@ export default function Heatmap({ onDayPress, style }: HeatmapProps) {
 
   return (
     <View style={[styles.container, style]}>
-      {/* Cabeçalho do Heatmap */}
-      <View style={styles.headerRow}>
-        <View style={styles.titleRow}>
-          <Ionicons name="flame" size={18} color={accentColor} style={{ marginRight: 8 }} />
-          <Text style={[styles.title, { color: textColor }]}>Consistência</Text>
-        </View>
-        <View style={styles.badgeContainer}>
-          <Text style={[styles.badgeText, { color: accentColor }]}>
-            {diasAtivos} {diasAtivos === 1 ? 'dia ativo' : 'dias ativos'}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={[styles.subtitle, { color: textSecondaryColor }]}>
-        {totalQuestoes12Semanas} questões resolvidas nas últimas 12 semanas
-      </Text>
-
-      {/* Grid de Contribuição / Heatmap */}
-      <View style={styles.gridCard}>
+      <View style={styles.card}>
+        {/* Grid de Contribuição / Heatmap */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -174,7 +152,7 @@ export default function Heatmap({ onDayPress, style }: HeatmapProps) {
                       getSquareStyle(count),
                       isSelected && {
                         borderWidth: 1.5,
-                        borderColor: '#FFFFFF',
+                        borderColor: isDark ? '#FFFFFF' : '#37352F',
                         transform: [{ scale: 1.15 }],
                       },
                     ]}
@@ -195,102 +173,95 @@ export default function Heatmap({ onDayPress, style }: HeatmapProps) {
           </View>
         )}
 
-        {/* Rodapé com Legenda de Intensidade */}
-        <View style={styles.legendRow}>
-          <Text style={[styles.legendLabel, { color: textSecondaryColor }]}>Menos</Text>
-          <View style={[styles.legendSquare, { backgroundColor: emptySquareBg }]} />
-          <View style={[styles.legendSquare, { backgroundColor: accentColor, opacity: 0.35 }]} />
-          <View style={[styles.legendSquare, { backgroundColor: accentColor, opacity: 0.7 }]} />
-          <View style={[styles.legendSquare, { backgroundColor: accentColor, opacity: 1 }]} />
-          <Text style={[styles.legendLabel, { color: textSecondaryColor }]}>Mais</Text>
+        {/* Rodapé enxuto: Dias Ativos na esquerda e Legenda de Intensidade na direita */}
+        <View style={styles.footerRow}>
+          <Text style={styles.footerStatsText}>
+            {diasAtivos} {diasAtivos === 1 ? 'dia ativo' : 'dias ativos'} • {totalQuestoes12Semanas} {totalQuestoes12Semanas === 1 ? 'questão' : 'questões'}
+          </Text>
+
+          <View style={styles.legendRow}>
+            <Text style={styles.legendLabel}>Menos</Text>
+            <View style={[styles.legendSquare, { backgroundColor: emptySquareBg }]} />
+            <View style={[styles.legendSquare, { backgroundColor: accentColor, opacity: 0.35 }]} />
+            <View style={[styles.legendSquare, { backgroundColor: accentColor, opacity: 0.7 }]} />
+            <View style={[styles.legendSquare, { backgroundColor: accentColor, opacity: 1 }]} />
+            <Text style={styles.legendLabel}>Mais</Text>
+          </View>
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 14,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  subtitle: {
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  badgeContainer: {
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  gridCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#232628',
-  },
-  scroll: {
-    flexDirection: 'row',
-    paddingVertical: 4,
-  },
-  column: {
-    flexDirection: 'column',
-    marginRight: 4,
-  },
-  square: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    marginBottom: 4,
-    borderWidth: 1,
-  },
-  selectedDayInfo: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2e30',
-    alignItems: 'center',
-  },
-  selectedDayText: {
-    fontSize: 12,
-    color: '#E0E0E0',
-  },
-  legendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 10,
-    gap: 4,
-  },
-  legendLabel: {
-    fontSize: 10,
-    marginHorizontal: 2,
-  },
-  legendSquare: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-  },
-});
+function createStyles(colors: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      marginBottom: 16,
+    },
+    card: {
+      backgroundColor: colors.surfaceCard || colors.surface,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    scroll: {
+      flexDirection: 'row',
+      paddingVertical: 2,
+    },
+    column: {
+      flexDirection: 'column',
+      marginRight: 4,
+    },
+    square: {
+      width: 14,
+      height: 14,
+      borderRadius: 3,
+      marginBottom: 4,
+      borderWidth: 1,
+    },
+    selectedDayInfo: {
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSubtle,
+      alignItems: 'center',
+    },
+    selectedDayText: {
+      fontSize: 12,
+      color: colors.text,
+    },
+    footerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 10,
+      paddingTop: 4,
+    },
+    footerStatsText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    legendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+    legendLabel: {
+      fontSize: 10,
+      marginHorizontal: 2,
+      color: colors.textSecondary,
+    },
+    legendSquare: {
+      width: 10,
+      height: 10,
+      borderRadius: 2,
+    },
+  });
+}

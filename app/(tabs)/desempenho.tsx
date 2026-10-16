@@ -24,8 +24,6 @@ import {
   MemoryHealthSummary,
   QuestionTimeStats,
 } from '@/services/database';
-import { getStreakInfo, StreakInfo } from '@/services/streakService';
-import { StreakModal } from '@/components/modals/StreakModal';
 import { GargaloDetalheModal, BottleneckTheme, FocoMetrica } from '@/components/modals/GargaloDetalheModal';
 import { TreinoFocadoModal, TargetTreinoGargalo, MicroFocoTreinoOption } from '@/components/modals/TreinoFocadoModal';
 import Heatmap from '@/components/Heatmap';
@@ -123,10 +121,6 @@ export default function DesempenhoScreen() {
     consolidando: 0,
   });
 
-  // Ofensiva e Modais
-  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
-  const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
-
   // Grandes Áreas
   const [grandesAreas, setGrandesAreas] = useState<GrandeAreaMetrica[]>([]);
 
@@ -163,14 +157,12 @@ export default function DesempenhoScreen() {
       const database = getDatabase();
       const since = getSinceTimestamp(timeRange);
 
-      // 1. Ofensiva, Saúde da Memória e Estatísticas de Tempo em paralelo
-      const [streakData, memHealth, qTimeStats] = await Promise.all([
-        getStreakInfo(),
+      // 1. Saúde da Memória e Estatísticas de Tempo em paralelo
+      const [memHealth, qTimeStats] = await Promise.all([
         getMemoryHealthSummary(),
         getQuestionTimeStats(since > 0 ? since : undefined),
       ]);
 
-      setStreakInfo(streakData);
       setMemoryHealth(memHealth);
       setTimeStats(qTimeStats);
 
@@ -590,45 +582,62 @@ export default function DesempenhoScreen() {
           </View>
         ) : (
           <>
-            {/* 2. Grid de Cards Principais (Hero Metrics) */}
-            <View style={styles.heroGrid}>
-              {/* Card A: Aproveitamento */}
-              <View style={styles.heroCard}>
-                <View style={styles.heroCardHeader}>
-                  <Text style={styles.heroCardLabel}>APROVEITAMENTO</Text>
-                  <MaterialCommunityIcons name="target" size={16} color={corAproveitamento} />
+            {/* 2. Card Unificado de Aproveitamento & Tempo Médio */}
+            <View style={styles.heroUnifiedCard}>
+              <View style={styles.heroCardTopRow}>
+                <View style={styles.heroCardTopLeft}>
+                  <MaterialCommunityIcons name="lightning-bolt" size={17} color={themeColors.primary} />
+                  <Text style={styles.heroCardTopTitle}>Rendimento Geral</Text>
                 </View>
-                <Text style={[styles.heroCardValue, { color: corAproveitamento }]}>
-                  {aproveitamento}%
-                </Text>
-                <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: `${aproveitamento}%`, backgroundColor: corAproveitamento }]} />
-                </View>
-                <Text style={styles.heroCardSub}>
-                  {totalAcertos} acertos de {totalQuestoes} questões
-                </Text>
-              </View>
-
-              {/* Card B: Ritmo de Resolução */}
-              <View style={styles.heroCard}>
-                <View style={styles.heroCardHeader}>
-                  <Text style={styles.heroCardLabel}>TEMPO MÉDIO</Text>
-                  <Ionicons name="stopwatch-outline" size={16} color={themeColors.primary} />
-                </View>
-                <Text style={styles.heroCardValue}>
-                  {timeStats.totalQuestoesComTempo > 0
-                    ? formatSegundosEmTempo(timeStats.tempoMedioSegundos)
-                    : '--'}
-                </Text>
-                <View style={styles.ritmoBadge}>
-                  <Ionicons name={ritmoBadge.icone as any} size={11} color={ritmoBadge.cor} style={{ marginRight: 4 }} />
-                  <Text style={[styles.ritmoBadgeText, { color: ritmoBadge.cor }]} numberOfLines={1}>
-                    {ritmoBadge.text}
+                <View style={styles.questoesCountBadge}>
+                  <Text style={styles.questoesCountText}>
+                    {totalQuestoes === 1 ? '1 questão feita' : `${totalQuestoes} questões feitas`}
                   </Text>
                 </View>
-                <Text style={styles.heroCardSub}>
-                  Total: {formatSegundosEmHoras(timeStats.tempoTotalSegundos)} de foco ativo
-                </Text>
+              </View>
+
+              <View style={styles.heroColumnsRow}>
+                {/* Coluna A: Aproveitamento */}
+                <View style={styles.heroCol}>
+                  <View style={styles.heroColHeader}>
+                    <Text style={styles.heroColLabel}>APROVEITAMENTO</Text>
+                    <MaterialCommunityIcons name="target" size={15} color={corAproveitamento} />
+                  </View>
+                  <Text style={[styles.heroColValue, { color: corAproveitamento }]}>
+                    {aproveitamento}%
+                  </Text>
+                  <View style={styles.progressBarTrack}>
+                    <View style={[styles.progressBarFill, { width: `${aproveitamento}%`, backgroundColor: corAproveitamento }]} />
+                  </View>
+                  <Text style={styles.heroColSub}>
+                    {totalAcertos} {totalAcertos === 1 ? 'acerto' : 'acertos'} de {totalQuestoes}
+                  </Text>
+                </View>
+
+                {/* Divisor Vertical */}
+                <View style={styles.heroColDivider} />
+
+                {/* Coluna B: Tempo Médio & Ritmo */}
+                <View style={styles.heroCol}>
+                  <View style={styles.heroColHeader}>
+                    <Text style={styles.heroColLabel}>TEMPO MÉDIO</Text>
+                    <Ionicons name="stopwatch-outline" size={15} color={themeColors.primary} />
+                  </View>
+                  <Text style={styles.heroColValue}>
+                    {timeStats.totalQuestoesComTempo > 0
+                      ? formatSegundosEmTempo(timeStats.tempoMedioSegundos)
+                      : '--'}
+                  </Text>
+                  <View style={styles.ritmoBadge}>
+                    <Ionicons name={ritmoBadge.icone as any} size={11} color={ritmoBadge.cor} style={{ marginRight: 4 }} />
+                    <Text style={[styles.ritmoBadgeText, { color: ritmoBadge.cor }]} numberOfLines={1}>
+                      {ritmoBadge.text}
+                    </Text>
+                  </View>
+                  <Text style={styles.heroColSub}>
+                    {formatSegundosEmHoras(timeStats.tempoTotalSegundos)} de foco ativo
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -685,7 +694,7 @@ export default function DesempenhoScreen() {
                     />
                   </>
                 ) : (
-                  <View style={[styles.memoryBarSegment, { backgroundColor: '#2E3236', flex: 1, borderRadius: 6 }]} />
+                  <View style={[styles.memoryBarSegment, { backgroundColor: isDark ? '#2E3236' : 'rgba(0, 0, 0, 0.06)', flex: 1, borderRadius: 6 }]} />
                 )}
               </View>
 
@@ -856,37 +865,9 @@ export default function DesempenhoScreen() {
               )}
             </View>
 
-            {/* 7. Card de Ofensiva / Streak com Link para o Modal */}
-            <TouchableOpacity
-              style={styles.streakFooterCard}
-              activeOpacity={0.85}
-              onPress={() => setModalStreakVisible(true)}
-            >
-              <View style={styles.streakFooterLeft}>
-                <Text style={styles.flameEmoji}>🔥</Text>
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={styles.streakFooterTitle}>
-                    {streakInfo?.streak || 0} {streakInfo?.streak === 1 ? 'Dia de Ofensiva' : 'Dias de Ofensiva'}
-                  </Text>
-                  <Text style={styles.streakFooterSub}>
-                    {streakInfo?.bestStreak
-                      ? `Recorde histórico: ${streakInfo.bestStreak} dias seguidos`
-                      : 'Resolva questões diariamente para consolidar o hábito'}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={themeColors.textSecondary} />
-            </TouchableOpacity>
           </>
         )}
       </ScrollView>
-
-      {/* Modal detalhado de Streak / Ofensiva */}
-      <StreakModal
-        visible={modalStreakVisible}
-        onClose={() => setModalStreakVisible(false)}
-        streakInfo={streakInfo}
-      />
 
       {/* Modal de Raio-X Detalhado do Gargalo */}
       <GargaloDetalheModal
@@ -962,9 +943,14 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       borderRadius: 9,
     },
     filterChipActive: {
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceCard || theme.surface,
       borderWidth: 1,
       borderColor: theme.borderSubtle,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.2 : 0.05,
+      shadowRadius: 3,
+      elevation: 1,
     },
     filterChipText: {
       fontSize: 12,
@@ -986,53 +972,94 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       marginTop: 12,
     },
 
-    /* Hero Metrics Grid */
-    heroGrid: {
-      flexDirection: 'row',
-      gap: 12,
-      marginBottom: 16,
-    },
-    heroCard: {
-      flex: 1,
-      backgroundColor: theme.surface,
+    /* Hero Metrics Unificado */
+    heroUnifiedCard: {
+      backgroundColor: theme.surfaceCard || theme.surface,
       borderRadius: 16,
-      padding: 14,
+      padding: 16,
+      marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.05,
+      shadowRadius: 8,
+      elevation: 2,
     },
-    heroCardHeader: {
+    heroCardTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 6,
+      paddingBottom: 12,
+      marginBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderSubtle,
     },
-    heroCardLabel: {
+    heroCardTopLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    heroCardTopTitle: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.2,
+      textTransform: 'uppercase',
+    },
+    questoesCountBadge: {
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 9,
+      paddingVertical: 3.5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    questoesCountText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    heroColumnsRow: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
+    heroCol: {
+      flex: 1,
+    },
+    heroColDivider: {
+      width: 1,
+      backgroundColor: theme.borderSubtle,
+      marginHorizontal: 12,
+    },
+    heroColHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    heroColLabel: {
       fontSize: 10,
       fontWeight: '800',
       color: theme.textSecondary,
       letterSpacing: 0.5,
     },
-    heroCardValue: {
+    heroColValue: {
       fontSize: 24,
       fontWeight: '900',
       color: theme.text,
       marginBottom: 6,
     },
-    heroCardSub: {
-      fontSize: 10.5,
-      color: theme.textMuted,
-      marginTop: 6,
-      lineHeight: 14,
-    },
     progressBarTrack: {
-      height: 4,
+      height: 5,
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-      borderRadius: 2,
+      borderRadius: 2.5,
       overflow: 'hidden',
+      marginBottom: 6,
     },
     progressBarFill: {
       height: '100%',
-      borderRadius: 2,
+      borderRadius: 2.5,
     },
     ritmoBadge: {
       flexDirection: 'row',
@@ -1042,20 +1069,31 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       paddingVertical: 2,
       borderRadius: 6,
       alignSelf: 'flex-start',
+      marginBottom: 6,
     },
     ritmoBadgeText: {
       fontSize: 10,
       fontWeight: '700',
     },
+    heroColSub: {
+      fontSize: 11,
+      color: theme.textMuted,
+      lineHeight: 14,
+    },
 
     /* Seção Padrão de Card */
     sectionCard: {
-      backgroundColor: theme.surface,
+      backgroundColor: theme.surfaceCard || theme.surface,
       borderRadius: 16,
       padding: 16,
       marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.05,
+      shadowRadius: 8,
+      elevation: 2,
     },
     cardHeaderRow: {
       flexDirection: 'row',
@@ -1224,11 +1262,16 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       gap: 10,
     },
     gargaloItemCard: {
-      backgroundColor: theme.backgroundSecondary,
+      backgroundColor: isDark ? theme.backgroundSecondary : '#FAFAF9',
       borderRadius: 12,
       padding: 12,
       borderWidth: 1,
       borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.2 : 0.03,
+      shadowRadius: 4,
+      elevation: 1,
     },
     gargaloItemHeader: {
       flexDirection: 'row',
@@ -1296,37 +1339,6 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       color: theme.textSecondary,
       textAlign: 'center',
       lineHeight: 16,
-    },
-
-    /* Streak Footer Card */
-    streakFooterCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.surface,
-      borderRadius: 14,
-      padding: 14,
-      borderWidth: 1,
-      borderColor: theme.border,
-      marginBottom: 8,
-    },
-    streakFooterLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    flameEmoji: {
-      fontSize: 24,
-    },
-    streakFooterTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: theme.text,
-    },
-    streakFooterSub: {
-      fontSize: 11,
-      color: theme.textSecondary,
-      marginTop: 2,
     },
   });
 }
