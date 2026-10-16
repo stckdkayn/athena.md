@@ -1352,6 +1352,17 @@ export interface DbBlocoEstudo {
   prioridade: number;
   status: BlocoStatus;
   timestamp_geracao: number;
+  // Metadados ricos do Cronograma
+  passo_label?: string | null;
+  passo_detalhe?: string | null;
+  passo_meta_questoes?: number | null;
+  passo_tema_questoes?: string | null;
+  passo_dia_semana?: string | null;
+  topico_id?: string | null;
+  topico_titulo?: string | null;
+  topico_area?: string | null;
+  topico_especialidade?: string | null;
+  topico_semana_id?: number | null;
 }
 
 /**
@@ -1375,13 +1386,30 @@ export async function getEventosFixosAtivos(): Promise<DbEventoFixo[]> {
 }
 
 /**
- * Retorna os blocos de estudo gerados pelo algoritmo para um dia específico.
+ * Retorna os blocos de estudo gerados pelo algoritmo para um dia específico,
+ * enriquecidos com os dados de Tópicos e Passos do cronograma oficial da residência.
  */
 export async function getBlocosEstudoPorData(dataYYYYMMDD: string): Promise<DbBlocoEstudo[]> {
   try {
     const database = getDatabase();
     const rows = await database.getAllAsync<any>(
-      `SELECT * FROM blocos_estudo WHERE data_agendada = ? ORDER BY hora_inicio ASC, prioridade DESC;`,
+      `SELECT 
+        b.*,
+        p.label as passo_label,
+        p.detalhe as passo_detalhe,
+        p.meta_questoes as passo_meta_questoes,
+        p.tema_questoes as passo_tema_questoes,
+        p.dia_semana as passo_dia_semana,
+        t.id as topico_id,
+        t.titulo as topico_titulo,
+        t.area as topico_area,
+        t.especialidade as topico_especialidade,
+        t.semana_id as topico_semana_id
+       FROM blocos_estudo b
+       LEFT JOIN Passos p ON b.passo_id = p.id
+       LEFT JOIN Topicos t ON p.topico_id = t.id
+       WHERE b.data_agendada = ?
+       ORDER BY b.hora_inicio ASC, b.prioridade DESC;`,
       [dataYYYYMMDD]
     );
     return rows;
@@ -1413,6 +1441,143 @@ export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStat
     }
   } catch (err) {
     console.error('[database] Erro ao atualizar status do bloco:', err);
+  }
+}
+
+/**
+ * Move um tópico inteiro (ou passo específico) para outro dia da semana no SQLite e no MMKV.
+ */
+export async function moverPassoOuTopicoDeDiaNoBanco(
+  topicoId: string,
+  novoDia: string,
+  passoId?: number
+): Promise<void> {
+  try {
+    const database = getDatabase();
+    if (passoId) {
+      await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE id = ?;`, [novoDia, passoId]);
+    } else {
+      await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE topico_id = ?;`, [novoDia, topicoId]);
+    }
+    await database.runAsync(`UPDATE Topicos SET assigned_day = ? WHERE id = ?;`, [novoDia, topicoId]);
+
+    // Sincroniza também no cache MMKV
+    try {
+      const { setTopicAssignedDay, moverPassosDoTopicoDeDia, resolveAssignedDay, getCronogramaDays } = await import('./scheduleService');
+      const currentDay = resolveAssignedDay(topicoId, 0, getCronogramaDays());
+      moverPassosDoTopicoDeDia(topicoId, currentDay, novoDia as any);
+      setTopicAssignedDay(topicoId, novoDia as any);
+    } catch {}
+  } catch (err) {
+    console.error('[database] Erro ao mover tópico de dia:', err);
+    throw err;
+  }
+}
+
+/**
+ * Move um tópico para outra semana no SQLite e no MMKV.
+ */
+export async function moverTopicoDeSemanaNoBanco(
+  topicoId: string,
+  novaSemanaNumero: number
+): Promise<void> {
+  try {
+    const database = getDatabase();
+    await database.runAsync(`UPDATE Topicos SET semana_id = ? WHERE id = ?;`, [novaSemanaNumero, topicoId]);
+
+    // Sincroniza também no cache MMKV
+    try {
+      const { moverTopicoDeSemana } = await import('./scheduleService');
+      moverTopicoDeSemana(topicoId, novaSemanaNumero);
+    } catch {}
+  } catch (err) {
+    console.error('[database] Erro ao mover tópico de semana:', err);
+    throw err;
+  }
+}
+
+export interface ItemBuscaCronograma {
+  topico_id: string;
+  topico_titulo: string;
+  area: string;
+  especialidade: string;
+  semana_numero: number;
+  assigned_day: string;
+  passo_id?: number | null;
+  passo_tipo?: string | null;
+  passo_label?: string | null;
+  passo_detalhe?: string | null;
+  meta_questoes?: number | null;
+  tema_questoes?: string | null;
+  match_source?: string;
+}
+
+/**
+ * Busca universal através das 45 semanas do cronograma no SQLite.
+ */
+export async function buscarNoCronogramaCompleto(query: string): Promise<ItemBuscaCronograma[]> {
+  const termo = query.trim();
+  if (!termo) return [];
+  try {
+    const database = getDatabase();
+    const like = `%${termo}%`;
+    const rows = await database.getAllAsync<any>(
+      `SELECT 
+        t.id as topico_id,
+        t.titulo as topico_titulo,
+        t.area,
+        t.especialidade,
+        t.semana_id as semana_numero,
+        t.assigned_day,
+        p.id as passo_id,
+        p.tipo as passo_tipo,
+        p.label as passo_label,
+        p.detalhe as passo_detalhe,
+        p.meta_questoes,
+        p.tema_questoes,
+        p.dia_semana as passo_dia_semana
+       FROM Topicos t
+       LEFT JOIN Passos p ON t.id = p.topico_id
+       WHERE t.titulo LIKE ?
+          OR t.especialidade LIKE ?
+          OR t.area LIKE ?
+          OR p.label LIKE ?
+          OR p.detalhe LIKE ?
+          OR p.tema_questoes LIKE ?
+       ORDER BY t.semana_id ASC, t.id ASC
+       LIMIT 50;`,
+      [like, like, like, like, like, like]
+    );
+
+    return rows.map((r) => {
+      let match_source = '';
+      const qLower = termo.toLowerCase();
+      if (r.topico_titulo?.toLowerCase().includes(qLower)) match_source = 'Tópico';
+      else if (r.especialidade?.toLowerCase().includes(qLower)) match_source = 'Especialidade';
+      else if (r.passo_detalhe?.toLowerCase().includes(qLower)) match_source = 'Capítulo';
+      else if (r.passo_label?.toLowerCase().includes(qLower)) match_source = 'Material';
+      else if (r.tema_questoes?.toLowerCase().includes(qLower)) match_source = 'Questões';
+      else if (r.area?.toLowerCase().includes(qLower)) match_source = 'Área';
+
+      return {
+        topico_id: r.topico_id,
+        topico_titulo: r.topico_titulo || 'Sem título',
+        area: r.area || 'Geral',
+        especialidade: r.especialidade || '',
+        semana_numero: r.semana_numero || 1,
+        assigned_day: r.passo_dia_semana || r.assigned_day || 'segunda',
+        passo_id: r.passo_id,
+        passo_tipo: r.passo_tipo,
+        passo_label: r.passo_label,
+        passo_detalhe: r.passo_detalhe,
+        meta_questoes: r.meta_questoes,
+        tema_questoes: r.tema_questoes,
+        match_source,
+      };
+    });
+  } catch (err) {
+    console.error('[database] Erro ao buscar no cronograma:', err);
+    return [];
   }
 }
 

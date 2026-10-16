@@ -22,10 +22,16 @@ import {
   getBlocosEstudoPorData,
   updateStatusBlocoEstudo,
   DbBlocoEstudo,
+  moverPassoOuTopicoDeDiaNoBanco,
+  moverTopicoDeSemanaNoBanco,
+  ItemBuscaCronograma,
+  excluirAtividade,
 } from '@/services/database';
 import { gerarPlanoDiario, verificarEPlanejarAutomaticamente } from '@/services/schedulerService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
+import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
+import ModalBuscaUniversal from '@/components/cronograma/ModalBuscaUniversal';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const CATEGORIA_CORES: Record<string, string> = {
@@ -71,6 +77,8 @@ export default function DashboardScreen() {
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
   const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
+  const [atividadeDetalhes, setAtividadeDetalhes] = useState<any | null>(null);
+  const [searchModalVisible, setSearchModalVisible] = useState<boolean>(false);
 
   // Busca o nome do usuário salvo localmente ou fallback
   const userName = storage.getString('@athena_user_name') || '';
@@ -172,6 +180,19 @@ export default function DashboardScreen() {
             hora_inicio: b.hora_inicio || undefined,
             hora_fim: b.hora_fim || undefined,
             detalhes: detalhesTexto,
+            duracao_minutos: b.duracao_minutos,
+            passo_id: b.passo_id,
+            topico_id: b.topico_id,
+            topico_titulo: b.topico_titulo,
+            topico_area: b.topico_area,
+            topico_especialidade: b.topico_especialidade,
+            topico_semana_id: b.topico_semana_id,
+            passo_label: b.passo_label,
+            passo_detalhe: b.passo_detalhe,
+            passo_meta_questoes: b.passo_meta_questoes,
+            passo_tema_questoes: b.passo_tema_questoes,
+            passo_dia_semana: b.passo_dia_semana,
+            passo_tipo: b.tipo,
           };
         });
       } else {
@@ -218,6 +239,18 @@ export default function DashboardScreen() {
             icone,
             concluida: p.concluido === 1,
             detalhes: detalhesTexto || undefined,
+            passo_id: p.id,
+            topico_id: p.topico_id,
+            topico_titulo: p.topico_titulo,
+            topico_area: p.topico_area,
+            topico_especialidade: p.topico_especialidade,
+            topico_semana_id: p.semana_id,
+            passo_label: p.label,
+            passo_detalhe: p.detalhe,
+            passo_meta_questoes: p.meta_questoes,
+            passo_tema_questoes: p.tema_questoes,
+            passo_dia_semana: p.dia_semana,
+            passo_tipo: p.tipo,
           };
         });
       }
@@ -269,6 +302,49 @@ export default function DashboardScreen() {
     storage.set('@athena_cart', JSON.stringify([{ tema }]));
     storage.set('@athena_quiz_limit', '20');
     router.push({ pathname: '/treino/quiz', params: { tema: encodeURIComponent(tema), limite: '20' } });
+  };
+
+  const handleMoveItemDay = async (targetDay: string) => {
+    if (!atividadeDetalhes) return;
+    const topicoId = atividadeDetalhes.topico_id || (typeof atividadeDetalhes.id === 'string' ? atividadeDetalhes.id.replace('passo_', '').replace('bloco_', '') : '');
+    const passoId = atividadeDetalhes.passo_id;
+    if (topicoId) {
+      await moverPassoOuTopicoDeDiaNoBanco(topicoId, targetDay, passoId);
+      await gerarPlanoDiario(dataSelecionada);
+      await carregarAgenda();
+    }
+  };
+
+  const handleMoveItemWeek = async (targetWeek: number) => {
+    if (!atividadeDetalhes) return;
+    const topicoId = atividadeDetalhes.topico_id;
+    if (topicoId) {
+      await moverTopicoDeSemanaNoBanco(topicoId, targetWeek);
+      await gerarPlanoDiario(dataSelecionada);
+      await carregarAgenda();
+    }
+  };
+
+  const handleSelectSearchItem = (searchItem: ItemBuscaCronograma) => {
+    setAtividadeDetalhes({
+      id: `passo_${searchItem.passo_id || searchItem.topico_id}`,
+      titulo: searchItem.topico_titulo,
+      tipo: 'Estudos',
+      icone: searchItem.passo_tipo === 'questoes' ? 'check-square' : searchItem.passo_tipo === 'videoaula' ? 'play-circle' : 'book-open',
+      concluida: false,
+      passo_id: searchItem.passo_id,
+      topico_id: searchItem.topico_id,
+      topico_titulo: searchItem.topico_titulo,
+      topico_area: searchItem.area,
+      topico_especialidade: searchItem.especialidade,
+      topico_semana_id: searchItem.semana_numero,
+      passo_label: searchItem.passo_label,
+      passo_detalhe: searchItem.passo_detalhe,
+      passo_meta_questoes: searchItem.meta_questoes,
+      passo_tema_questoes: searchItem.tema_questoes,
+      passo_dia_semana: searchItem.assigned_day,
+      passo_tipo: searchItem.passo_tipo,
+    });
   };
 
   // Variáveis para o contador de atividades
@@ -438,12 +514,7 @@ export default function DashboardScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() => handleToggle(item)}
-          onLongPress={() => {
-            if (item.id?.startsWith('passo_') || item.id?.startsWith('bloco_')) return;
-            setAtividadeParaEditar(item);
-            setModalNovaVisible(true);
-          }}
+          onPress={() => setAtividadeDetalhes(item)}
           activeOpacity={0.75}
           style={{ flex: 1 }}
         >
@@ -527,13 +598,22 @@ export default function DashboardScreen() {
           <Text style={styles.greeting}>{greeting.text}</Text>
           <Ionicons name={greeting.icon} size={24} color={Colors.primary} />
         </View>
-        <TouchableOpacity
-          style={styles.calendarIconButton}
-          onPress={() => setCalendarVisible(true)}
-          activeOpacity={0.7}
-        >
-          <Feather name="calendar" size={20} color={Colors.text} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={styles.calendarIconButton}
+            onPress={() => setSearchModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.calendarIconButton}
+            onPress={() => setCalendarVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Feather name="calendar" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* NOVO: Título da Semana */}
@@ -644,6 +724,38 @@ export default function DashboardScreen() {
           setDataSelecionada(novaData);
           setCalendarVisible(false);
         }}
+      />
+
+      {/* Modal de Detalhes da Atividade / Bloco com Remanejamento */}
+      <ModalDetalhesAtividade
+        visible={atividadeDetalhes !== null}
+        item={atividadeDetalhes}
+        onClose={() => setAtividadeDetalhes(null)}
+        onToggleStatus={async (it) => {
+          await handleToggle(it);
+          setAtividadeDetalhes((prev: any) => prev ? { ...prev, concluida: !prev.concluida } : null);
+        }}
+        onStartQuiz={handleIniciarTreinoBloco}
+        onMoveDay={handleMoveItemDay}
+        onMoveWeek={handleMoveItemWeek}
+        onEditAtividade={(it) => {
+          setAtividadeDetalhes(null);
+          setAtividadeParaEditar(it);
+          setModalNovaVisible(true);
+        }}
+        onDeleteAtividade={async (it) => {
+          setAtividadeDetalhes(null);
+          await excluirAtividade(it.id);
+          await gerarPlanoDiario(dataSelecionada);
+          await carregarAgenda();
+        }}
+      />
+
+      {/* Modal de Pesquisa Universal pelas 45 Semanas */}
+      <ModalBuscaUniversal
+        visible={searchModalVisible}
+        onClose={() => setSearchModalVisible(false)}
+        onSelectItem={handleSelectSearchItem}
       />
     </SafeAreaView>
   );
