@@ -735,44 +735,47 @@ export default function DashboardScreen() {
 
       {/* 1. Header Dinâmico de 2 Linhas */}
       <View style={styles.header}>
-        {/* Primeira linha: Saudação com Nome Grande (à esquerda) e Foto de Perfil (à direita) */}
+        {/* Primeira linha: Foto (à esquerda), Saudação menor em cinza e Nome abaixo */}
         <View style={styles.headerTopRow}>
-          <TouchableOpacity
-            onPress={() => setModalNomeVisible(true)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            style={styles.greetingContainer}
-          >
-            <Text style={styles.bigGreetingText} numberOfLines={1}>
-              {greeting.text}, {userName && userName.trim() ? userName.trim() : 'Gabriel'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerProfileGroup}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={handleAvatarPress}
+              activeOpacity={0.8}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <View style={styles.avatarCircle}>
+                {userPhoto ? (
+                  <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    {userName && userName.trim() ? (
+                      <Text style={styles.avatarInitials}>
+                        {userName.trim().charAt(0).toUpperCase()}
+                      </Text>
+                    ) : (
+                      <Ionicons name="person" size={24} color={Colors.textSecondary} />
+                    )}
+                  </View>
+                )}
+              </View>
+              <View style={styles.avatarCameraBadge}>
+                <Ionicons name="camera" size={10} color="#000000" />
+              </View>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.avatarContainer}
-            onPress={handleAvatarPress}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <View style={styles.avatarCircle}>
-              {userPhoto ? (
-                <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  {userName && userName.trim() ? (
-                    <Text style={styles.avatarInitials}>
-                      {userName.trim().charAt(0).toUpperCase()}
-                    </Text>
-                  ) : (
-                    <Ionicons name="person" size={24} color={Colors.textSecondary} />
-                  )}
-                </View>
-              )}
-            </View>
-            <View style={styles.avatarCameraBadge}>
-              <Ionicons name="camera" size={10} color="#000000" />
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setModalNomeVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              style={styles.greetingContainer}
+            >
+              <Text style={styles.greetingSubtitleText}>{greeting.text}</Text>
+              <Text style={styles.bigGreetingText} numberOfLines={1}>
+                {userName && userName.trim() ? userName.trim() : 'Gabriel'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Segunda linha: "Semana 1 • 12 à 18 de outubro" (à esquerda) e Ações (à direita) */}
@@ -1006,24 +1009,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  greetingContainer: {
+  headerProfileGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    marginRight: 12,
-  },
-  bigGreetingText: {
-    fontSize: 26,
-    fontFamily: Fonts.extraBold,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: -0.5,
   },
   avatarContainer: {
     position: 'relative',
+    marginRight: 12,
   },
   avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#1E2226',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1032,14 +1030,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#1C1F22',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1062,6 +1060,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: Colors.background,
+  },
+  greetingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  greetingSubtitleText: {
+    fontSize: 13,
+    fontFamily: Fonts.semiBold,
+    fontWeight: '600',
+    color: '#8E959E',
+    marginBottom: 2,
+  },
+  bigGreetingText: {
+    fontSize: 22,
+    fontFamily: Fonts.extraBold,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.4,
   },
   headerSubRow: {
     flexDirection: 'row',
