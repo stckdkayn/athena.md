@@ -17,6 +17,8 @@ import {
   getAtividadesPorData,
   toggleAtividadeStatus,
   AtividadeAgenda,
+  getPassosPorDiaSemana,
+  togglePassoConcluido,
 } from '@/services/database';
 import { getAdjustedDailyBudget } from '@/services/scheduleService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
@@ -125,16 +127,66 @@ export default function DashboardScreen() {
   const carregarAgenda = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Busca as atividades do dia selecionado
-      const dados = await getAtividadesPorData(dataSelecionada);
-      setAtividades(dados);
+      // 1. Busca as atividades normais/cadastradas do dia selecionado
+      const dadosAgenda = await getAtividadesPorData(dataSelecionada);
 
-      // 2. Calcula a data do dia anterior (para verificar eventual "dívida de cansaço")
+      // 2. Determina o dia da semana para buscar passos do cronograma da residência
+      const [ano, mes, dia] = dataSelecionada.split('-').map(Number);
+      const dateObj = new Date(ano, mes - 1, dia);
+      const dayIdx = dateObj.getDay();
+      const DIAS_SEMANA_MAP: Record<number, string> = {
+        0: 'domingo',
+        1: 'segunda',
+        2: 'terca',
+        3: 'quarta',
+        4: 'quinta',
+        5: 'sexta',
+        6: 'sabado',
+      };
+      const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
+
+      const semStr = storage.getString('@athena_semana_ativa');
+      const semanaAtiva = semStr ? parseInt(semStr, 10) : 1;
+
+      // Busca os passos do cronograma da residência médica do banco SQLite
+      const passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaAtiva);
+
+      // Mapeia os passos para AtividadeAgenda
+      const passosMapeados: AtividadeAgenda[] = (passosResidencia || []).map((p) => {
+        let icone = 'book-open';
+        if (p.tipo === 'aulas' || p.tipo === 'aulas_bonus') icone = 'play-circle';
+        else if (p.tipo === 'questoes') icone = 'check-square';
+        else if (p.tipo === 'flashcards') icone = 'layers';
+
+        let detalhesTexto = '';
+        if (p.tipo === 'questoes') {
+          const meta = p.meta_questoes ? `Meta: ${p.meta_questoes} questões` : '';
+          const tema = p.tema_questoes || p.detalhe || '';
+          detalhesTexto = [meta, tema].filter(Boolean).join(' • ');
+        } else {
+          detalhesTexto = p.detalhe || p.tema_questoes || '';
+        }
+
+        return {
+          id: `passo_${p.id}`,
+          data_agendada: dataSelecionada,
+          titulo: `${p.topico_titulo}${p.label ? ' • ' + p.label : ''}`,
+          tipo: 'Estudos',
+          icone,
+          concluida: p.concluido === 1,
+          detalhes: detalhesTexto || undefined,
+          feedback_cansaco: p.tipo === 'questoes' ? 3 : p.tipo === 'aulas' ? 2 : 1,
+        };
+      });
+
+      setAtividades([...dadosAgenda, ...passosMapeados]);
+
+      // 3. Calcula a data do dia anterior (para verificar eventual "dívida de cansaço")
       const dataAtual = new Date(dataSelecionada + 'T12:00:00Z');
       dataAtual.setDate(dataAtual.getDate() - 1);
       const dataAnteriorISO = toLocalDateStr(dataAtual);
 
-      // 3. Busca o orçamento ajustado (limite dinâmico)
+      // 4. Busca o orçamento ajustado (limite dinâmico)
       const orcamentoAjustado = await getAdjustedDailyBudget(dataSelecionada, dataAnteriorISO);
       setLimiteDiario(orcamentoAjustado);
     } catch (error) {
@@ -151,7 +203,7 @@ export default function DashboardScreen() {
     }, [carregarAgenda])
   );
 
-  // Alterna o status de concluída (materializando tarefas virtuais se necessário)
+  // Alterna o status de concluída (materializando tarefas virtuais ou atualizando SQLite nos passos)
   const handleToggle = async (atividade: AtividadeAgenda) => {
     // Atualização otimista imediata para feedback instantâneo na UI
     const novoStatus = !atividade.concluida;
@@ -160,8 +212,13 @@ export default function DashboardScreen() {
     );
 
     try {
-      await toggleAtividadeStatus(atividade);
-      await carregarAgenda(); // Recarrega para refletir a materialização
+      if (atividade.id.startsWith('passo_')) {
+        const passoId = parseInt(atividade.id.replace('passo_', ''), 10);
+        await togglePassoConcluido(passoId, novoStatus);
+      } else {
+        await toggleAtividadeStatus(atividade);
+      }
+      await carregarAgenda(); // Recarrega para refletir persistência
     } catch (err) {
       console.error('[Dashboard] Erro ao alternar status da atividade:', err);
       carregarAgenda();
@@ -309,20 +366,26 @@ export default function DashboardScreen() {
     }
 
     // 2. Renderiza a Atividade Normal (com trilha contínua e indicador 'Agora' embutido)
-    const horaItemStr = item.hora_inicio || item.time || '00:00';
-    const [itemHour, itemMin] = horaItemStr.split(':').map((v: string) => parseInt(v, 10));
-    const timePassed = calcTimePassed(itemHour, itemMin || 0);
+    const horaItemStr = item.hora_inicio || item.time || '';
+    const [itemHour, itemMin] = horaItemStr ? horaItemStr.split(':').map((v: string) => parseInt(v, 10)) : [12, 0];
+    const timePassed = horaItemStr ? calcTimePassed(itemHour, itemMin || 0) : -9999;
 
-    const isPast = timePassed >= 60;
-    const isCurrentHour = isToday && timePassed >= 0 && timePassed < 60;
+    const isPast = horaItemStr ? timePassed >= 60 : false;
+    const isCurrentHour = horaItemStr ? (isToday && timePassed >= 0 && timePassed < 60) : false;
     const corBase = CATEGORIA_CORES[item.tipo] || CATEGORIA_CORES['default'];
 
     return (
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
-          <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: Colors.text } : styles.timeTextPast]}>
-            {horaItemStr}
-          </Text>
+          {horaItemStr ? (
+            <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: Colors.text } : styles.timeTextPast]}>
+              {horaItemStr}
+            </Text>
+          ) : (
+            <View style={styles.noTimeIndicator}>
+              <Ionicons name="book-outline" size={13} color={Colors.textSecondary} />
+            </View>
+          )}
 
           {/* Trilha de Progresso do Tempo */}
           {renderDottedProgress(timePassed)}
@@ -331,6 +394,7 @@ export default function DashboardScreen() {
         <TouchableOpacity
           onPress={() => handleToggle(item)}
           onLongPress={() => {
+            if (item.id?.startsWith('passo_')) return;
             setAtividadeParaEditar(item);
             setModalNovaVisible(true);
           }}
@@ -372,6 +436,16 @@ export default function DashboardScreen() {
                 </View>
               </View>
             </View>
+
+            {/* Detalhes da Atividade / Passo (ex: meta de questões, tema específico) */}
+            {!!item.detalhes && (
+              <View style={styles.detailsRow}>
+                <Ionicons name="information-circle-outline" size={13} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                <Text style={styles.detailsText} numberOfLines={2}>
+                  {item.detalhes}
+                </Text>
+              </View>
+            )}
 
             {/* Linha Meta: Horários e Indicador de Rotina */}
             <View style={styles.metaRow}>
@@ -789,6 +863,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  detailsText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    flex: 1,
+    lineHeight: 16,
+  },
+  noTimeIndicator: {
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 
   /* Empty State */

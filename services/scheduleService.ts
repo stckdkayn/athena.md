@@ -10,7 +10,7 @@ import {
   CronogramaSemanaSchema,
   ValidatedCronogramaData,
 } from './schemaValidators';
-import { getAtividadesPorData, AtividadeAgenda } from './database';
+import { getAtividadesPorData, AtividadeAgenda, getDatabase } from './database';
 
 export * from './schemaValidators';
 
@@ -905,5 +905,92 @@ export async function canScheduleActivity(
     currentLoad: cargaAtual,
     futureLoad: cargaFutura,
   };
+}
+
+/**
+ * Realiza o seed do cronograma completo da residência médica no SQLite.
+ * Verifica previamente se o banco já possui dados na tabela Semanas para evitar duplicidade.
+ */
+export async function seedCronogramaResidencia(jsonData: any): Promise<boolean> {
+  if (!jsonData || !jsonData.semanas) {
+    console.warn('[seedCronogramaResidencia] JSON inválido ou sem semanas.');
+    return false;
+  }
+
+  const database = getDatabase();
+
+  // Verificação para garantir que o seed só seja executado caso o banco esteja vazio
+  const countRow = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM Semanas;'
+  );
+  if (countRow && countRow.count > 0) {
+    console.log(`[seedCronogramaResidencia] Banco já possui ${countRow.count} semanas. Ignorando seed.`);
+    return false;
+  }
+
+  console.log('[seedCronogramaResidencia] Semeando cronograma no SQLite...');
+
+  await database.withExclusiveTransactionAsync(async (txn) => {
+    for (const semana of jsonData.semanas) {
+      const semanaId = Number(semana.id ?? semana.numero);
+      const numero = Number(semana.numero ?? semanaId);
+      const titulo = String(semana.titulo || `Semana ${numero}`);
+
+      await txn.runAsync(
+        'INSERT OR REPLACE INTO Semanas (id, numero, titulo) VALUES (?, ?, ?);',
+        [semanaId, numero, titulo]
+      );
+
+      if (semana.topicos && Array.isArray(semana.topicos)) {
+        for (const topico of semana.topicos) {
+          const topicoId = String(topico.id);
+          const area = topico.area || topico.grandeArea || null;
+          const especialidade = topico.especialidade || null;
+          const tituloTopico = String(topico.titulo || '');
+          const estimativaMinutos = Number(topico.estimativaMinutos || 0);
+          const assignedDay = String(topico.assignedDay || 'segunda');
+          const concluidoTopico = topico.concluido ? 1 : 0;
+
+          await txn.runAsync(
+            `INSERT OR REPLACE INTO Topicos (
+              id, semana_id, area, especialidade, titulo, estimativa_minutos, assigned_day, concluido
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+            [topicoId, semanaId, area, especialidade, tituloTopico, estimativaMinutos, assignedDay, concluidoTopico]
+          );
+
+          if (topico.passos && Array.isArray(topico.passos)) {
+            for (const passo of topico.passos) {
+              const tipo = String(passo.tipo || 'apostila');
+              const label = passo.label ? String(passo.label) : null;
+              const detalhe = passo.detalhe ? String(passo.detalhe) : null;
+              const diaSemana = String(passo.dia || passo.dia_semana || assignedDay);
+              const metaQuestoes = typeof passo.metaQuestoes === 'number' 
+                ? passo.metaQuestoes 
+                : (typeof passo.meta_questoes === 'number' ? passo.meta_questoes : null);
+              const temaQuestoes = Array.isArray(passo.temaQuestoes)
+                ? passo.temaQuestoes.join(', ')
+                : (passo.temaQuestoes || passo.tema_questoes ? String(passo.temaQuestoes || passo.tema_questoes) : null);
+              const concluidoPasso = passo.concluido ? 1 : 0;
+
+              await txn.runAsync(
+                `INSERT INTO Passos (
+                  topico_id, tipo, label, detalhe, dia_semana, meta_questoes, tema_questoes, concluido
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+                [topicoId, tipo, label, detalhe, diaSemana, metaQuestoes, temaQuestoes, concluidoPasso]
+              );
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Salva também no MMKV para rotinas de revisão/síncronas
+  try {
+    saveCronograma(jsonData);
+  } catch {}
+
+  console.log('[seedCronogramaResidencia] Cronograma semeado com sucesso no SQLite!');
+  return true;
 }
 

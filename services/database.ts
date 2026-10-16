@@ -91,6 +91,46 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         timestamp INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_recorrentes_datas ON AtividadesRecorrentes (data_inicio, data_fim);
+
+      -- Tabela Semanas (Cronograma de Residência)
+      CREATE TABLE IF NOT EXISTS Semanas (
+        id INTEGER PRIMARY KEY,
+        numero INTEGER NOT NULL,
+        titulo TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_semanas_numero ON Semanas (numero);
+
+      -- Tabela Topicos (Cronograma de Residência)
+      CREATE TABLE IF NOT EXISTS Topicos (
+        id TEXT PRIMARY KEY,
+        semana_id INTEGER,
+        area TEXT,
+        especialidade TEXT,
+        titulo TEXT NOT NULL,
+        estimativa_minutos INTEGER DEFAULT 0,
+        assigned_day TEXT,
+        concluido INTEGER DEFAULT 0,
+        FOREIGN KEY (semana_id) REFERENCES Semanas(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_topicos_semana ON Topicos (semana_id);
+      CREATE INDEX IF NOT EXISTS idx_topicos_assigned_day ON Topicos (assigned_day);
+
+      -- Tabela Passos (Cronograma de Residência)
+      CREATE TABLE IF NOT EXISTS Passos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topico_id TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        label TEXT,
+        detalhe TEXT,
+        dia_semana TEXT,
+        meta_questoes INTEGER,
+        tema_questoes TEXT,
+        concluido INTEGER DEFAULT 0,
+        FOREIGN KEY (topico_id) REFERENCES Topicos(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_passos_topico ON Passos (topico_id);
+      CREATE INDEX IF NOT EXISTS idx_passos_dia_semana ON Passos (dia_semana);
+      CREATE INDEX IF NOT EXISTS idx_passos_concluido ON Passos (concluido);
     `);
 
     // Migração transparente de colunas caso as tabelas já existissem
@@ -1044,5 +1084,203 @@ export async function excluirAtividade(id: string): Promise<void> {
   } else {
     await database.runAsync(`DELETE FROM AtividadesRecorrentes WHERE id = ?;`, [id]);
   }
+}
+
+// ============================================================================
+// CRONOGRAMA DE RESIDÊNCIA (Semanas, Topicos, Passos)
+// ============================================================================
+
+export interface SemanaDB {
+  id: number;
+  numero: number;
+  titulo: string;
+}
+
+export interface TopicoDB {
+  id: string;
+  semana_id: number;
+  area?: string | null;
+  especialidade?: string | null;
+  titulo: string;
+  estimativa_minutos?: number | null;
+  assigned_day?: string | null;
+  concluido: number; // 0 ou 1
+}
+
+export interface PassoDB {
+  id: number;
+  topico_id: string;
+  tipo: string;
+  label?: string | null;
+  detalhe?: string | null;
+  dia_semana?: string | null;
+  meta_questoes?: number | null;
+  tema_questoes?: string | null;
+  concluido: number; // 0 ou 1
+}
+
+export interface PassoComTopicoDB extends PassoDB {
+  topico_titulo: string;
+  topico_area?: string | null;
+  topico_especialidade?: string | null;
+  semana_id: number;
+}
+
+/**
+ * Retorna os passos de um tópico específico.
+ */
+export async function getPassosPorTopico(topicoId: string): Promise<PassoDB[]> {
+  const database = getDatabase();
+  return await database.getAllAsync<PassoDB>(
+    `SELECT * FROM Passos WHERE topico_id = ? ORDER BY id ASC;`,
+    [topicoId]
+  );
+}
+
+/**
+ * Retorna passos associados a um dia da semana (ex: 'segunda'), com dados do tópico.
+ * Opcionalmente filtra por uma semana específica.
+ */
+export async function getPassosPorDiaSemana(diaSemana: string, semanaId?: number): Promise<PassoComTopicoDB[]> {
+  const database = getDatabase();
+  if (typeof semanaId === 'number') {
+    return await database.getAllAsync<PassoComTopicoDB>(
+      `SELECT 
+        p.id,
+        p.topico_id,
+        p.tipo,
+        p.label,
+        p.detalhe,
+        p.dia_semana,
+        p.meta_questoes,
+        p.tema_questoes,
+        p.concluido,
+        t.titulo as topico_titulo,
+        t.area as topico_area,
+        t.especialidade as topico_especialidade,
+        t.semana_id
+       FROM Passos p
+       JOIN Topicos t ON p.topico_id = t.id
+       WHERE p.dia_semana = ? AND t.semana_id = ?
+       ORDER BY p.id ASC;`,
+      [diaSemana, semanaId]
+    );
+  }
+
+  return await database.getAllAsync<PassoComTopicoDB>(
+    `SELECT 
+      p.id,
+      p.topico_id,
+      p.tipo,
+      p.label,
+      p.detalhe,
+      p.dia_semana,
+      p.meta_questoes,
+      p.tema_questoes,
+      p.concluido,
+      t.titulo as topico_titulo,
+      t.area as topico_area,
+      t.especialidade as topico_especialidade,
+      t.semana_id
+     FROM Passos p
+     JOIN Topicos t ON p.topico_id = t.id
+     WHERE p.dia_semana = ?
+     ORDER BY p.id ASC;`,
+    [diaSemana]
+  );
+}
+
+/**
+ * Alterna ou define o status de conclusão de um passo, e atualiza o status do tópico se todos os passos forem concluídos.
+ */
+export async function togglePassoConcluido(passoId: number, status?: boolean): Promise<boolean> {
+  const database = getDatabase();
+  let novoConcluido: number;
+
+  if (typeof status === 'boolean') {
+    novoConcluido = status ? 1 : 0;
+  } else {
+    const row = await database.getFirstAsync<{ concluido: number }>(
+      `SELECT concluido FROM Passos WHERE id = ?;`,
+      [passoId]
+    );
+    novoConcluido = row && row.concluido === 1 ? 0 : 1;
+  }
+
+  await database.runAsync(`UPDATE Passos SET concluido = ? WHERE id = ?;`, [novoConcluido, passoId]);
+
+  // Atualiza o status do tópico se todos os passos forem concluídos
+  const passoInfo = await database.getFirstAsync<{ topico_id: string }>(
+    `SELECT topico_id FROM Passos WHERE id = ?;`,
+    [passoId]
+  );
+  if (passoInfo) {
+    const pendentes = await database.getFirstAsync<{ total: number }>(
+      `SELECT COUNT(*) as total FROM Passos WHERE topico_id = ? AND concluido = 0;`,
+      [passoInfo.topico_id]
+    );
+    const topicoConcluido = pendentes && pendentes.total === 0 ? 1 : 0;
+    await database.runAsync(`UPDATE Topicos SET concluido = ? WHERE id = ?;`, [topicoConcluido, passoInfo.topico_id]);
+  }
+
+  return novoConcluido === 1;
+}
+
+/**
+ * Atualiza explicitamente o status de conclusão de um passo pelo ID.
+ */
+export async function updatePassoConcluido(passoId: number, concluido: boolean): Promise<void> {
+  await togglePassoConcluido(passoId, concluido);
+}
+
+/**
+ * Retorna todo o cronograma salvo no SQLite estruturado em Semanas, Topicos e Passos.
+ */
+export async function getCronogramaFromSQLite(): Promise<any | null> {
+  const database = getDatabase();
+  const semanas = await database.getAllAsync<SemanaDB>(`SELECT * FROM Semanas ORDER BY numero ASC;`);
+  if (!semanas || semanas.length === 0) return null;
+
+  const topicos = await database.getAllAsync<TopicoDB>(`SELECT * FROM Topicos;`);
+  const passos = await database.getAllAsync<PassoDB>(`SELECT * FROM Passos ORDER BY id ASC;`);
+
+  const passosPorTopico: Record<string, any[]> = {};
+  for (const p of passos) {
+    if (!passosPorTopico[p.topico_id]) passosPorTopico[p.topico_id] = [];
+    passosPorTopico[p.topico_id].push({
+      id: String(p.id),
+      tipo: p.tipo,
+      label: p.label || undefined,
+      detalhe: p.detalhe || undefined,
+      dia: p.dia_semana,
+      metaQuestoes: p.meta_questoes ?? undefined,
+      temaQuestoes: p.tema_questoes ?? undefined,
+      concluido: p.concluido === 1,
+    });
+  }
+
+  const topicosPorSemana: Record<number, any[]> = {};
+  for (const t of topicos) {
+    if (!topicosPorSemana[t.semana_id]) topicosPorSemana[t.semana_id] = [];
+    topicosPorSemana[t.semana_id].push({
+      id: t.id,
+      area: t.area || '',
+      especialidade: t.especialidade || undefined,
+      titulo: t.titulo,
+      estimativaMinutos: t.estimativa_minutos || 0,
+      assignedDay: t.assigned_day || 'segunda',
+      concluido: t.concluido === 1,
+      passos: passosPorTopico[t.id] || [],
+    });
+  }
+
+  return {
+    titulo: 'Cronograma 2026',
+    semanas: semanas.map((s) => ({
+      numero: s.numero,
+      titulo: s.titulo,
+      topicos: topicosPorSemana[s.numero] || topicosPorSemana[s.id] || [],
+    })),
+  };
 }
 

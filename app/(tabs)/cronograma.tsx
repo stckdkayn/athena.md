@@ -26,6 +26,12 @@ import {
   ModalNovoTopico,
 } from '@/components/cronograma';
 import {
+  getCronogramaFromSQLite,
+  getPassosPorTopico,
+  togglePassoConcluido,
+  PassoDB,
+} from '@/services/database';
+import {
   CronogramaData,
   CronogramaSemana,
   CronogramaTopico,
@@ -212,11 +218,20 @@ export default function CronogramaScreen() {
   const [cronograma, setCronograma] = useState<CronogramaData | null>(null);
   const [progresso, setProgresso] = useState<CronogramaProgresso>({});
   const [daysMap, setDaysMap] = useState<CronogramaDaysMap>({});
-  const [semanaAtiva, setSemanaAtiva] = useState<number>(1);
+  const [semanaAtiva, setSemanaAtiva] = useState<number>(() => {
+    const semStr = storage.getString('@athena_semana_ativa');
+    return semStr ? parseInt(semStr, 10) : 1;
+  });
   const [diaAtivo, setDiaAtivo] = useState<AbaDiaCronograma>(getDiaAtualDispositivo());
   const dayScrollViewRef = useRef<ScrollView>(null);
   const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(new Set());
+  const [dbPassosMap, setDbPassosMap] = useState<Record<string, PassoDB[]>>({});
   const [quizLoadingTopicId, setQuizLoadingTopicId] = useState<string | null>(null);
+
+  // Sincroniza a semana ativa com o MMKV para uso compartilhado na Timeline Diária (index.tsx)
+  useEffect(() => {
+    storage.set('@athena_semana_ativa', semanaAtiva);
+  }, [semanaAtiva]);
 
   // Estados de Modais e Pesquisa
   const [showSearch, setShowSearch] = useState<boolean>(false);
@@ -243,17 +258,20 @@ export default function CronogramaScreen() {
   const [showNovoTopicoModal, setShowNovoTopicoModal] = useState<boolean>(false);
   const [topicoParaEditar, setTopicoParaEditar] = useState<CronogramaTopico | null>(null);
 
-  // Carrega todos os dados de forma síncrona
-  const carregarDados = () => {
+  // Carrega todos os dados buscando direto do SQLite com fallback para o cache local
+  const carregarDados = async () => {
     try {
-      const cronogramaData = getCronograma();
+      let cronogramaData = await getCronogramaFromSQLite();
+      if (!cronogramaData || !cronogramaData.semanas || cronogramaData.semanas.length === 0) {
+        cronogramaData = getCronograma();
+      }
       const progressoData = getCronogramaProgresso();
       const daysData = getCronogramaDays();
 
       if (cronogramaData && cronogramaData.semanas?.length > 0) {
         setCronograma(cronogramaData);
-        const semanasOrdenadas = [...cronogramaData.semanas].sort((a, b) => a.numero - b.numero);
-        const primeiraPendente = semanasOrdenadas.find((s) => {
+        const semanasOrdenadas = [...cronogramaData.semanas].sort((a: any, b: any) => a.numero - b.numero);
+        const primeiraPendente = semanasOrdenadas.find((s: any) => {
           if (!s.topicos || s.topicos.length === 0) return false;
           const stats = calcularProgressoSemana(s, progressoData || {});
           return stats.porcentagem < 100;
@@ -261,12 +279,8 @@ export default function CronogramaScreen() {
         const semanaPadrao = primeiraPendente ? primeiraPendente.numero : semanasOrdenadas[semanasOrdenadas.length - 1].numero;
 
         setSemanaAtiva((curr) => {
-          const currSemana = cronogramaData.semanas.find((s) => s.numero === curr);
+          const currSemana = cronogramaData.semanas.find((s: any) => s.numero === curr);
           if (!currSemana) return semanaPadrao;
-          const currStats = calcularProgressoSemana(currSemana, progressoData || {});
-          if (currStats.total > 0 && currStats.concluidos === currStats.total && primeiraPendente) {
-            return primeiraPendente.numero;
-          }
           return curr;
         });
       } else {
@@ -660,17 +674,58 @@ export default function CronogramaScreen() {
     return results;
   }, [cronograma, searchText, daysMap]);
 
-  const toggleCardExpand = (topicId: string) => {
+  const toggleCardExpand = async (cardKey: string, topicId?: string) => {
+    const isOpening = !expandedTopicIds.has(cardKey);
     setExpandedTopicIds((prev) => {
       const next = new Set(prev);
-      if (next.has(topicId)) next.delete(topicId);
-      else next.add(topicId);
+      if (next.has(cardKey)) next.delete(cardKey);
+      else next.add(cardKey);
       return next;
     });
+
+    const targetTopicId = topicId || cardKey.split('_')[0];
+    if (isOpening && targetTopicId) {
+      try {
+        const passosDoBanco = await getPassosPorTopico(targetTopicId);
+        if (passosDoBanco && passosDoBanco.length > 0) {
+          setDbPassosMap((prev) => ({
+            ...prev,
+            [targetTopicId]: passosDoBanco,
+          }));
+        }
+      } catch (err) {
+        console.error('[Cronograma] Erro ao buscar passos do SQLite:', err);
+      }
+    }
   };
 
-  const handleToggleStep = (topicoId: string, tipoOrStepId: string) => {
+  const handleToggleStep = async (topicoId: string, tipoOrStepId: string, passoIdNum?: number) => {
     try {
+      // 1. Atualiza no SQLite caso tenhamos o id do passo ou encontremos no dbPassosMap
+      let targetPassoId = passoIdNum;
+      if (!targetPassoId && dbPassosMap[topicoId]) {
+        const found = dbPassosMap[topicoId].find(
+          (p) => String(p.id) === tipoOrStepId || p.tipo === tipoOrStepId
+        );
+        if (found) targetPassoId = found.id;
+      }
+
+      if (targetPassoId) {
+        await togglePassoConcluido(targetPassoId);
+        // Atualiza estado local dbPassosMap para renderização e feedback instantâneos
+        setDbPassosMap((prev) => {
+          const passos = prev[topicoId];
+          if (!passos) return prev;
+          return {
+            ...prev,
+            [topicoId]: passos.map((p) =>
+              p.id === targetPassoId ? { ...p, concluido: p.concluido === 1 ? 0 : 1 } : p
+            ),
+          };
+        });
+      }
+
+      // 2. Atualiza no serviço/MMKV para recalcular progresso geral
       const novoProgresso = toggleStepProgress(topicoId, tipoOrStepId);
       setProgresso(novoProgresso);
 
@@ -1239,7 +1294,7 @@ export default function CronogramaScreen() {
                   <View style={[styles.topicCardContainer, isCardDone && styles.topicCardContainerDone]}>
                   <TouchableOpacity
                     style={[styles.topicCardClosed, isCardDone && styles.topicCardClosedDone, isExpanded && (isCardDone ? styles.topicCardOpenHeaderDone : styles.topicCardOpenHeader)]}
-                    onPress={() => toggleCardExpand(cardItem.cardKey)}
+                    onPress={() => toggleCardExpand(cardItem.cardKey, item.id)}
                     activeOpacity={0.85}
                   >
                     <View style={styles.topicCenterContent}>
@@ -1282,7 +1337,14 @@ export default function CronogramaScreen() {
                       <View style={styles.checklistContainer}>
                         {passos.map((passo, passoIdx) => {
                           const stepUniqueId = getStepUniqueId(passo, passoIdx);
-                          const concluido = isStepConcluido(progresso, item.id, stepUniqueId, passo.tipo);
+                          const dbPassosList = dbPassosMap[item.id];
+                          const dbPasso = dbPassosList?.find(
+                            (dp) => String(dp.id) === (passo as any).id || (dp.tipo === passo.tipo && (dp.label === passo.label || dp.detalhe === passo.detalhe))
+                          );
+                          const concluido = dbPasso !== undefined
+                            ? dbPasso.concluido === 1
+                            : isStepConcluido(progresso, item.id, stepUniqueId, passo.tipo);
+                          const passoDbId = dbPasso?.id;
                           const isQuestoes = passo.tipo === 'questoes';
                           const isQuizLoadingThis = quizLoadingTopicId === item.id && isQuestoes;
                           const stepConfig = STEP_ICONS[passo.tipo as FlowStepType] || { icon: 'checkmark-circle-outline', label: passo.label };
@@ -1296,11 +1358,11 @@ export default function CronogramaScreen() {
                               style={[styles.checklistItemRow, concluido && styles.checklistItemRowConcluido]}
                               onPress={() => {
                                 if (isQuestoes) handleStartQuizForTopic(item, passo, concluido);
-                                else handleToggleStep(item.id, stepUniqueId);
+                                else handleToggleStep(item.id, stepUniqueId, passoDbId);
                               }}
                               activeOpacity={0.7}
                             >
-                              <TouchableOpacity style={[styles.checkboxBox, concluido && styles.checkboxBoxConcluido]} onPress={() => handleToggleStep(item.id, stepUniqueId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.8}>
+                              <TouchableOpacity style={[styles.checkboxBox, concluido && styles.checkboxBoxConcluido]} onPress={() => handleToggleStep(item.id, stepUniqueId, passoDbId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.8}>
                                 {concluido && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
                               </TouchableOpacity>
                               <View style={[styles.stepIconBox, concluido && styles.stepIconBoxConcluido]}>

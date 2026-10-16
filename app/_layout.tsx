@@ -12,6 +12,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { migrateAsyncStorageToMMKV } from '@/services/storage';
 import { ensureQuestionsDatabaseReady } from '@/services/questionService';
 import { migrateStorageProgressToSQLite } from '@/services/progressService';
+import { seedCronogramaResidencia } from '@/services/scheduleService';
+import cronogramaJson from '@/assets/cronograma.json';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -45,6 +47,9 @@ export default function RootLayout() {
     migrateAsyncStorageToMMKV();
     ensureQuestionsDatabaseReady().catch(() => {});
     migrateStorageProgressToSQLite().catch(() => {});
+    seedCronogramaResidencia(cronogramaJson).catch((err) => {
+      console.error('[RootLayout] Erro ao semear cronograma no SQLite:', err);
+    });
   }, []);
 
   if (!loaded) {
