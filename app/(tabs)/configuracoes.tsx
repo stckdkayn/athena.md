@@ -24,6 +24,7 @@ import JSZip from 'jszip';
 import { useNavigation } from 'expo-router';
 import { Colors, ThemeMode, AccentColorKey } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
+import AppHeader from '@/components/AppHeader';
 import {
   ICalFeed,
   getICalFeeds,
@@ -1475,13 +1476,7 @@ export default function ConfiguracoesScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar hidden={true} barStyle="light-content" />
       {currentView === 'menu' && (
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTitleRow}>
-            <Ionicons name="settings-outline" size={26} color={Colors.primary} style={styles.headerIcon} />
-            <Text style={styles.headerTitle}>Configurações</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>Gerencie seus dados, questões e preferências do app</Text>
-        </View>
+        <AppHeader />
       )}
       <ScrollView contentContainerStyle={styles.scrollContainer} style={styles.container}>
         {currentView === 'menu' ? (

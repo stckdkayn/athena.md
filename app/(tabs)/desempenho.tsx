@@ -16,6 +16,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 
 import { Colors, ActiveThemeColors } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
+import AppHeader from '@/components/AppHeader';
 import {
   getDatabase,
   getMemoryHealthSummary,
@@ -550,17 +551,14 @@ export default function DesempenhoScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
+      {/* Cabeçalho Unificado */}
+      <AppHeader />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Seu Desempenho</Text>
-          <Text style={styles.subtitle}>Métricas de retenção, ritmo de prova e pontos críticos.</Text>
-        </View>
-
         {/* 1. Filtro Temporal (Hoje / 7 dias / 30 dias / Geral) */}
         <View style={styles.timeFilterRow}>
           {[

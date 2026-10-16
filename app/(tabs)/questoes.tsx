@@ -22,6 +22,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, ActiveThemeColors } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 import HealthIcon from '@/components/HealthIcon';
+import AppHeader from '@/components/AppHeader';
 
 import { storage } from '@/services/storage'; // <-- Importando MMKV
 
@@ -825,14 +826,8 @@ export default function TreinoScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
-      {/* Cabeçalho Principal (Estilo Cronograma / Configurações) */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTitleRow}>
-          <Ionicons name="document-text-outline" size={26} color={themeColors.primary} style={styles.headerIcon} />
-          <Text style={styles.headerTitle}>Questões</Text>
-        </View>
-        <Text style={styles.headerSubtitle}>Treine por temas e resolva questões para fixação</Text>
-      </View>
+      {/* Cabeçalho Unificado */}
+      <AppHeader />
 
       {/* Barra de Ações: Busca à esquerda, Especialidades no centro, 3 pontos à direita */}
       <View style={styles.topHeaderContainer}>

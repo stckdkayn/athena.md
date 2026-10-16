@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { storage } from '@/services/storage';
 import { Colors } from '@/constants/Colors';
+import AppHeader from '@/components/AppHeader';
 import CircularProgressRing from '@/components/CircularProgressRing';
 import {
   ModalsMenuTopico,
@@ -939,13 +940,7 @@ export default function CronogramaScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <StatusBar hidden={true} barStyle="light-content" />
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTitleRow}>
-            <Ionicons name="calendar-outline" size={26} color={Colors.primary} style={styles.headerIcon} />
-            <Text style={styles.headerTitle}>Cronograma</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>Acompanhe suas metas de estudo e evolução diária</Text>
-        </View>
+        <AppHeader />
 
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>
@@ -966,13 +961,7 @@ export default function CronogramaScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar hidden={true} barStyle="light-content" />
 
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTitleRow}>
-          <Ionicons name="calendar-outline" size={26} color={Colors.primary} style={styles.headerIcon} />
-          <Text style={styles.headerTitle}>Cronograma</Text>
-        </View>
-        <Text style={styles.headerSubtitle}>Acompanhe suas metas de estudo e evolução diária</Text>
-      </View>
+      <AppHeader />
 
       <View style={styles.weekSelectorWrapper}>
         <View style={styles.weekNavRow}>
