@@ -134,24 +134,36 @@ export default function DashboardScreen() {
     return target.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
   };
 
-  // Lógica de Cálculo da Segunda-feira da Semana com o número contínuo do cronograma
+  // Lógica de Cálculo do início e fim da semana (Segunda à Domingo) com o número contínuo do cronograma
   const getWeekLabel = (dateString: string) => {
     const target = new Date(dateString + 'T12:00:00Z');
     const day = target.getDay();
 
-    // Calcula quantos dias voltar para chegar na Segunda-feira
     // No JS, Domingo é 0. Então se for Domingo, volta 6 dias. Senão, volta (day - 1)
     const diffToMonday = day === 0 ? -6 : 1 - day;
 
     const monday = new Date(target.getTime());
     monday.setDate(target.getDate() + diffToMonday);
 
-    const dayStr = monday.getDate();
-    const monthStr = monday.toLocaleDateString('pt-BR', { month: 'long' });
+    const sunday = new Date(monday.getTime());
+    sunday.setDate(monday.getDate() + 6);
+
+    const mondayDay = monday.getDate();
+    const sundayDay = sunday.getDate();
+
+    const mondayMonth = monday.toLocaleDateString('pt-BR', { month: 'long' });
+    const sundayMonth = sunday.toLocaleDateString('pt-BR', { month: 'long' });
 
     const semanaNum = getSemanaDoCronogramaPorData(dateString);
 
-    return `Semana ${semanaNum} • ${dayStr} de ${monthStr}`;
+    let datasTexto = '';
+    if (mondayMonth === sundayMonth) {
+      datasTexto = `${mondayDay} à ${sundayDay} de ${mondayMonth}`;
+    } else {
+      datasTexto = `${mondayDay} de ${mondayMonth} à ${sundayDay} de ${sundayMonth}`;
+    }
+
+    return `Semana ${semanaNum} • ${datasTexto}`;
   };
 
   const isCarregandoAgendaRef = useRef<boolean>(false);
@@ -723,78 +735,49 @@ export default function DashboardScreen() {
 
       {/* 1. Header Dinâmico de 2 Linhas */}
       <View style={styles.header}>
-        {/* Primeira linha: Foto e Nome (à esquerda) e Streak (à direita) */}
+        {/* Primeira linha: Saudação com Nome Grande (à esquerda) e Foto de Perfil (à direita) */}
         <View style={styles.headerTopRow}>
-          <View style={styles.headerProfileLeft}>
-            <TouchableOpacity
-              style={styles.avatarContainer}
-              onPress={handleAvatarPress}
-              activeOpacity={0.8}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <View style={styles.avatarCircle}>
-                {userPhoto ? (
-                  <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    {userName && userName.trim() ? (
-                      <Text style={styles.avatarInitials}>
-                        {userName.trim().charAt(0).toUpperCase()}
-                      </Text>
-                    ) : (
-                      <Ionicons name="person" size={20} color={Colors.textSecondary} />
-                    )}
-                  </View>
-                )}
-              </View>
-              <View style={styles.avatarCameraBadge}>
-                <Ionicons name="camera" size={9} color="#000000" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setModalNomeVisible(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-              style={{ flex: 1 }}
-            >
-              <Text style={styles.userNameText} numberOfLines={1}>
-                {userName && userName.trim() ? userName.trim() : 'Dr. Usuário'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Feature de Streak Alinhada à Direita no Canto */}
           <TouchableOpacity
-            style={[
-              styles.streakBadge,
-              streakInfo?.activeToday ? styles.streakBadgeActive : styles.streakBadgeInactive,
-            ]}
-            onPress={() => setModalStreakVisible(true)}
+            onPress={() => setModalNomeVisible(true)}
             activeOpacity={0.7}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            style={styles.greetingContainer}
           >
-            <Ionicons
-              name={streakInfo?.activeToday ? 'flame' : 'flame-outline'}
-              size={18}
-              color={streakInfo?.activeToday ? '#FF8800' : '#8E959E'}
-            />
-            <Text
-              style={[
-                styles.streakBadgeText,
-                streakInfo?.activeToday ? styles.streakBadgeTextActive : styles.streakBadgeTextInactive,
-              ]}
-            >
-              {streakInfo?.streak || 0}
+            <Text style={styles.bigGreetingText} numberOfLines={1}>
+              {greeting.text}, {userName && userName.trim() ? userName.trim() : 'Gabriel'}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={handleAvatarPress}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View style={styles.avatarCircle}>
+              {userPhoto ? (
+                <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  {userName && userName.trim() ? (
+                    <Text style={styles.avatarInitials}>
+                      {userName.trim().charAt(0).toUpperCase()}
+                    </Text>
+                  ) : (
+                    <Ionicons name="person" size={24} color={Colors.textSecondary} />
+                  )}
+                </View>
+              )}
+            </View>
+            <View style={styles.avatarCameraBadge}>
+              <Ionicons name="camera" size={10} color="#000000" />
+            </View>
           </TouchableOpacity>
         </View>
 
-        {/* Segunda linha: Saudação (à esquerda) e Botões de Busca e Visão Mensal (à direita) */}
-        <View style={styles.headerBottomRow}>
-          <View style={styles.greetingRow}>
-            <Text style={styles.greetingText}>{greeting.text}</Text>
-            <Ionicons name={greeting.icon} size={13} color={Colors.primary} />
-          </View>
+        {/* Segunda linha: "Semana 1 • 12 à 18 de outubro" (à esquerda) e Ações (à direita) */}
+        <View style={styles.headerSubRow}>
+          <Text style={styles.weekLabel}>{getWeekLabel(dataSelecionada)}</Text>
 
           <View style={styles.headerActionsRight}>
             <TouchableOpacity
@@ -816,9 +799,6 @@ export default function DashboardScreen() {
           </View>
         </View>
       </View>
-
-      {/* NOVO: Título da Semana */}
-      <Text style={styles.weekLabel}>{getWeekLabel(dataSelecionada)}</Text>
 
       {/* 2. Seletor de Semana Estilo Calendário Folha */}
       <View style={styles.weekSelector}>
@@ -864,7 +844,7 @@ export default function DashboardScreen() {
       {/* 3. Container Board das Atividades */}
       <View style={styles.boardContainer}>
         <View style={styles.boardHeaderRow}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, marginRight: 10 }}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
             <Text style={styles.boardSubtitle}>
               Você completou <Text style={styles.boardSubtitleBold}>{concluidas}</Text> de{' '}
@@ -872,6 +852,30 @@ export default function DashboardScreen() {
               {total === 1 ? 'atividade agendada' : 'atividades agendadas'}!
             </Text>
           </View>
+
+          {/* Feature de Streak Alinhada à Direita no Canto do Card de Calendário */}
+          <TouchableOpacity
+            style={[
+              styles.streakBadge,
+              streakInfo?.activeToday ? styles.streakBadgeActive : styles.streakBadgeInactive,
+            ]}
+            onPress={() => setModalStreakVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={streakInfo?.activeToday ? 'flame' : 'flame-outline'}
+              size={18}
+              color={streakInfo?.activeToday ? '#FF8800' : '#8E959E'}
+            />
+            <Text
+              style={[
+                styles.streakBadgeText,
+                streakInfo?.activeToday ? styles.streakBadgeTextActive : styles.streakBadgeTextInactive,
+              ]}
+            >
+              {streakInfo?.streak || 0}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <FlatList
@@ -995,58 +999,53 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     marginBottom: 14,
-    gap: 10,
-  },
-  weekLabel: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    fontFamily: Fonts.semiBold,
-    color: '#888', 
-    textAlign: 'center', 
-    paddingHorizontal: 20, 
-    marginBottom: 12,
+    gap: 12,
   },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerProfileLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  greetingContainer: {
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
+  },
+  bigGreetingText: {
+    fontSize: 26,
+    fontFamily: Fonts.extraBold,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.5,
   },
   avatarContainer: {
     position: 'relative',
-    marginRight: 10,
   },
   avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#1E2226',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#33383F',
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
   avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#1C1F22',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontSize: 18,
+    fontSize: 22,
     fontFamily: Fonts.extraBold,
     fontWeight: '800',
     color: Colors.primary,
@@ -1055,8 +1054,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -1,
     right: -1,
-    width: 17,
-    height: 17,
+    width: 18,
+    height: 18,
     borderRadius: 9,
     backgroundColor: Colors.primary,
     alignItems: 'center',
@@ -1064,29 +1063,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.background,
   },
-  userNameText: {
-    fontSize: 18,
-    fontFamily: Fonts.extraBold,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: -0.3,
-  },
-  headerBottomRow: {
+  headerSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 2,
   },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  greetingText: {
+  weekLabel: {
     fontSize: 13,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.semiBold,
+    color: '#8E959E',
+    letterSpacing: -0.2,
   },
   headerActionsRight: {
     flexDirection: 'row',
@@ -1231,7 +1219,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts.regular,
     color: Colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   boardSubtitleBold: {
     fontFamily: Fonts.bold,
