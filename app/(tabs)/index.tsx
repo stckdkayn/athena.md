@@ -560,7 +560,7 @@ export default function DashboardScreen() {
   // Referência para o auto-scroll
   const flatListRef = useRef<FlatList>(null);
 
-  // Processamento da Timeline (Injetando âncoras de 07:00 e 22:00)
+  // Processamento da Timeline (Injetando âncoras e unificando o gancho de início)
   const timelineItems = useMemo(() => {
     let items: any[] = [...atividades];
 
@@ -571,61 +571,73 @@ export default function DashboardScreen() {
       return horaA.localeCompare(horaB);
     });
 
-    // Unifica a âncora de início: se já existe atividade começando às 07:00,
-    // marca ela com hasAnchorStart em vez de injetar uma linha extra de 07:00 com pontilhado duplicado
-    const has07hActivity = items.some((a) => (a.hora_inicio || a.time) === '07:00');
+    if (items.length > 0) {
+      // Unifica o gancho de início (sunrise): a primeira atividade do dia sempre ganha o ícone
+      // Isso elimina o espaço vazio artificial que existia caso não houvesse atividade exatamente às 07:00
+      items[0] = { ...items[0], hasAnchorStart: true };
 
-    if (has07hActivity) {
-      let marked = false;
-      items = items.map((a) => {
-        if (!marked && (a.hora_inicio || a.time) === '07:00') {
-          marked = true;
-          return { ...a, hasAnchorStart: true };
-        }
-        return a;
-      });
-    } else {
-      // Se não há atividade às 07:00, insere a âncora de início de forma independente
-      items.unshift({ id: 'ancora_7h', type: 'anchor_start', time: '07:00' });
+      // Injeta âncora de fim às 22:00 apenas se o último item do dia terminar antes desse horário
+      const lastItem = items[items.length - 1];
+      const lastHora = lastItem.hora_fim || lastItem.hora_inicio || '22:00';
+      if (lastHora < '22:00') {
+        items.push({ id: 'ancora_22h', type: 'anchor_end', time: '22:00' });
+      }
     }
-
-    // Injeta âncora de fim às 22:00
-    items.push({ id: 'ancora_22h', type: 'anchor_end', time: '22:00' });
-
-    // Ordena tudo pelo horário com âncoras nas posições exatas
-    items.sort((a, b) => {
-      const getHora = (item: any) => {
-        if (item.type === 'anchor_start') return '06:59:59';
-        if (item.type === 'anchor_end') return '22:00:01';
-        return item.hora_inicio || item.time || '22:00';
-      };
-      return getHora(a).localeCompare(getHora(b));
-    });
 
     return items;
   }, [atividades]);
 
-  // Efeito de auto-scroll para o momento atual (se for hoje)
+  // Efeito de auto-scroll para focar no "Agora" ou próxima atividade (se for hoje)
   useEffect(() => {
     if (timelineItems.length > 0 && flatListRef.current) {
       const todayStr = toLocalDateStr(new Date());
       const isToday = dataSelecionada === todayStr;
       if (isToday) {
-        const currentHour = new Date().getHours();
-        const currentMin = new Date().getMinutes();
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMin = now.getMinutes();
         const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
+        const currentTotalMinutes = currentHour * 60 + currentMin;
 
-        let targetIndex = timelineItems.findIndex((i) => {
-          const itemHora = i.hora_inicio || i.time || '22:00';
-          return itemHora >= currentTimeStr;
+        // 1. Procura se há uma atividade em andamento no exato momento
+        let targetIndex = timelineItems.findIndex((it) => {
+          if (it.type === 'anchor_end') return false;
+          const ini = it.hora_inicio || it.time;
+          if (!ini) return false;
+          const fim = it.hora_fim;
+          if (fim) {
+            return ini <= currentTimeStr && fim >= currentTimeStr;
+          }
+          const [h, m] = ini.split(':').map((v: string) => parseInt(v, 10));
+          const iniMin = h * 60 + m;
+          return currentTotalMinutes >= iniMin && currentTotalMinutes < iniMin + 60;
         });
 
-        if (targetIndex > 0) {
+        // 2. Se nenhuma está em andamento, busca a próxima atividade agendada a partir de agora
+        if (targetIndex === -1) {
+          targetIndex = timelineItems.findIndex((it) => {
+            if (it.type === 'anchor_end') return false;
+            const ini = it.hora_inicio || it.time;
+            return ini && ini >= currentTimeStr;
+          });
+        }
+
+        // 3. Se todas as atividades já passaram, foca na última atividade
+        if (targetIndex === -1 && timelineItems.length > 0) {
+          targetIndex = timelineItems.length - 1;
+        }
+
+        if (targetIndex >= 0 && targetIndex < timelineItems.length) {
           const timer = setTimeout(() => {
-            flatListRef.current?.scrollToIndex({
-              index: Math.max(0, targetIndex - 1),
-              animated: true,
-            });
+            try {
+              flatListRef.current?.scrollToIndex({
+                index: targetIndex,
+                animated: true,
+                viewPosition: 0.1,
+              });
+            } catch (err) {
+              // FlatList recuperará via onScrollToIndexFailed
+            }
           }, 350);
           return () => clearTimeout(timer);
         }
@@ -679,21 +691,7 @@ export default function DashboardScreen() {
       </View>
     );
 
-    // 1. Renderiza âncoras fixas (07:00 e 22:00)
-    if (item.type === 'anchor_start') {
-      const timePassed = calcTimePassed(7, 0);
-      const isPastOrCurrent = isDayPast || (isToday && currentHour >= 7);
-      return (
-        <View style={styles.anchorRow}>
-          <View style={styles.timeColumn}>
-            <Feather name="sunrise" size={20} color={isPastOrCurrent ? themeColors.text : themeColors.textMuted} style={{ marginBottom: 4 }} />
-            <Text style={[styles.timeText, isPastOrCurrent ? { color: themeColors.text } : styles.timeTextPast]}>07:00</Text>
-            {renderDottedProgress(timePassed)}
-          </View>
-        </View>
-      );
-    }
-
+    // 1. Renderiza âncora de fim (22:00)
     if (item.type === 'anchor_end') {
       const isPastOrCurrent = isDayPast || (isToday && currentHour >= 22);
       return (
@@ -1095,7 +1093,19 @@ export default function DashboardScreen() {
           renderItem={renderItemTimeline}
           contentContainerStyle={styles.timelineContainer}
           showsVerticalScrollIndicator={false}
-          onScrollToIndexFailed={() => {}}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          onScrollToIndexFailed={(info) => {
+            const estOffset = Math.max(0, info.index * 88);
+            flatListRef.current?.scrollToOffset({ offset: estOffset, animated: true });
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+                viewPosition: 0.1,
+              });
+            }, 100);
+          }}
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyContainer}>
