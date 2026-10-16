@@ -198,47 +198,50 @@ export default function ModalNovaAtividade({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Input Agrupado com Ícone */}
-            <View style={styles.inputRow}>
+            {/* Input e Ícone Separados */}
+            <View style={styles.mainInputContainer}>
               <TouchableOpacity 
-                style={styles.iconSelectorButton} 
+                style={styles.iconBox} 
                 onPress={() => setShowIconMenu(!showIconMenu)}
                 activeOpacity={0.7}
               >
-                <Feather name={iconeSelecionado as any} size={22} color={Colors.text} />
-                <Feather name="chevron-down" size={14} color="#888" style={{ marginLeft: 4 }} />
+                <Feather name={iconeSelecionado as any} size={24} color={Colors.text} />
               </TouchableOpacity>
+              
               <TextInput
-                style={styles.titleInputGrouped}
+                style={styles.textInputBox}
                 placeholder="Nome do evento..."
                 value={titulo}
                 onChangeText={setTitulo}
-                placeholderTextColor="#999"
+                placeholderTextColor="#71767B"
                 autoFocus
               />
             </View>
 
-            {/* Mini menu de ícones flutuante/condicional */}
+            {/* Pop-up em Grelha para Seleção de Ícones */}
             {showIconMenu && (
-              <View style={styles.iconDropdown}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {ICONES_DISPONIVEIS.map((ic) => (
-                    <TouchableOpacity 
-                      key={ic} 
-                      style={styles.iconDropdownItem} 
-                      onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
-                      activeOpacity={0.7}
-                    >
-                      <Feather name={ic as any} size={20} color={iconeSelecionado === ic ? Colors.primary : '#888'} />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+              <Modal visible={showIconMenu} transparent animationType="fade" onRequestClose={() => setShowIconMenu(false)}>
+                <TouchableOpacity style={styles.gridOverlay} activeOpacity={1} onPress={() => setShowIconMenu(false)}>
+                  <View style={styles.gridContainer}>
+                    <ScrollView contentContainerStyle={styles.gridGrid} showsVerticalScrollIndicator={false}>
+                      {ICONES_DISPONIVEIS.map((ic) => (
+                        <TouchableOpacity 
+                          key={ic} 
+                          style={[styles.gridItem, iconeSelecionado === ic && styles.gridItemActive]} 
+                          onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
+                          activeOpacity={0.7}
+                        >
+                          <Feather name={ic as any} size={24} color={iconeSelecionado === ic ? '#000000' : Colors.textSecondary} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </TouchableOpacity>
+              </Modal>
             )}
 
             {/* Seletor de Horário e Repetição */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Horário</Text>
               <View style={styles.timeRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.subLabel}>Início</Text>
@@ -353,7 +356,7 @@ export default function ModalNovaAtividade({
             {/* Demanda Cognitiva / Carga Mental */}
             <View style={styles.section}>
               <View style={styles.sectionTitleWithSub}>
-                <Text style={styles.sectionLabel}>Demanda Cognitiva (1 a 5)</Text>
+                <Text style={styles.sectionLabel}>Demanda Cognitiva</Text>
                 <Text style={styles.sectionSublabel}>
                   {demanda <= 2 ? 'Leve' : demanda === 3 ? 'Moderada' : 'Intensa'}
                 </Text>
@@ -451,42 +454,67 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.3,
   },
-  inputRow: {
+  mainInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  iconBox: {
+    width: 56,
+    height: 56,
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
     borderColor: '#2e3235',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-  },
-  iconSelectorButton: {
-    flexDirection: 'row',
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingRight: 12,
-    borderRightWidth: 1,
-    borderRightColor: '#2e3235',
-    paddingVertical: 12,
   },
-  titleInputGrouped: {
+  textInputBox: {
     flex: 1,
+    height: 56,
+    backgroundColor: '#1b1d1f',
+    borderWidth: 1,
+    borderColor: '#2e3235',
+    borderRadius: 16,
+    paddingHorizontal: 16,
     fontSize: 17,
     color: Colors.text,
-    paddingVertical: 14,
-    paddingLeft: 12,
   },
-  iconDropdown: {
+  gridOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridContainer: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    width: '85%',
+    maxHeight: '70%',
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#2e3235',
+  },
+  gridGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  gridItem: {
+    width: '22%',
+    aspectRatio: 1,
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
     borderColor: '#2e3235',
-    borderRadius: 12,
-    padding: 8,
-    marginBottom: 16,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  iconDropdownItem: {
-    padding: 8,
-    marginRight: 8,
+  gridItemActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   timeRow: {
     flexDirection: 'row',
