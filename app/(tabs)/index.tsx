@@ -1810,7 +1810,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     /* 5. FAB */
     fab: {
       position: 'absolute',
-      bottom: 100,
+      bottom: 86,
       right: 20,
       width: 52,
       height: 52,

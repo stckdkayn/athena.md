@@ -927,7 +927,7 @@ export default function TreinoScreen() {
         />
 
         {/* Gaveta Inferior Limpa e Compacta (Filtros avançados movidos para o menu de 3 pontos) */}
-        <Animated.View style={[styles.bottomDrawer, { height: painelHeight, bottom: isLandscape ? 68 : 86 }]}>
+        <Animated.View style={[styles.bottomDrawer, { height: painelHeight, bottom: isLandscape ? 60 : 76 }]}>
           {isModoSimulado ? (
             <View style={[styles.cartThemesWrapper, isLandscape && { maxWidth: 560, alignSelf: 'center', width: '100%' }]}>
               <View style={styles.simuladoBottomBanner}>
@@ -1745,7 +1745,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     columnWrapper: { justifyContent: 'space-between', marginBottom: 12 },
     bottomDrawer: {
       position: 'absolute',
-      bottom: 86,
+      bottom: 76,
       left: 16,
       right: 16,
       backgroundColor: theme.surface,

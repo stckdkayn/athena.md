@@ -22,8 +22,11 @@ export default function TabLayout() {
   const isLandscape = width > height;
   const [hasUpdate, setHasUpdate] = useState(false);
 
-  const pillHeight = isLandscape ? 56 : 64;
-  const horizontalMargin = isLandscape ? Math.max(width * 0.22, 48) : 20;
+  const pillHeight = isLandscape ? 48 : 52;
+  const capsuleWidth = isLandscape
+    ? Math.min(width * 0.45, 300)
+    : Math.min(width * 0.68, 260);
+  const leftOffset = Math.round((width - capsuleWidth) / 2);
   const bottomMargin = isLandscape ? 12 : Math.max(insets.bottom, 16);
 
   useEffect(() => {
@@ -53,10 +56,11 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          left: horizontalMargin,
-          right: horizontalMargin,
+          width: capsuleWidth,
+          left: leftOffset,
           bottom: bottomMargin,
           height: pillHeight,
           borderRadius: pillHeight / 2,
@@ -72,8 +76,8 @@ export default function TabLayout() {
           shadowOpacity: isDark ? 0.35 : 0.08,
           shadowRadius: 16,
           elevation: 10,
-          paddingTop: 6,
-          paddingBottom: 6,
+          paddingTop: 0,
+          paddingBottom: 0,
         },
         tabBarBackground: () => (
           <View
@@ -99,16 +103,11 @@ export default function TabLayout() {
         ),
         tabBarActiveTintColor: themeColors.primary,
         tabBarInactiveTintColor: themeColors.textSecondary,
-        tabBarLabelStyle: {
-          fontSize: 10.5,
-          fontWeight: '600',
-          fontFamily: Fonts.semiBold,
-          marginTop: 2,
-        },
         tabBarItemStyle: {
-          paddingVertical: 2,
+          height: pillHeight,
           alignItems: 'center',
           justifyContent: 'center',
+          paddingVertical: 0,
         },
         headerStyle: {
           backgroundColor: themeColors.background,
@@ -122,7 +121,7 @@ export default function TabLayout() {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={21} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -133,7 +132,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'document-text' : 'document-text-outline'}
-              size={21}
+              size={24}
               color={color}
             />
           ),
@@ -144,7 +143,7 @@ export default function TabLayout() {
         options={{
           title: 'Desempenho',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={21} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -160,7 +159,7 @@ export default function TabLayout() {
           title: 'Configurações',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={21} color={color} />
+              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
               {hasUpdate && (
                 <View
                   style={[
@@ -180,15 +179,15 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabIconWrapper: {
     position: 'relative',
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   notificationDot: {
     position: 'absolute',
-    top: -1,
-    right: -2,
+    top: 0,
+    right: -1,
     width: 8,
     height: 8,
     borderRadius: 4,
