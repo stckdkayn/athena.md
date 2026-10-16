@@ -1564,10 +1564,10 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       borderRightWidth: 1,
       borderColor: theme.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -3 },
-      shadowOpacity: isDark ? 0.3 : 0.04,
-      shadowRadius: 6,
-      elevation: isDark ? 5 : 2,
+      shadowOffset: { width: 0, height: -6 },
+      shadowOpacity: isDark ? 0.35 : 0.08,
+      shadowRadius: 16,
+      elevation: isDark ? 8 : 4,
     },
     boardTitle: {
       fontSize: 22,
@@ -1594,7 +1594,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     },
     timelineRow: {
       flexDirection: 'row',
-      marginBottom: 6,
+      marginBottom: 8,
       minHeight: 64,
     },
     timeColumn: {

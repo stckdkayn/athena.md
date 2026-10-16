@@ -145,7 +145,10 @@ export default function SwipeableActivityCard({
       <Animated.View
         style={[
           styles.animatedCardContainer,
-          { backgroundColor: themeColors.surfaceCard },
+          {
+            backgroundColor: themeColors.surfaceCard,
+            shadowOpacity: isDark ? 0.35 : 0.08,
+          },
           item.concluida && styles.activityCardCompleted,
           { transform: [{ translateX }] },
         ]}
@@ -269,13 +272,14 @@ const styles = StyleSheet.create({
   cardWrapper: {
     flex: 1,
     position: 'relative',
-    borderRadius: 14,
-    overflow: 'hidden',
+    marginVertical: 2,
+    marginHorizontal: 1,
   },
   swipeBackground: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#10B981', // Verde suave e vibrante de confirmação
     borderRadius: 14,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'flex-end',
     paddingRight: 22,
@@ -288,17 +292,17 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   activityCard: {
     flex: 1,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(0, 0, 0, 0.07)',
     overflow: 'hidden',
   },
   activityCardCompleted: {
