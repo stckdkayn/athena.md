@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors, CATEGORIA_CORES } from '@/constants/Colors';
+import { Colors, CATEGORIA_CORES, getTopicColor } from '@/constants/Colors';
 import { storage } from '@/services/storage';
 import {
   getAtividadesPorData,
@@ -183,11 +183,11 @@ export default function DashboardScreen() {
       if (blocos && blocos.length > 0) {
         // Se o agendador inteligente já gerou blocos com horários calculados
         itensEstudo = blocos.map((b) => {
-          let icone = 'book-open';
-          if (b.tipo === 'questoes') icone = 'check-square';
-          else if (b.tipo === 'flashcards') icone = 'layers';
-          else if (b.tipo === 'videoaula') icone = 'play-circle';
-          else if (b.tipo === 'leitura') icone = 'book-open';
+          let icone = 'library-outline';
+          if (b.tipo === 'questoes') icone = 'document-text-outline';
+          else if (b.tipo === 'flashcards') icone = 'flash-outline';
+          else if (b.tipo === 'videoaula') icone = 'laptop-outline';
+          else if (b.tipo === 'leitura') icone = 'library-outline';
 
           // TÍTULO: O "detalhe" fica como Título no card
           let tituloCard = b.passo_detalhe || b.passo_tema_questoes || b.topico_titulo || b.titulo || b.tema_id;
@@ -259,10 +259,10 @@ export default function DashboardScreen() {
         }
 
         itensEstudo = (passosResidencia || []).map((p) => {
-          let icone = 'book-open';
-          if (p.tipo === 'aulas' || p.tipo === 'aulas_bonus') icone = 'play-circle';
-          else if (p.tipo === 'questoes') icone = 'check-square';
-          else if (p.tipo === 'flashcards') icone = 'layers';
+          let icone = 'library-outline';
+          if (p.tipo === 'aulas' || p.tipo === 'aulas_bonus') icone = 'laptop-outline';
+          else if (p.tipo === 'questoes') icone = 'document-text-outline';
+          else if (p.tipo === 'flashcards') icone = 'flash-outline';
 
           // TÍTULO: O "detalhe" fica como Título no card
           const tituloCard = p.detalhe || p.tema_questoes || p.topico_titulo;
@@ -461,7 +461,7 @@ export default function DashboardScreen() {
       id: `passo_${searchItem.passo_id || searchItem.topico_id}`,
       titulo: searchItem.topico_titulo,
       tipo: 'Estudos',
-      icone: searchItem.passo_tipo === 'questoes' ? 'check-square' : searchItem.passo_tipo === 'videoaula' ? 'play-circle' : 'book-open',
+      icone: searchItem.passo_tipo === 'questoes' ? 'document-text-outline' : searchItem.passo_tipo === 'videoaula' ? 'laptop-outline' : searchItem.passo_tipo === 'flashcards' ? 'flash-outline' : 'library-outline',
       concluida: false,
       passo_id: searchItem.passo_id,
       topico_id: searchItem.topico_id,
@@ -648,7 +648,31 @@ export default function DashboardScreen() {
 
     const isPast = horaItemStr ? timePassed >= 60 : false;
     const isCurrentHour = horaItemStr ? (isToday && timePassed >= 0 && timePassed < 60) : false;
-    const corBase = CATEGORIA_CORES[item.tipo] || CATEGORIA_CORES['default'];
+
+    const getCardColor = (it: any): string => {
+      // 1. Cor personalizada salva pelo usuário no evento
+      if (it.cor) return it.cor;
+
+      // 2. Cores padronizadas por grande área médica / especialidade
+      if (it.topico_area || it.topico_especialidade || it.tipo === 'Estudos' || it.tipo === 'Estudo') {
+        const topicCol = getTopicColor(
+          it.topico_area || undefined,
+          it.topico_especialidade || undefined,
+          undefined,
+          it.topico_titulo || it.titulo || it.detalhes || undefined
+        );
+        if (topicCol && topicCol !== Colors.primary) return topicCol;
+        if (it.passo_tema_questoes || it.passo_detalhe) {
+          const temaCol = getTopicColor(undefined, undefined, undefined, it.passo_tema_questoes || it.passo_detalhe || undefined);
+          if (temaCol && temaCol !== Colors.primary) return temaCol;
+        }
+      }
+
+      // 3. Fallback para categorias padrão
+      return CATEGORIA_CORES[it.tipo] || CATEGORIA_CORES['default'];
+    };
+
+    const corBase = getCardColor(item);
 
     return (
       <View style={styles.timelineRow}>

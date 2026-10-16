@@ -94,6 +94,29 @@ export default function SwipeableActivityCard({
     extrapolate: 'clamp',
   });
 
+  const isQuestoes =
+    (item as any).passo_tipo === 'questoes' ||
+    item.icone === 'document-text-outline' ||
+    item.icone === 'check-square';
+
+  const isAulas =
+    (item as any).passo_tipo === 'videoaula' ||
+    (item as any).passo_tipo === 'aulas' ||
+    (item as any).passo_tipo === 'aulas_bonus' ||
+    item.icone === 'laptop-outline' ||
+    item.icone === 'play-circle';
+
+  const isApostila =
+    (item as any).passo_tipo === 'leitura' ||
+    (item as any).passo_tipo === 'apostila' ||
+    item.icone === 'library-outline' ||
+    item.icone === 'book-open';
+
+  const isFlashcards =
+    (item as any).passo_tipo === 'flashcards' ||
+    item.icone === 'flash-outline' ||
+    item.icone === 'layers';
+
   return (
     <View style={styles.cardWrapper}>
       {/* Fundo verde escondido com ícone de check revelado apenas ao arrastar */}
@@ -183,31 +206,46 @@ export default function SwipeableActivityCard({
                       <Text style={styles.routineText}>Rotina</Text>
                     </View>
                   )}
-
-                  {item.icone === 'check-square' && !item.concluida && (
-                    <TouchableOpacity
-                      style={styles.praticarBtn}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onStartQuiz(item);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Feather name="play" size={10} color="#000" />
-                      <Text style={styles.praticarBtnText}>Praticar</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </View>
 
               {/* Ícone maior posicionado à direita e centralizado */}
-              <View style={styles.cardRightIconWrapper}>
-                <Feather
-                  name={(item.icone as any) || 'circle'}
-                  size={26}
-                  color={corBase}
-                />
-              </View>
+              {isQuestoes ? (
+                <TouchableOpacity
+                  style={styles.cardRightQuestoesWrapper}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onStartQuiz(item);
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={28}
+                    color={Colors.primary}
+                  />
+                  <Text style={styles.praticarUnderText}>Praticar</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.cardRightIconWrapper}>
+                  {isAulas ? (
+                    <Ionicons name="laptop-outline" size={28} color={corBase} />
+                  ) : isApostila ? (
+                    <Ionicons name="library-outline" size={28} color={corBase} />
+                  ) : isFlashcards ? (
+                    <Ionicons name="flash-outline" size={28} color={corBase} />
+                  ) : item.icone === 'calendar' ? (
+                    <Ionicons name="calendar-outline" size={26} color={corBase} />
+                  ) : (
+                    <Feather
+                      name={(item.icone as any) || 'circle'}
+                      size={26}
+                      color={corBase}
+                    />
+                  )}
+                </View>
+              )}
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -316,19 +354,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 16,
   },
-  praticarBtn: {
-    flexDirection: 'row',
+  cardRightQuestoesWrapper: {
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    justifyContent: 'center',
+    minWidth: 46,
+    paddingLeft: 6,
+    paddingVertical: 2,
   },
-  praticarBtnText: {
+  praticarUnderText: {
     fontSize: 10,
-    fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: '#000',
+    fontWeight: '800',
+    color: Colors.primary,
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
 });

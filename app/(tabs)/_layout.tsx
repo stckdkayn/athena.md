@@ -77,16 +77,27 @@ export default function TabLayout() {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="questoes"
         options={{
-          title: 'Questões',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'checkbox' : 'checkbox-outline'} size={24} color={color} />
+          title: 'Praticar',
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '700',
+            fontFamily: Fonts.bold,
+            color: Colors.primary,
+            marginTop: 2,
+          },
+          tabBarIcon: ({ focused }) => (
+            <Ionicons
+              name={focused ? 'document-text' : 'document-text-outline'}
+              size={26}
+              color={Colors.primary}
+            />
           ),
         }}
       />
@@ -95,7 +106,7 @@ export default function TabLayout() {
         options={{
           title: 'Desempenho',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={26} color={color} />
           ),
         }}
       />
@@ -111,7 +122,7 @@ export default function TabLayout() {
           title: 'Configurações',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
+              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={26} color={color} />
               {hasUpdate && <View style={styles.notificationDot} />}
             </View>
           ),

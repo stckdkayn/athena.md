@@ -186,6 +186,12 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
     try {
       database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN detalhes TEXT;`);
     } catch {}
+    try {
+      database.execSync(`ALTER TABLE AtividadesAgenda ADD COLUMN cor TEXT;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN cor TEXT;`);
+    } catch {}
 
     // Migração de balanceamento de passos: Semana 2 (Teoria na Seg/Ter/Qui e Prática na Qua/Sex)
     try {
@@ -789,6 +795,7 @@ export interface AtividadeAgenda {
   tipo: string;
   icone?: string | null;
   detalhes?: string | null;
+  cor?: string | null;
   data_agendada: string;
   hora_inicio?: string | null;
   hora_fim?: string | null;
@@ -804,6 +811,7 @@ export interface AtividadeRecorrente {
   tipo: string;
   icone?: string | null;
   detalhes?: string | null;
+  cor?: string | null;
   frequencia: 'diaria' | 'dias_uteis' | 'semanal';
   dias_semana?: string | null; // JSON stringfied array
   data_inicio: string;
@@ -823,14 +831,15 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
     const ts = atividade.timestamp || Date.now();
     await database.runAsync(
       `INSERT INTO AtividadesAgenda (
-        id, id_recorrente, titulo, tipo, icone, detalhes, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, id_recorrente, titulo, tipo, icone, detalhes, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         id_recorrente = excluded.id_recorrente,
         titulo = excluded.titulo,
         tipo = excluded.tipo,
         icone = excluded.icone,
         detalhes = excluded.detalhes,
+        cor = excluded.cor,
         data_agendada = excluded.data_agendada,
         hora_inicio = excluded.hora_inicio,
         hora_fim = excluded.hora_fim,
@@ -844,6 +853,7 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
         atividade.tipo.trim(),
         atividade.icone || null,
         atividade.detalhes || null,
+        atividade.cor || null,
         atividade.data_agendada,
         atividade.hora_inicio || null,
         atividade.hora_fim || null,
@@ -1001,6 +1011,7 @@ export async function criarNovaAtividade(dados: {
   tipo: string;
   icone?: string;
   detalhes?: string;
+  cor?: string;
   frequencia: 'unica' | 'diaria' | 'dias_uteis' | 'semanal';
   data_inicio: string; // YYYY-MM-DD
   hora_inicio?: string;
@@ -1014,14 +1025,15 @@ export async function criarNovaAtividade(dados: {
 
   if (dados.frequencia === 'unica') {
     await database.runAsync(
-      `INSERT INTO AtividadesAgenda (id, titulo, tipo, icone, detalhes, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?);`,
+      `INSERT INTO AtividadesAgenda (id, titulo, tipo, icone, detalhes, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?);`,
       [
         id,
         dados.titulo.trim(),
         dados.tipo.trim(),
         dados.icone || 'circle',
         dados.detalhes || null,
+        dados.cor || null,
         dados.data_inicio,
         dados.hora_inicio || null,
         dados.hora_fim || null,
@@ -1032,14 +1044,15 @@ export async function criarNovaAtividade(dados: {
   } else {
     const diasStr = dados.dias_semana && dados.dias_semana.length > 0 ? JSON.stringify(dados.dias_semana) : null;
     await database.runAsync(
-      `INSERT INTO AtividadesRecorrentes (id, titulo, tipo, icone, detalhes, frequencia, dias_semana, data_inicio, hora_inicio, hora_fim, feedback_cansaco, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO AtividadesRecorrentes (id, titulo, tipo, icone, detalhes, cor, frequencia, dias_semana, data_inicio, hora_inicio, hora_fim, feedback_cansaco, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         id,
         dados.titulo.trim(),
         dados.tipo.trim(),
         dados.icone || 'circle',
         dados.detalhes || null,
+        dados.cor || null,
         dados.frequencia,
         diasStr,
         dados.data_inicio,
@@ -1067,8 +1080,8 @@ export async function toggleAtividadeStatus(atividade: AtividadeAgenda): Promise
       const novoId = generateUUID();
       await database.runAsync(
         `INSERT INTO AtividadesAgenda (
-          id, id_recorrente, titulo, tipo, icone, detalhes, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          id, id_recorrente, titulo, tipo, icone, detalhes, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           novoId,
           atividade.id_recorrente || null,
@@ -1076,6 +1089,7 @@ export async function toggleAtividadeStatus(atividade: AtividadeAgenda): Promise
           atividade.tipo,
           atividade.icone || 'circle',
           atividade.detalhes || null,
+          atividade.cor || null,
           atividade.data_agendada,
           atividade.hora_inicio || null,
           atividade.hora_fim || null,
@@ -1112,7 +1126,7 @@ export async function atualizarAtividade(id: string, dados: Partial<AtividadeAge
     const parts = id.split('_');
     const recId = parts[1];
     const recKeys = keys.filter((k) =>
-      ['titulo', 'tipo', 'icone', 'detalhes', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+      ['titulo', 'tipo', 'icone', 'detalhes', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
     );
     if (recKeys.length > 0) {
       const recFields = recKeys.map((k) => `${k} = ?`).join(', ');
@@ -1124,7 +1138,7 @@ export async function atualizarAtividade(id: string, dados: Partial<AtividadeAge
     await database.runAsync(`UPDATE AtividadesAgenda SET ${fields} WHERE id = ?;`, values);
     try {
       const recKeys = keys.filter((k) =>
-        ['titulo', 'tipo', 'icone', 'detalhes', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+        ['titulo', 'tipo', 'icone', 'detalhes', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
       );
       if (recKeys.length > 0) {
         const recFields = recKeys.map((k) => `${k} = ?`).join(', ');

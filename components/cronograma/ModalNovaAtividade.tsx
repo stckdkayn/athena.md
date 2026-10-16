@@ -32,6 +32,16 @@ const ICONES_DISPONIVEIS = [
   'briefcase', 'monitor', 'coffee', 'edit-2', 'zap', 'target', 
   'award', 'clock', 'map-pin', 'folder', 'file-text'
 ];
+const CORES_DISPONIVEIS = [
+  { id: '#3B82F6', label: 'Azul' },
+  { id: '#EC4899', label: 'Rosa' },
+  { id: '#EF4444', label: 'Vermelho' },
+  { id: '#10B981', label: 'Verde' },
+  { id: '#8B5CF6', label: 'Roxo' },
+  { id: '#EAE115', label: 'Amarelo' },
+  { id: '#F97316', label: 'Laranja' },
+  { id: '#6B7280', label: 'Cinza' },
+];
 const DIAS_SEMANA_NOMES = [
   { id: 0, label: 'D' },
   { id: 1, label: 'S' },
@@ -60,6 +70,7 @@ export default function ModalNovaAtividade({
   const [detalhes, setDetalhes] = useState('');
   const [tipo, setTipo] = useState('Pessoal');
   const [iconeSelecionado, setIconeSelecionado] = useState('calendar');
+  const [corSelecionada, setCorSelecionada] = useState<string | null>(null);
   const [showCategoriaDrop, setShowCategoriaDrop] = useState(false);
   const [horaInicio, setHoraInicio] = useState(new Date());
   const [horaFim, setHoraFim] = useState(new Date(new Date().getTime() + 60 * 60 * 1000)); // +1 hora padrão
@@ -83,6 +94,7 @@ export default function ModalNovaAtividade({
         setDetalhes(atividadeEmEdicao.detalhes || '');
         setTipo(atividadeEmEdicao.tipo || 'Pessoal');
         setIconeSelecionado(atividadeEmEdicao.icone || 'calendar');
+        setCorSelecionada(atividadeEmEdicao.cor || null);
         setFrequencia('unica');
         setShowIconMenu(false);
         setShowPickerInicio(false);
@@ -105,6 +117,7 @@ export default function ModalNovaAtividade({
         setDetalhes('');
         setTipo('Pessoal');
         setIconeSelecionado('calendar');
+        setCorSelecionada(null);
         setShowIconMenu(false);
         const now = new Date();
         setHoraInicio(now);
@@ -176,6 +189,7 @@ export default function ModalNovaAtividade({
           tipo,
           icone: iconeSelecionado,
           detalhes: detalhes.trim(),
+          cor: corSelecionada || undefined,
           hora_inicio: formatTimeStr(horaInicio),
           hora_fim: formatTimeStr(horaFim),
         });
@@ -185,6 +199,7 @@ export default function ModalNovaAtividade({
           tipo,
           icone: iconeSelecionado,
           detalhes: detalhes.trim(),
+          cor: corSelecionada || undefined,
           frequencia,
           data_inicio: data,
           hora_inicio: formatTimeStr(horaInicio),
@@ -204,6 +219,7 @@ export default function ModalNovaAtividade({
       setDetalhes('');
       setTipo('Pessoal');
       setIconeSelecionado('calendar');
+      setCorSelecionada(null);
       const now = new Date();
       setHoraInicio(now);
       setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
@@ -273,6 +289,50 @@ export default function ModalNovaAtividade({
               numberOfLines={4}
               textAlignVertical="top"
             />
+
+            {/* SELETOR DE COR DO CARTÃO */}
+            <View style={styles.colorSection}>
+              <Text style={styles.colorSectionTitle}>Cor do Cartão</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.colorPaletteRow}
+              >
+                {/* Opção Padrão / Automática */}
+                <TouchableOpacity
+                  style={[
+                    styles.colorCircle,
+                    { backgroundColor: '#2e3235', borderColor: '#4E5358' },
+                    corSelecionada === null && styles.colorCircleSelected,
+                  ]}
+                  onPress={() => setCorSelecionada(null)}
+                  activeOpacity={0.7}
+                >
+                  {corSelecionada === null ? (
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  ) : (
+                    <Ionicons name="color-palette-outline" size={14} color="#A0A0A0" />
+                  )}
+                </TouchableOpacity>
+
+                {CORES_DISPONIVEIS.map((c) => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: c.id, borderColor: c.id },
+                      corSelecionada === c.id && styles.colorCircleSelected,
+                    ]}
+                    onPress={() => setCorSelecionada(c.id)}
+                    activeOpacity={0.7}
+                  >
+                    {corSelecionada === c.id && (
+                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
             {/* Pop-up em Grelha para Seleção de Ícones */}
             {showIconMenu && (
@@ -758,5 +818,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     fontFamily: Fonts.bold,
+  },
+  colorSection: {
+    marginVertical: 12,
+  },
+  colorSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  colorPaletteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  colorCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  colorCircleSelected: {
+    borderColor: '#FFFFFF',
+    transform: [{ scale: 1.15 }],
   },
 });
