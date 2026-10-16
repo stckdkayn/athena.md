@@ -24,9 +24,9 @@ export default function TabLayout() {
 
   const pillHeight = isLandscape ? 48 : 52;
   const capsuleWidth = isLandscape
-    ? Math.min(width * 0.45, 300)
-    : Math.min(width * 0.68, 260);
-  const leftOffset = Math.round((width - capsuleWidth) / 2);
+    ? Math.min(width * 0.45, 280)
+    : Math.min(width - 48, 250);
+  const horizontalMargin = Math.max(Math.round((width - capsuleWidth) / 2), 16);
   const bottomMargin = isLandscape ? 12 : Math.max(insets.bottom, 16);
 
   useEffect(() => {
@@ -59,8 +59,10 @@ export default function TabLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          width: capsuleWidth,
-          left: leftOffset,
+          left: horizontalMargin,
+          right: horizontalMargin,
+          start: horizontalMargin,
+          end: horizontalMargin,
           bottom: bottomMargin,
           height: pillHeight,
           borderRadius: pillHeight / 2,
@@ -78,6 +80,7 @@ export default function TabLayout() {
           elevation: 10,
           paddingTop: 0,
           paddingBottom: 0,
+          paddingHorizontal: 0,
         },
         tabBarBackground: () => (
           <View
@@ -104,10 +107,16 @@ export default function TabLayout() {
         tabBarActiveTintColor: themeColors.primary,
         tabBarInactiveTintColor: themeColors.textSecondary,
         tabBarItemStyle: {
+          flex: 1,
           height: pillHeight,
           alignItems: 'center',
           justifyContent: 'center',
           paddingVertical: 0,
+          paddingHorizontal: 0,
+        },
+        tabBarIconStyle: {
+          marginTop: 'auto',
+          marginBottom: 'auto',
         },
         headerStyle: {
           backgroundColor: themeColors.background,
@@ -151,6 +160,8 @@ export default function TabLayout() {
         name="cronograma"
         options={{
           href: null,
+          tabBarItemStyle: { display: 'none', width: 0, height: 0 },
+          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
