@@ -1,3 +1,117 @@
+export type ThemeMode = 'dark' | 'light' | 'system';
+
+export type AccentColorKey = 'amarelo' | 'azul' | 'verde' | 'roxo' | 'coral';
+
+export interface AccentOption {
+  key: AccentColorKey;
+  label: string;
+  color: string;
+  subtle: string;
+  border: string;
+}
+
+export const ACCENT_PALETTE: Record<AccentColorKey, AccentOption> = {
+  amarelo: {
+    key: 'amarelo',
+    label: 'Athena Dourado',
+    color: '#EAE115',
+    subtle: 'rgba(234, 225, 21, 0.12)',
+    border: 'rgba(234, 225, 21, 0.35)',
+  },
+  azul: {
+    key: 'azul',
+    label: 'Azul Clínico',
+    color: '#3B82F6',
+    subtle: 'rgba(59, 130, 246, 0.12)',
+    border: 'rgba(59, 130, 246, 0.35)',
+  },
+  verde: {
+    key: 'verde',
+    label: 'Verde Cirúrgico',
+    color: '#10B981',
+    subtle: 'rgba(16, 185, 129, 0.12)',
+    border: 'rgba(16, 185, 129, 0.35)',
+  },
+  roxo: {
+    key: 'roxo',
+    label: 'Índigo Noturno',
+    color: '#8B5CF6',
+    subtle: 'rgba(139, 92, 246, 0.12)',
+    border: 'rgba(139, 92, 246, 0.35)',
+  },
+  coral: {
+    key: 'coral',
+    label: 'Coral Plantão',
+    color: '#EF4444',
+    subtle: 'rgba(239, 68, 68, 0.12)',
+    border: 'rgba(239, 68, 68, 0.35)',
+  },
+};
+
+export interface ThemeTokens {
+  background: string;
+  backgroundSecondary: string;
+  surface: string;
+  surfaceCard: string;
+  border: string;
+  borderSubtle: string;
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+  error: string;
+  errorSubtle: string;
+  success: string;
+  successSubtle: string;
+  warning: string;
+  warningSubtle: string;
+}
+
+export const BASE_THEMES: Record<'dark' | 'light', ThemeTokens> = {
+  dark: {
+    background: '#141617',
+    backgroundSecondary: '#0E1011',
+    surface: '#1E2124',
+    surfaceCard: '#232628',
+    border: '#2A2E33',
+    borderSubtle: '#222528',
+    text: '#FFFFFF',
+    textSecondary: '#9CA3AF',
+    textMuted: '#64748B',
+    error: '#EF4444',
+    errorSubtle: 'rgba(239, 68, 68, 0.15)',
+    success: '#10B981',
+    successSubtle: 'rgba(16, 185, 129, 0.15)',
+    warning: '#F59E0B',
+    warningSubtle: 'rgba(245, 158, 11, 0.15)',
+  },
+  light: {
+    background: '#F8F9FA',
+    backgroundSecondary: '#F1F3F5',
+    surface: '#FFFFFF',
+    surfaceCard: '#FFFFFF',
+    border: '#E2E5E9',
+    borderSubtle: '#ECEFF2',
+    text: '#111827',
+    textSecondary: '#4B5563',
+    textMuted: '#9CA3AF',
+    error: '#DC2626',
+    errorSubtle: 'rgba(220, 38, 38, 0.12)',
+    success: '#16A34A',
+    successSubtle: 'rgba(22, 163, 74, 0.12)',
+    warning: '#D97706',
+    warningSubtle: 'rgba(217, 119, 6, 0.12)',
+  },
+};
+
+export interface ActiveThemeColors extends ThemeTokens {
+  primary: string;
+  primarySubtle: string;
+  primaryBorder: string;
+}
+
+/**
+ * Objeto legado para retrocompatibilidade imediata com telas existentes
+ */
 export const Colors = {
   background: '#141617',
   surface: '#232628',
@@ -7,10 +121,10 @@ export const Colors = {
   error: '#FF4C4C',
   success: '#4CAF50',
   light: {
-    text: '#FFFFFF',
-    background: '#141617',
+    text: '#111827',
+    background: '#F8F9FA',
     tint: '#EAE115',
-    tabIconDefault: '#A0A0A0',
+    tabIconDefault: '#9CA3AF',
     tabIconSelected: '#EAE115',
   },
   dark: {

@@ -17,6 +17,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { ThemeProvider as AthenaThemeProvider } from '@/context/ThemeContext';
 import { migrateAsyncStorageToMMKV } from '@/services/storage';
 import { ensureQuestionsDatabaseReady } from '@/services/questionService';
 import { migrateStorageProgressToSQLite } from '@/services/progressService';
@@ -136,14 +137,16 @@ function RootLayoutNav() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={AthenaDarkTheme}>
-        <StatusBar hidden={true} />
-        {Platform.OS === 'android' && <NavigationBar hidden={true} />}
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="treino/quiz" options={{ headerShown: false }} />
-        </Stack>
-      </ThemeProvider>
+      <AthenaThemeProvider>
+        <ThemeProvider value={AthenaDarkTheme}>
+          <StatusBar hidden={true} />
+          {Platform.OS === 'android' && <NavigationBar hidden={true} />}
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="treino/quiz" options={{ headerShown: false }} />
+          </Stack>
+        </ThemeProvider>
+      </AthenaThemeProvider>
     </GestureHandlerRootView>
   );
 }

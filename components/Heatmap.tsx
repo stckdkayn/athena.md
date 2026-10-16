@@ -5,12 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { getHeatmapData } from '@/services/streakService';
-
-// Tentativa de obter o contexto de tema customizado se existir
-let useAppTheme: (() => any) | null = null;
-try {
-  useAppTheme = require('@/context/ThemeContext').useTheme;
-} catch {}
+import { useAppTheme } from '@/context/ThemeContext';
 
 const WEEKS_TO_SHOW = 12;
 const DAYS_TO_SHOW = WEEKS_TO_SHOW * 7;
@@ -41,19 +36,11 @@ export interface HeatmapProps {
 export default function Heatmap({ onDayPress, style }: HeatmapProps) {
   const colorScheme = useColorScheme();
 
-  // Suporte dinâmico a accentColor e tema do app
-  let appThemeData: any = null;
-  try {
-    if (useAppTheme) {
-      appThemeData = useAppTheme();
-    }
-  } catch {}
+  const { isDark, accentColor, colors } = useAppTheme();
 
-  const isDark = appThemeData?.isDark ?? (colorScheme !== 'light');
-  const accentColor = appThemeData?.accentColor || Colors.primary;
-  const textColor = appThemeData?.theme?.text || (isDark ? Colors.text : '#1A1A1A');
-  const textSecondaryColor = isDark ? Colors.textSecondary : '#666666';
-  const borderColor = appThemeData?.theme?.border || (isDark ? '#232628' : '#E0E0E0');
+  const textColor = colors.text;
+  const textSecondaryColor = colors.textSecondary;
+  const borderColor = colors.border;
   const emptySquareBg = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
 
   const [data, setData] = useState<Record<string, number>>({});
