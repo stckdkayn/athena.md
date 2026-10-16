@@ -487,13 +487,21 @@ export default function DashboardScreen() {
   };
 
   const handleIniciarTreinoBloco = (item: AtividadeAgenda) => {
-    const blocoId = item.id.replace('bloco_', '');
-    const bloco = blocosEstudo.find((b) => b.id === blocoId);
-    const tema = bloco?.tema_id || item.titulo.split(' • ')[0];
+    const rawId = item.id.replace('bloco_', '');
+    const bloco = blocosEstudo.find((b) => b.id === rawId);
+    const tema = bloco?.tema_id || (item as any).passo_tema_questoes || item.titulo.split(' • ')[0];
+    const metaQuestoes = item.passo_meta_questoes || bloco?.passo_meta_questoes || 20;
 
     storage.set('@athena_cart', JSON.stringify([{ tema }]));
-    storage.set('@athena_quiz_limit', '20');
-    router.push({ pathname: '/treino/quiz', params: { tema: encodeURIComponent(tema), limite: '20' } });
+    storage.set('@athena_quiz_limit', String(metaQuestoes));
+    router.push({
+      pathname: '/treino/quiz',
+      params: {
+        tema: encodeURIComponent(tema),
+        limite: String(metaQuestoes),
+        blocoId: encodeURIComponent(item.id),
+      },
+    });
   };
 
   const handleMoveItemDay = async (targetDay: string) => {

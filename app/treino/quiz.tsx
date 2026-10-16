@@ -16,6 +16,7 @@ import {
   getAllQuestions,
 } from '@/services/questionService';
 import { saveProgressRecord, getErroredQuestionIds } from '@/services/progressService';
+import { concluirAtividadePorId } from '@/services/database';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { storage } from '@/services/storage';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -468,12 +469,13 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
 };
 
 export default function QuizScreen() {
-  const { especialidade, tema, limite, retomar, simulado } = useLocalSearchParams<{
+  const { especialidade, tema, limite, retomar, simulado, blocoId } = useLocalSearchParams<{
     especialidade?: string;
     tema?: string;
     limite?: string;
     retomar?: string;
     simulado?: string;
+    blocoId?: string;
   }>();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1672,6 +1674,9 @@ export default function QuizScreen() {
       // Fim das questões
       try {
         await clearActiveQuizSession();
+        if (blocoId) {
+          await concluirAtividadePorId(decodeURIComponent(blocoId));
+        }
       } catch (err) {
         console.error('Erro ao limpar sessão concluída:', err);
       }
@@ -2542,7 +2547,10 @@ export default function QuizScreen() {
                 <TouchableOpacity
                   style={styles.finishExitButton}
                   activeOpacity={0.85}
-                  onPress={() => {
+                  onPress={async () => {
+                    if (blocoId) {
+                      await concluirAtividadePorId(decodeURIComponent(blocoId));
+                    }
                     setShowFinishModal(false);
                     router.back();
                   }}

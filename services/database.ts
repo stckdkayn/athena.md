@@ -804,6 +804,10 @@ export interface AtividadeAgenda {
   concluida: boolean;
   timestamp?: number;
   isVirtual?: boolean; // Flag para UI saber se é um "molde" que ainda não foi alterado/concluído
+  passo_meta_questoes?: number | null;
+  passo_tema_questoes?: string | null;
+  passo_label?: string | null;
+  passo_detalhe?: string | null;
 }
 
 export interface AtividadeRecorrente {
@@ -1544,6 +1548,25 @@ export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStat
     }
   } catch (err) {
     console.error('[database] Erro ao atualizar status do bloco:', err);
+  }
+}
+
+/**
+ * Conclui uma atividade pelo seu identificador único polimórfico (bloco_, passo_ ou avulsa).
+ */
+export async function concluirAtividadePorId(atividadeId: string): Promise<void> {
+  try {
+    if (atividadeId.startsWith('bloco_')) {
+      const blocoId = atividadeId.replace('bloco_', '');
+      await updateStatusBlocoEstudo(blocoId, 'concluido');
+    } else if (atividadeId.startsWith('passo_')) {
+      const passoId = parseInt(atividadeId.replace('passo_', ''), 10);
+      await togglePassoConcluido(passoId, true);
+    } else {
+      await atualizarAtividade(atividadeId, { concluida: true });
+    }
+  } catch (err) {
+    console.error('[database] Erro ao concluir atividade por ID:', err);
   }
 }
 
