@@ -170,27 +170,26 @@ export default function DashboardScreen() {
           else if (b.tipo === 'videoaula') icone = 'play-circle';
           else if (b.tipo === 'leitura') icone = 'book-open';
 
-          let detalhesTexto = '';
-          if (b.tipo === 'questoes') {
-            detalhesTexto = `Treino de Questões (${b.duracao_minutos} min) • Prioridade ${b.prioridade.toFixed(1)}`;
-          } else if (b.tipo === 'flashcards') {
-            detalhesTexto = `Revisão Flashcards (${b.duracao_minutos} min)`;
-          } else if (b.tipo === 'videoaula') {
-            detalhesTexto = `Videoaula Teórica (${b.duracao_minutos} min)`;
-          } else {
-            detalhesTexto = `Leitura Teórica (${b.duracao_minutos} min)`;
-          }
+          // TÍTULO: O "detalhe" fica como Título no card
+          const tituloCard = b.passo_detalhe || b.passo_tema_questoes || b.topico_titulo || b.titulo || b.tema_id;
+
+          // SUBTÍTULO: O "label" fica como subtítulo, abaixo do título, substituindo o ex: "Leitura Teórica (40 min)"
+          const subtituloCard = b.passo_label || (
+            b.tipo === 'questoes' ? 'Questões de Fixação' :
+            b.tipo === 'videoaula' ? 'Videoaula Teórica' :
+            b.tipo === 'flashcards' ? 'Flashcards' : 'Apostila'
+          );
 
           return {
             id: `bloco_${b.id}`,
             data_agendada: b.data_agendada,
-            titulo: b.titulo || b.tema_id,
+            titulo: tituloCard,
+            detalhes: subtituloCard,
             tipo: 'Estudos',
             icone,
             concluida: b.status === 'concluido',
             hora_inicio: b.hora_inicio || undefined,
             hora_fim: b.hora_fim || undefined,
-            detalhes: detalhesTexto,
             duracao_minutos: b.duracao_minutos,
             passo_id: b.passo_id,
             topico_id: b.topico_id,
@@ -233,23 +232,24 @@ export default function DashboardScreen() {
           else if (p.tipo === 'questoes') icone = 'check-square';
           else if (p.tipo === 'flashcards') icone = 'layers';
 
-          let detalhesTexto = '';
-          if (p.tipo === 'questoes') {
-            const meta = p.meta_questoes ? `Meta: ${p.meta_questoes} questões` : '';
-            const tema = p.tema_questoes || p.detalhe || '';
-            detalhesTexto = [meta, tema].filter(Boolean).join(' • ');
-          } else {
-            detalhesTexto = p.detalhe || p.tema_questoes || '';
-          }
+          // TÍTULO: O "detalhe" fica como Título no card
+          const tituloCard = p.detalhe || p.tema_questoes || p.topico_titulo;
+
+          // SUBTÍTULO: O "label" fica como subtítulo, abaixo do título, substituindo o ex: "Leitura Teórica (40 min)"
+          const subtituloCard = p.label || (
+            p.tipo === 'questoes' ? 'Questões de Fixação' :
+            p.tipo === 'aulas' || p.tipo === 'aulas_bonus' ? 'Aula Principal' :
+            p.tipo === 'flashcards' ? 'Flashcards' : 'Apostila'
+          );
 
           return {
             id: `passo_${p.id}`,
             data_agendada: dataSelecionada,
-            titulo: `${p.topico_titulo}${p.label ? ' • ' + p.label : ''}`,
+            titulo: tituloCard,
+            detalhes: subtituloCard,
             tipo: 'Estudos',
             icone,
             concluida: p.concluido === 1,
-            detalhes: detalhesTexto || undefined,
             passo_id: p.id,
             topico_id: p.topico_id,
             topico_titulo: p.topico_titulo,
@@ -582,10 +582,10 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Detalhes da Atividade / Passo (ex: meta de questões, tema específico) */}
+            {/* Subtítulo: Label (Material / Tipo de Atividade) */}
             {!!item.detalhes && (
               <View style={styles.detailsRow}>
-                <Ionicons name="information-circle-outline" size={13} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                <Ionicons name="bookmark-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
                 <Text style={styles.detailsText} numberOfLines={2}>
                   {item.detalhes}
                 </Text>
