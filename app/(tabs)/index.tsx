@@ -1246,9 +1246,9 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     container: {
       flex: 1,
       backgroundColor: theme.background,
-      paddingTop: 8,
     },
     header: {
+      paddingTop: 8,
       paddingHorizontal: 16,
       marginBottom: 14,
       gap: 12,

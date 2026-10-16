@@ -222,6 +222,7 @@ export default function ConfiguracoesScreen() {
     setMode,
     setAccent,
     colors: themeColors,
+    isDark,
     accentOption,
     availableAccents,
   } = useAppTheme();
@@ -1473,8 +1474,8 @@ export default function ConfiguracoesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar hidden={true} barStyle="light-content" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
       {currentView === 'menu' && (
         <AppHeader />
       )}

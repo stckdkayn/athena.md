@@ -228,6 +228,7 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
 
 const styles = StyleSheet.create({
   header: {
+    paddingTop: 8,
     paddingHorizontal: 16,
     marginBottom: 14,
     gap: 12,

@@ -826,13 +826,10 @@ export default function TreinoScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
-      {/* Cabeçalho Unificado */}
-      <AppHeader />
-
-      {/* Barra de Ações: Busca à esquerda, Especialidades no centro, 3 pontos à direita */}
-      <View style={styles.topHeaderContainer}>
+      {/* Cabeçalho Unificado com Barra de Ações como children */}
+      <AppHeader>
         <View style={styles.topHeaderRow}>
-          {/* Botão de Busca à Esquerda (Estilo Cronograma) */}
+          {/* Botão de Busca Circular */}
           <TouchableOpacity
             style={[styles.searchIconButton, (showSearch || searchText.length > 0) && styles.searchIconButtonActive]}
             onPress={() => {
@@ -843,17 +840,17 @@ export default function TreinoScreen() {
                 setShowSearch(true);
               }
             }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             activeOpacity={0.7}
           >
             <Ionicons
               name={showSearch || searchText.length > 0 ? 'close' : 'search'}
               size={20}
-              color={showSearch || searchText.length > 0 ? themeColors.primary : themeColors.textSecondary}
+              color={showSearch || searchText.length > 0 ? themeColors.primary : themeColors.text}
             />
           </TouchableOpacity>
 
-          {/* Título Especialidades Centralizado (sem ícone) */}
+          {/* Título Especialidades Centralizado */}
           <View style={styles.topHeaderCenter}>
             <Text style={styles.screenMainTitle}>Especialidades</Text>
             {isModoSimulado ? (
@@ -867,17 +864,17 @@ export default function TreinoScreen() {
             ) : null}
           </View>
 
-          {/* Menu de 3 Pontos à Direita */}
+          {/* Menu de 3 Pontos Circular */}
           <TouchableOpacity
             style={[styles.menuIconButton, (isModoSimulado || filtroErros || filtroFavoritas) && styles.menuIconButtonActive]}
             onPress={() => setMenuModalVisible(true)}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             activeOpacity={0.7}
           >
             <Ionicons
               name="ellipsis-vertical"
               size={20}
-              color={isModoSimulado || filtroErros || filtroFavoritas ? themeColors.primary : themeColors.textSecondary}
+              color={isModoSimulado || filtroErros || filtroFavoritas ? themeColors.primary : themeColors.text}
             />
             {(isModoSimulado || filtroErros || filtroFavoritas) && <View style={styles.menuActiveDot} />}
           </TouchableOpacity>
@@ -908,7 +905,7 @@ export default function TreinoScreen() {
             )}
           </View>
         )}
-      </View>
+      </AppHeader>
 
       <View style={styles.contentContainer}>
         <FlatList
@@ -1454,17 +1451,21 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      minHeight: 40,
+      paddingTop: 2,
     },
     searchIconButton: {
       width: 38,
       height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 19,
     },
     searchIconButtonActive: {
       backgroundColor: theme.primarySubtle,
+      borderColor: theme.primary,
     },
     topHeaderCenter: {
       flex: 1,
@@ -1488,18 +1489,22 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     menuIconButton: {
       width: 38,
       height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 19,
       position: 'relative',
     },
     menuIconButtonActive: {
       backgroundColor: theme.primarySubtle,
+      borderColor: theme.primary,
     },
     menuActiveDot: {
       position: 'absolute',
-      top: 7,
-      right: 7,
+      top: 6,
+      right: 6,
       width: 7,
       height: 7,
       borderRadius: 4,

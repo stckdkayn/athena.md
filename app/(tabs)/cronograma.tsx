@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { storage } from '@/services/storage';
 import { Colors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import AppHeader from '@/components/AppHeader';
 import CircularProgressRing from '@/components/CircularProgressRing';
 import {
@@ -215,6 +216,7 @@ export type AbaDiaCronograma = DiaSemana;
 
 export default function CronogramaScreen() {
   const router = useRouter();
+  const { colors: themeColors, isDark } = useAppTheme();
 
   // Estados principais
   const [cronograma, setCronograma] = useState<CronogramaData | null>(null);
@@ -938,8 +940,8 @@ export default function CronogramaScreen() {
 
   if (!cronograma || !semanasList.length) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <StatusBar hidden={true} barStyle="light-content" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
         <AppHeader />
 
         <View style={styles.emptyContainer}>
@@ -958,8 +960,8 @@ export default function CronogramaScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar hidden={true} barStyle="light-content" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       <AppHeader />
 
@@ -1483,10 +1485,10 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   weekSelectorWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 0,
     paddingBottom: 10,
-    backgroundColor: '#141617',
+    backgroundColor: 'transparent',
   },
   weekNavRow: {
     flexDirection: 'row',
