@@ -1286,19 +1286,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   nowDotPill: {
-    backgroundColor: 'rgba(234, 225, 21, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.6)',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 4, // Reduzido para caber na coluna
+    paddingVertical: 3,
+    borderRadius: 8, // Borda um pouco menor para acompanhar o tamanho
   },
   nowDotText: {
-    color: Colors.primary,
-    fontSize: 8,
+    color: '#000000',
+    fontSize: 8, // Fonte reduzida para não quebrar linha
     fontWeight: '800',
     fontFamily: Fonts.extraBold,
-    letterSpacing: 0.5,
+    letterSpacing: 0.5, // Dá um pequeno respiro entre as letras
   },
   anchorRow: {
     flexDirection: 'row',
