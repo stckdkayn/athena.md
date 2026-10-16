@@ -160,8 +160,6 @@ export default function TabLayout() {
         name="cronograma"
         options={{
           href: null,
-          tabBarItemStyle: { display: 'none', width: 0, height: 0 },
-          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
