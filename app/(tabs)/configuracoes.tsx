@@ -22,7 +22,8 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { unzip } from 'react-native-zip-archive';
 import JSZip from 'jszip';
 import { useNavigation } from 'expo-router';
-import { Colors } from '@/constants/Colors';
+import { Colors, ThemeMode, AccentColorKey } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   ICalFeed,
   getICalFeeds,
@@ -214,6 +215,16 @@ function formatarNomeBanco(raw: string): string {
 }
 
 export default function ConfiguracoesScreen() {
+  const {
+    mode,
+    accentKey,
+    setMode,
+    setAccent,
+    colors: themeColors,
+    accentOption,
+    availableAccents,
+  } = useAppTheme();
+
   const [questoesCount, setQuestoesCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [unzipping, setUnzipping] = useState<boolean>(false);
@@ -1539,6 +1550,152 @@ export default function ConfiguracoesScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
+            </View>
+
+            {/* Seção: Aparência e Personalização */}
+            <View style={{ marginTop: 12 }}>
+              <View style={styles.minSectionHeader}>
+                <Text style={styles.minSectionTitle}>Aparência e Personalização</Text>
+              </View>
+              <View style={[styles.appearanceCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+                {/* Modo de Tema */}
+                <View style={styles.appearanceRowHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="contrast-outline" size={18} color={themeColors.primary} />
+                    <Text style={[styles.appearanceSectionLabel, { color: themeColors.text }]}>Tema Base</Text>
+                  </View>
+                  <Text style={[styles.appearanceCurrentValue, { color: themeColors.textSecondary }]}>
+                    {mode === 'dark' ? 'Modo Escuro' : mode === 'light' ? 'Modo Claro' : 'Acompanhar Sistema'}
+                  </Text>
+                </View>
+
+                <View style={styles.themeModeSelectorRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.themeModeChip,
+                      { backgroundColor: themeColors.backgroundSecondary, borderColor: themeColors.border },
+                      mode === 'dark' && [
+                        styles.themeModeChipActive,
+                        { borderColor: themeColors.primary, backgroundColor: themeColors.primarySubtle },
+                      ],
+                    ]}
+                    onPress={() => setMode('dark')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="moon"
+                      size={16}
+                      color={mode === 'dark' ? themeColors.primary : themeColors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.themeModeChipText,
+                        { color: themeColors.textSecondary },
+                        mode === 'dark' && { color: themeColors.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Escuro
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.themeModeChip,
+                      { backgroundColor: themeColors.backgroundSecondary, borderColor: themeColors.border },
+                      mode === 'light' && [
+                        styles.themeModeChipActive,
+                        { borderColor: themeColors.primary, backgroundColor: themeColors.primarySubtle },
+                      ],
+                    ]}
+                    onPress={() => setMode('light')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="sunny"
+                      size={16}
+                      color={mode === 'light' ? themeColors.primary : themeColors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.themeModeChipText,
+                        { color: themeColors.textSecondary },
+                        mode === 'light' && { color: themeColors.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Claro
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.themeModeChip,
+                      { backgroundColor: themeColors.backgroundSecondary, borderColor: themeColors.border },
+                      mode === 'system' && [
+                        styles.themeModeChipActive,
+                        { borderColor: themeColors.primary, backgroundColor: themeColors.primarySubtle },
+                      ],
+                    ]}
+                    onPress={() => setMode('system')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="phone-portrait-outline"
+                      size={16}
+                      color={mode === 'system' ? themeColors.primary : themeColors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.themeModeChipText,
+                        { color: themeColors.textSecondary },
+                        mode === 'system' && { color: themeColors.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Sistema
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.appearanceDivider, { backgroundColor: themeColors.borderSubtle }]} />
+
+                {/* Seletor de Cores de Destaque */}
+                <View style={styles.appearanceRowHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="color-palette-outline" size={18} color={themeColors.primary} />
+                    <Text style={[styles.appearanceSectionLabel, { color: themeColors.text }]}>Cor de Destaque</Text>
+                  </View>
+                  <Text style={[styles.appearanceCurrentValue, { color: themeColors.primary, fontWeight: '700' }]}>
+                    {accentOption.label}
+                  </Text>
+                </View>
+
+                <View style={styles.accentColorsRow}>
+                  {availableAccents.map((item) => {
+                    const isSelected = accentKey === item.key;
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[
+                          styles.accentCircleTouchTarget,
+                          isSelected && [styles.accentCircleActive, { borderColor: item.color }],
+                        ]}
+                        onPress={() => setAccent(item.key)}
+                        activeOpacity={0.7}
+                        accessibilityLabel={item.label}
+                      >
+                        <View style={[styles.accentCircleColor, { backgroundColor: item.color }]}>
+                          {isSelected && (
+                            <Ionicons
+                              name="checkmark-sharp"
+                              size={18}
+                              color={item.key === 'amarelo' ? '#000000' : '#FFFFFF'}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             </View>
           </View>
         ) : currentView === 'adicionar_questoes' ? (
@@ -4534,5 +4691,95 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 13,
+  },
+  appearanceCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2A2E33',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  appearanceRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  appearanceSectionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  appearanceCurrentValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  themeModeSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  themeModeChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: '#16191B',
+    borderWidth: 1,
+    borderColor: '#2A2E33',
+  },
+  themeModeChipActive: {
+    borderWidth: 1.5,
+  },
+  themeModeChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  appearanceDivider: {
+    height: 1,
+    backgroundColor: '#25282B',
+    marginVertical: 16,
+  },
+  accentColorsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  accentCircleTouchTarget: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  accentCircleActive: {
+    borderWidth: 2,
+  },
+  accentCircleColor: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
 });
