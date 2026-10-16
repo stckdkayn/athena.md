@@ -69,9 +69,38 @@ export async function calcularTempoLivreLiquido(dataYYYYMMDD: string): Promise<J
     console.warn('[scheduler] Erro ao ler atividades da agenda:', err);
   }
 
-  // C. Bloqueio de Sono Fixo (00:00 às 06:00 e 23:00 às 24:00)
+  // C. Blocos de estudo já concluídos para o dia (não devem ser sobrepostos nem alterados)
+  try {
+    const blocosConcluidos = await database.getAllAsync<any>(
+      `SELECT hora_inicio, hora_fim FROM blocos_estudo WHERE data_agendada = ? AND status = 'concluido';`,
+      [dataYYYYMMDD]
+    );
+    for (const b of blocosConcluidos) {
+      if (b.hora_inicio && b.hora_fim) {
+        intervalosOcupados.push({
+          inicio: timeToMinutes(b.hora_inicio),
+          fim: timeToMinutes(b.hora_fim),
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[scheduler] Erro ao ler blocos concluídos:', err);
+  }
+
+  // D. Bloqueio de Sono Fixo (00:00 às 06:00 e 23:00 às 24:00)
   intervalosOcupados.push({ inicio: 0, fim: 360 });       // 00:00 - 06:00
   intervalosOcupados.push({ inicio: 1380, fim: 1440 });   // 23:00 - 24:00
+
+  // E. Se for o dia de HOJE e já passou das 06:00, bloqueia o tempo decorrido
+  // para que o replanejamento não tente agendar tarefas no passado
+  const hoje = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  if (dataYYYYMMDD === hojeStr) {
+    const minutoAtual = hoje.getHours() * 60 + hoje.getMinutes();
+    if (minutoAtual > 360) {
+      intervalosOcupados.push({ inicio: 0, fim: minutoAtual });
+    }
+  }
 
   // Organiza e mescla os horários que se sobrepõem
   intervalosOcupados.sort((a, b) => a.inicio - b.inicio);
@@ -327,4 +356,45 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
   });
 
   return totalGerados;
+}
+
+/**
+ * 4. AUTO-PLANEJAMENTO INVISÍVEL
+ * Executado silenciosamente na inicialização da agenda.
+ * Se já passou das 05:00 da manhã e a data não possui blocos gerados,
+ * aciona o agendador autônomo em segundo plano.
+ */
+export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): Promise<boolean> {
+  const database = getDatabase();
+  const hoje = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+
+  // Dias passados não são auto-gerados
+  if (dataYYYYMMDD < hojeStr) {
+    return false;
+  }
+
+  // Se for o dia de hoje, dispara a partir das 05h da manhã
+  if (dataYYYYMMDD === hojeStr) {
+    const horaAtual = hoje.getHours();
+    if (horaAtual < 5) {
+      return false;
+    }
+  }
+
+  try {
+    const countRow = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM blocos_estudo WHERE data_agendada = ?;`,
+      [dataYYYYMMDD]
+    );
+
+    if (!countRow || countRow.count === 0) {
+      await gerarPlanoDiario(dataYYYYMMDD);
+      return true;
+    }
+  } catch (err) {
+    console.warn('[scheduler] Erro no auto-planejamento:', err);
+  }
+
+  return false;
 }

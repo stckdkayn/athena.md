@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StatusBar,
   Modal,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -25,7 +24,7 @@ import {
   DbBlocoEstudo,
 } from '@/services/database';
 import { getAdjustedDailyBudget } from '@/services/scheduleService';
-import { gerarPlanoDiario } from '@/services/schedulerService';
+import { gerarPlanoDiario, verificarEPlanejarAutomaticamente } from '@/services/schedulerService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,7 +70,6 @@ export default function DashboardScreen() {
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => toLocalDateStr(new Date()));
   const [limiteDiario, setLimiteDiario] = useState<number>(15);
   const [loading, setLoading] = useState<boolean>(true);
-  const [gerandoPlano, setGerandoPlano] = useState<boolean>(false);
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
   const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
@@ -135,10 +133,13 @@ export default function DashboardScreen() {
   const carregarAgenda = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Busca as atividades normais/cadastradas do dia selecionado
+      // 1. Auto-planejamento invisível das 05h da manhã (ou no primeiro acesso do dia a partir das 05h)
+      await verificarEPlanejarAutomaticamente(dataSelecionada);
+
+      // 2. Busca as atividades normais/cadastradas do dia selecionado
       const dadosAgenda = await getAtividadesPorData(dataSelecionada);
 
-      // 2. Busca blocos inteligentes gerados pelo agendador para este dia
+      // 3. Busca blocos inteligentes gerados pelo agendador para este dia
       const blocos = await getBlocosEstudoPorData(dataSelecionada);
       setBlocosEstudo(blocos);
 
@@ -271,18 +272,6 @@ export default function DashboardScreen() {
     } catch (err) {
       console.error('[Dashboard] Erro ao alternar status da atividade:', err);
       carregarAgenda();
-    }
-  };
-
-  const handleGerarPlanoInteligente = async () => {
-    try {
-      setGerandoPlano(true);
-      await gerarPlanoDiario(dataSelecionada);
-      await carregarAgenda();
-    } catch (err) {
-      console.error('[Dashboard] Erro ao gerar plano inteligente:', err);
-    } finally {
-      setGerandoPlano(false);
     }
   };
 
@@ -624,66 +613,13 @@ export default function DashboardScreen() {
       {/* 3. Container Board das Atividades */}
       <View style={styles.boardContainer}>
         <View style={styles.boardHeaderRow}>
-          <View style={{ flex: 1, marginRight: 8 }}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
             <Text style={styles.boardSubtitle}>
               Você completou {concluidas}/{total} {total === 1 ? 'atividade programada' : 'atividades programadas'} para {getRelativeDateTitle(dataSelecionada).toLowerCase()}!
             </Text>
           </View>
-          {blocosEstudo.length > 0 && (
-            <TouchableOpacity
-              style={styles.replanBtn}
-              onPress={handleGerarPlanoInteligente}
-              disabled={gerandoPlano}
-              activeOpacity={0.7}
-            >
-              {gerandoPlano ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
-              ) : (
-                <>
-                  <Feather name="refresh-cw" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
-                  <Text style={styles.replanBtnText}>Replanejar</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
-
-        {blocosEstudo.length === 0 && (
-          <TouchableOpacity
-            style={styles.aiBanner}
-            onPress={handleGerarPlanoInteligente}
-            disabled={gerandoPlano}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={['rgba(234, 225, 21, 0.15)', '#25292c', '#1b1d1f']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.aiBannerGradient}
-            >
-              <View style={styles.aiBannerIconBox}>
-                <Feather name="cpu" size={20} color={Colors.primary} />
-              </View>
-              <View style={{ flex: 1, marginHorizontal: 10 }}>
-                <Text style={styles.aiBannerTitle}>✨ Otimizar Dia com IA</Text>
-                <Text style={styles.aiBannerDesc}>
-                  {gerandoPlano
-                    ? 'Calculando janelas livres e alocando estudos...'
-                    : 'Distribuir passos do cronograma e revisões nos seus horários livres.'}
-                </Text>
-              </View>
-              {gerandoPlano ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
-              ) : (
-                <View style={styles.aiBannerCta}>
-                  <Text style={styles.aiBannerCtaText}>Gerar</Text>
-                  <Feather name="zap" size={12} color="#000" />
-                </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
 
         <FlatList
           ref={flatListRef}
@@ -699,7 +635,7 @@ export default function DashboardScreen() {
                 <Ionicons name="calendar-outline" size={38} color="#383D42" style={{ marginBottom: 10 }} />
                 <Text style={styles.emptyTitle}>Nenhuma atividade programada</Text>
                 <Text style={styles.emptySubtitle}>
-                  Toque no botão + abaixo para adicionar uma tarefa ou agendar um bloco de estudos.
+                  Toque no botão + abaixo para adicionar uma tarefa pessoal, plantão ou aula.
                 </Text>
               </View>
             ) : null
@@ -727,7 +663,11 @@ export default function DashboardScreen() {
           setModalNovaVisible(false);
           setAtividadeParaEditar(null);
         }}
-        onSaveSuccess={carregarAgenda}
+        onSaveSuccess={async () => {
+          // Replanejamento reativo automático: re-alinha os blocos pendentes de estudo nos novos horários livres
+          await gerarPlanoDiario(dataSelecionada);
+          await carregarAgenda();
+        }}
         dataInicial={dataSelecionada}
       />
 
@@ -1077,67 +1017,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
-  },
-  replanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E2124',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.3)',
-    marginTop: 2,
-  },
-  replanBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  aiBanner: {
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
-  },
-  aiBannerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-  },
-  aiBannerIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  aiBannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFF',
-    marginBottom: 2,
-  },
-  aiBannerDesc: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    lineHeight: 15,
-  },
-  aiBannerCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-  },
-  aiBannerCtaText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#000',
   },
   aiBadge: {
     flexDirection: 'row',
