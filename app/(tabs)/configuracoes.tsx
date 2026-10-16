@@ -17,11 +17,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { unzip } from 'react-native-zip-archive';
 import JSZip from 'jszip';
 import { useNavigation } from 'expo-router';
 import { Colors } from '@/constants/Colors';
+import { importarArquivoICS } from '@/services/icsService';
 
 import { storage } from '@/services/storage'; // <-- Motor Síncrono MMKV
 
@@ -199,6 +200,7 @@ export default function ConfiguracoesScreen() {
   const [questoesCount, setQuestoesCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [unzipping, setUnzipping] = useState<boolean>(false);
+  const [importandoICS, setImportandoICS] = useState<boolean>(false);
   const [totalImagensSalvas, setTotalImagensSalvas] = useState<number>(0);
 
   // Estados do Gerenciador de Armazenamento Granular
@@ -1253,6 +1255,25 @@ export default function ConfiguracoesScreen() {
     setSucessoAcaoCronograma({ titulo: 'Cronograma Removido', mensagem: 'O cronograma ativo e todo o progresso associado foram excluídos do dispositivo com sucesso.' });
   };
 
+  const handleImportarICS = async () => {
+    try {
+      setImportandoICS(true);
+      const resultado = await importarArquivoICS();
+      if (!resultado) {
+        return;
+      }
+      Alert.alert(
+        'Sucesso!',
+        `${resultado.count} ${resultado.count === 1 ? 'evento foi importado' : 'eventos foram importados'} para a sua agenda.`
+      );
+    } catch (err: any) {
+      console.error('Erro ao importar arquivo ICS:', err);
+      Alert.alert('Erro na Importação', err?.message || 'Não foi possível importar o arquivo de calendário.');
+    } finally {
+      setImportandoICS(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar hidden={true} barStyle="light-content" />
@@ -1298,6 +1319,36 @@ export default function ConfiguracoesScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
+
+            {/* Seção: Calendário e Dados */}
+            <View style={{ marginTop: 12 }}>
+              <View style={styles.minSectionHeader}>
+                <Text style={styles.minSectionTitle}>Calendário e Dados</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.menuOptionCard, importandoICS && styles.buttonDisabled]}
+                activeOpacity={0.7}
+                onPress={handleImportarICS}
+                disabled={importandoICS}
+              >
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
+                  <Feather name="download-cloud" size={24} color={Colors.primary} />
+                </View>
+                <View style={styles.menuOptionContent}>
+                  <Text style={styles.menuOptionTitle}>Importar Calendário (.ICS)</Text>
+                  <Text style={styles.menuOptionSubtitle}>
+                    {importandoICS
+                      ? 'Processando eventos e salvando na agenda...'
+                      : 'Carregar aulas e eventos da faculdade para a agenda'}
+                  </Text>
+                </View>
+                {importandoICS ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         ) : currentView === 'adicionar_questoes' ? (
           <>
