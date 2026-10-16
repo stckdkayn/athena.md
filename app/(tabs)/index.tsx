@@ -27,7 +27,7 @@ import {
   ItemBuscaCronograma,
   excluirAtividade,
 } from '@/services/database';
-import { gerarPlanoDiario, verificarEPlanejarAutomaticamente } from '@/services/schedulerService';
+import { gerarPlanoDiario, verificarEPlanejarAutomaticamente, sincronizarLimitesHorarioUtil } from '@/services/schedulerService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
@@ -138,14 +138,25 @@ export default function DashboardScreen() {
   const carregarAgenda = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Auto-planejamento invisível das 05h da manhã (ou no primeiro acesso do dia a partir das 05h)
+      // 1. Sincroniza limites de horário útil e auto-planeja o dia selecionado
+      await sincronizarLimitesHorarioUtil();
       await verificarEPlanejarAutomaticamente(dataSelecionada);
 
       // 2. Busca as atividades normais/cadastradas do dia selecionado
       const dadosAgenda = await getAtividadesPorData(dataSelecionada);
 
       // 3. Busca blocos inteligentes gerados pelo agendador para este dia
-      const blocos = await getBlocosEstudoPorData(dataSelecionada);
+      let blocos = await getBlocosEstudoPorData(dataSelecionada);
+
+      // Verificação defensiva: se ainda restar qualquer bloco pendente fora de 07:00 às 22:00, força o replanejamento
+      const temForaDosLimites = blocos && blocos.some(
+        (b) => b.status === 'pendente' && ((b.hora_inicio && b.hora_inicio < '07:00') || (b.hora_fim && b.hora_fim > '22:00'))
+      );
+      if (temForaDosLimites) {
+        await gerarPlanoDiario(dataSelecionada);
+        blocos = await getBlocosEstudoPorData(dataSelecionada);
+      }
+
       setBlocosEstudo(blocos);
 
       let itensEstudo: AtividadeAgenda[] = [];

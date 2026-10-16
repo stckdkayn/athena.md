@@ -362,6 +362,7 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
  * 4. AUTO-PLANEJAMENTO INVISÍVEL
  * Executado silenciosamente na inicialização da agenda.
  * Se já passou das 05:00 da manhã e a data não possui blocos gerados,
+ * ou se os blocos pendentes estão fora dos limites úteis (07:00 - 22:00),
  * aciona o agendador autônomo em segundo plano.
  */
 export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): Promise<boolean> {
@@ -388,7 +389,16 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       [dataYYYYMMDD]
     );
 
-    if (!countRow || countRow.count === 0) {
+    // Verifica se existem blocos pendentes fora dos limites úteis (antes das 07:00 ou após 22:00)
+    const foraDosLimitesRow = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM blocos_estudo 
+       WHERE data_agendada = ? 
+         AND status = 'pendente' 
+         AND (hora_inicio < '07:00' OR hora_fim > '22:00');`,
+      [dataYYYYMMDD]
+    );
+
+    if (!countRow || countRow.count === 0 || (foraDosLimitesRow && foraDosLimitesRow.count > 0)) {
       await gerarPlanoDiario(dataYYYYMMDD);
       return true;
     }
@@ -398,3 +408,27 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
 
   return false;
 }
+
+/**
+ * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES
+ * Replaneja todas as datas que contenham blocos pendentes fora dos limites de 07:00 às 22:00
+ */
+export async function sincronizarLimitesHorarioUtil(): Promise<void> {
+  const database = getDatabase();
+  try {
+    const rows = await database.getAllAsync<{ data_agendada: string }>(
+      `SELECT DISTINCT data_agendada FROM blocos_estudo 
+       WHERE status = 'pendente' 
+         AND (hora_inicio < '07:00' OR hora_fim > '22:00');`
+    );
+
+    for (const r of rows) {
+      if (r.data_agendada) {
+        await gerarPlanoDiario(r.data_agendada);
+      }
+    }
+  } catch (err) {
+    console.warn('[scheduler] Erro ao sincronizar limites de horário útil:', err);
+  }
+}
+
