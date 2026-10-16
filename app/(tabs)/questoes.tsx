@@ -1234,7 +1234,7 @@ export default function TreinoScreen() {
 
             <View style={styles.modalActionsRow}>
               <Text style={styles.modalActionsSummary}>
-                <Text style={{ color: Colors.primary, fontWeight: '700' }}>{modalSelectedThemes.length}</Text> {modalSelectedThemes.length === 1 ? 'tema selecionado' : 'temas selecionados'}
+                <Text style={{ color: isDark ? '#E5E7EB' : '#37352F', fontWeight: '700' }}>{modalSelectedThemes.length}</Text> {modalSelectedThemes.length === 1 ? 'tema selecionado' : 'temas selecionados'}
               </Text>
               {specialtyThemes.length > 0 && (
                 <TouchableOpacity activeOpacity={0.7} onPress={toggleSelectAllModal}>
@@ -1267,7 +1267,7 @@ export default function TreinoScreen() {
                   >
                     <View style={styles.themeCheckHeader}>
                       <View style={[styles.themeCheckCircle, isThemeSelected && styles.themeCheckCircleSelected]}>
-                        {isThemeSelected && <Ionicons name="checkmark" size={12} color="#000000" />}
+                        {isThemeSelected && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
                       </View>
                       <TouchableOpacity style={styles.cardFilterIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => abrirFiltroModal(item.nome)}>
                         <Ionicons name="ellipsis-vertical" size={15} color={hasCustomFilter ? Colors.primary : '#64748B'} />
@@ -1793,45 +1793,78 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     emptyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' },
     modalDismissArea: { flex: 1 },
-    modalContent: { backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: theme.border, maxHeight: '88%', minHeight: '65%', paddingBottom: Platform.OS === 'ios' ? 32 : 20 },
-    modalHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: theme.borderSubtle, alignSelf: 'center', marginTop: 10, marginBottom: 12 },
+    modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: theme.border, maxHeight: '88%', minHeight: '65%', paddingBottom: Platform.OS === 'ios' ? 32 : 20 },
+    modalHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3E4247' : '#D1D1CE', alignSelf: 'center', marginTop: 10, marginBottom: 12 },
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 14 },
     modalHeaderInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
     modalIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.surfaceCard, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 1, borderColor: theme.border },
     modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text },
     modalSubtitle: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
     modalCloseButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: theme.surfaceCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
-    modalSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: theme.border, marginBottom: 10 },
+    modalSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: theme.border, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: isDark ? 0.25 : 0.04, shadowRadius: 3, elevation: 1 },
     modalSearchInput: { flex: 1, fontSize: 14, color: theme.text, height: '100%' },
     modalActionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
     modalActionsSummary: { fontSize: 13, color: theme.textSecondary },
-    modalSelectAllButton: { fontSize: 13, fontWeight: '700', color: theme.primary },
+    modalSelectAllButton: { fontSize: 13, fontWeight: '700', color: isDark ? '#E5E7EB' : '#37352F' },
     modalLoadingContainer: { paddingVertical: 50, alignItems: 'center', justifyContent: 'center' },
     modalLoadingText: { marginTop: 12, fontSize: 14, color: theme.textSecondary },
     modalColumnWrapper: { justifyContent: 'space-between', marginBottom: 10 },
     modalListContent: { paddingHorizontal: 20, paddingBottom: 16 },
-    themeGridCard: { width: '48.5%', minHeight: 96, backgroundColor: theme.surfaceCard, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.border, position: 'relative', justifyContent: 'space-between' },
-    themeGridCardSelected: { borderColor: theme.primary, backgroundColor: theme.primarySubtle },
+    themeGridCard: {
+      width: '48.5%',
+      minHeight: 96,
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+      position: 'relative',
+      justifyContent: 'space-between',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.35 : 0.06,
+      shadowRadius: 6,
+      elevation: isDark ? 4 : 2,
+    },
+    themeGridCardSelected: {
+      borderColor: isDark ? '#9CA3AF' : '#37352F',
+      borderWidth: 1.5,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: isDark ? 0.45 : 0.10,
+      shadowRadius: 8,
+      elevation: isDark ? 5 : 3,
+    },
     themeCheckHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
     cardFilterIconBtn: { padding: 2, borderRadius: 6 },
-    themeGridCardFiltered: { borderColor: theme.primary, borderWidth: 1, backgroundColor: theme.primarySubtle },
+    themeGridCardFiltered: {
+      borderColor: isDark ? '#9CA3AF' : '#37352F',
+      borderWidth: 1.5,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: isDark ? 0.45 : 0.10,
+      shadowRadius: 8,
+      elevation: isDark ? 5 : 3,
+    },
     themeCardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-    cardFilterPill: { backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder },
-    cardFilterPillText: { fontSize: 9, fontWeight: '700', color: theme.primary, letterSpacing: 0.2, textTransform: 'uppercase' },
-    cartThemeChipFiltered: { borderColor: theme.primary, backgroundColor: theme.primarySubtle },
-    cartThemeChipTextFiltered: { color: theme.primary, fontWeight: '700' },
-    themeCheckCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
-    themeCheckCircleSelected: { backgroundColor: theme.primary, borderColor: theme.primary },
+    cardFilterPill: { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(55, 53, 47, 0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(55, 53, 47, 0.2)' },
+    cardFilterPillText: { fontSize: 9, fontWeight: '700', color: isDark ? '#E5E7EB' : '#37352F', letterSpacing: 0.2, textTransform: 'uppercase' },
+    cartThemeChipFiltered: { borderColor: isDark ? '#9CA3AF' : '#37352F', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(55, 53, 47, 0.06)' },
+    cartThemeChipTextFiltered: { color: isDark ? '#E5E7EB' : '#37352F', fontWeight: '700' },
+    themeCheckCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: isDark ? '#6B7280' : '#D1D5DB', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+    themeCheckCircleSelected: { backgroundColor: isDark ? '#4B5563' : '#37352F', borderColor: isDark ? '#4B5563' : '#37352F' },
     themeCardTitle: { fontSize: 13, fontWeight: '700', color: theme.text, marginBottom: 4 },
     themeCardTitleSelected: { color: theme.text },
-    themeMatchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder, marginBottom: 4, alignSelf: 'flex-start', maxWidth: '100%' },
-    themeMatchBadgeText: { fontSize: 10, fontWeight: '700', color: theme.primary, textTransform: 'uppercase', flexShrink: 1 },
+    themeMatchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(55, 53, 47, 0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(55, 53, 47, 0.2)', marginBottom: 4, alignSelf: 'flex-start', maxWidth: '100%' },
+    themeMatchBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#E5E7EB' : '#37352F', textTransform: 'uppercase', flexShrink: 1 },
     themeCardCount: { fontSize: 11, color: theme.textSecondary, fontWeight: '500' },
     themeCardCountSelected: { color: theme.text, fontWeight: '700' },
     modalEmptyContainer: { paddingVertical: 36, alignItems: 'center', justifyContent: 'center' },
     modalEmptyText: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
     modalFooter: { paddingHorizontal: 20, paddingTop: 10 },
-    modalDoneButton: { backgroundColor: theme.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    modalDoneButton: { backgroundColor: isDark ? '#2A2E33' : '#37352F', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDark ? 0.3 : 0.1, shadowRadius: 4, elevation: 2 },
     modalDoneButtonText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
     activeSessionText: { color: theme.primary, fontSize: 14, fontWeight: '800', textAlign: 'center', paddingVertical: 2 },
     filtroOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, zIndex: 9999 },
