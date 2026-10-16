@@ -285,7 +285,11 @@ export {
   QuestionHistoryRecord,
   getDiagnosticSummary,
   DiagnosticSummary,
-};
+  getMemoryHealthSummary,
+  MemoryHealthSummary,
+  getQuestionTimeStats,
+  QuestionTimeStats,
+} from './database';
 
 export { getHeatmapData, HeatmapData } from './streakService';
 

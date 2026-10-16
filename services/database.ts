@@ -1006,6 +1006,78 @@ export async function getDiagnosticSummary(): Promise<DiagnosticSummary> {
   }
 }
 
+export interface MemoryHealthSummary {
+  total: number;
+  pendentes: number;
+  longoPrazo: number;
+  consolidando: number;
+}
+
+export async function getMemoryHealthSummary(): Promise<MemoryHealthSummary> {
+  try {
+    const database = getDatabase();
+    const now = Date.now();
+    const row = await database.getFirstAsync<{
+      total: number;
+      pendentes: number;
+      longoPrazo: number;
+      consolidando: number;
+    }>(
+      `SELECT 
+         COUNT(*) as total,
+         COALESCE(SUM(CASE WHEN nextReviewDate <= ? THEN 1 ELSE 0 END), 0) as pendentes,
+         COALESCE(SUM(CASE WHEN interval >= 15 THEN 1 ELSE 0 END), 0) as longoPrazo,
+         COALESCE(SUM(CASE WHEN interval < 15 AND nextReviewDate > ? THEN 1 ELSE 0 END), 0) as consolidando
+       FROM QuestionReviewState;`,
+      [now, now]
+    );
+    return {
+      total: row?.total ?? 0,
+      pendentes: row?.pendentes ?? 0,
+      longoPrazo: row?.longoPrazo ?? 0,
+      consolidando: row?.consolidando ?? 0,
+    };
+  } catch (err) {
+    console.error('[database] Erro ao obter saúde da memória:', err);
+    return { total: 0, pendentes: 0, longoPrazo: 0, consolidando: 0 };
+  }
+}
+
+export interface QuestionTimeStats {
+  tempoMedioSegundos: number;
+  tempoTotalSegundos: number;
+  totalQuestoesComTempo: number;
+}
+
+export async function getQuestionTimeStats(sinceTimestamp?: number): Promise<QuestionTimeStats> {
+  try {
+    const database = getDatabase();
+    const whereClause = sinceTimestamp ? 'WHERE answeredAt >= ?' : '';
+    const params = sinceTimestamp ? [sinceTimestamp] : [];
+    const row = await database.getFirstAsync<{
+      tempoMedio: number;
+      tempoTotal: number;
+      total: number;
+    }>(
+      `SELECT 
+         COALESCE(AVG(timeSpentSeconds), 0) as tempoMedio,
+         COALESCE(SUM(timeSpentSeconds), 0) as tempoTotal,
+         COUNT(*) as total
+       FROM QuestionHistory
+       ${whereClause};`,
+      params
+    );
+    return {
+      tempoMedioSegundos: Math.round(row?.tempoMedio ?? 0),
+      tempoTotalSegundos: Math.round(row?.tempoTotal ?? 0),
+      totalQuestoesComTempo: row?.total ?? 0,
+    };
+  } catch (err) {
+    console.error('[database] Erro ao calcular estatísticas de tempo:', err);
+    return { tempoMedioSegundos: 0, tempoTotalSegundos: 0, totalQuestoesComTempo: 0 };
+  }
+}
+
 export interface TopicProgressRecord {
   topicName: string;
   repetitions: number;
