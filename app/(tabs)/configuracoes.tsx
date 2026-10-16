@@ -22,7 +22,18 @@ import { unzip } from 'react-native-zip-archive';
 import JSZip from 'jszip';
 import { useNavigation } from 'expo-router';
 import { Colors } from '@/constants/Colors';
-import { importarArquivoICS } from '@/services/icsService';
+import {
+  ICalFeed,
+  getICalFeeds,
+  addICalFeed,
+  removeICalFeed,
+  syncICalFeed,
+  syncAllICalFeeds,
+  getAutoSyncEnabled,
+  setAutoSyncEnabled,
+  getLastSyncTimestamp,
+  importarArquivoICS,
+} from '@/services/icsService';
 
 import { storage } from '@/services/storage'; // <-- Motor Síncrono MMKV
 
@@ -289,7 +300,28 @@ export default function ConfiguracoesScreen() {
   const [sucessoAcaoCronograma, setSucessoAcaoCronograma] = useState<{ titulo: string; mensagem: string; } | null>(null);
   const [baixandoCronogramaGitHub, setBaixandoCronogramaGitHub] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'menu' | 'adicionar_questoes' | 'cronograma'>('menu');
+  const [currentView, setCurrentView] = useState<'menu' | 'adicionar_questoes' | 'cronograma' | 'calendario'>('menu');
+  const [icalFeeds, setIcalFeeds] = useState<ICalFeed[]>([]);
+  const [autoSyncAtivo, setAutoSyncAtivo] = useState<boolean>(true);
+  const [ultimoSyncTimestamp, setUltimoSyncTimestamp] = useState<number | null>(null);
+  const [sincronizandoTudo, setSincronizandoTudo] = useState<boolean>(false);
+  const [sincronizandoFeedId, setSincronizandoFeedId] = useState<string | null>(null);
+  const [modalAddFeedVisible, setModalAddFeedVisible] = useState<boolean>(false);
+  const [novoFeedNome, setNovoFeedNome] = useState<string>('');
+  const [novoFeedUrl, setNovoFeedUrl] = useState<string>('');
+  const [novoFeedTipo, setNovoFeedTipo] = useState<string>('Faculdade');
+  const [salvandoNovoFeed, setSalvandoNovoFeed] = useState<boolean>(false);
+  const [feedParaRemover, setFeedParaRemover] = useState<ICalFeed | null>(null);
+
+  const carregarDadosCalendario = () => {
+    try {
+      setIcalFeeds(getICalFeeds());
+      setAutoSyncAtivo(getAutoSyncEnabled());
+      setUltimoSyncTimestamp(getLastSyncTimestamp());
+    } catch (e) {
+      console.error('Erro ao carregar dados do calendário:', e);
+    }
+  };
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['github']));
 
   const toggleSection = (section: string) => {
@@ -327,6 +359,7 @@ export default function ConfiguracoesScreen() {
     carregarGerenciadorArmazenamento();
     carregarMetadadosGitHub();
     carregarDadosCronograma();
+    carregarDadosCalendario();
 
     const unsubUpdate = subscribeToUpdateStatus((status) => {
       setUpdateStatusState(status);
@@ -346,6 +379,8 @@ export default function ConfiguracoesScreen() {
       setModalSyncErrorVisible(false);
       setModalRemoverCronogramaVisible(false);
       setModalResetCronogramaVisible(false);
+      setModalAddFeedVisible(false);
+      setFeedParaRemover(null);
       setSucessoCronogramaModal(null);
       setErroCronogramaModal(null);
       setSucessoAcaoCronograma(null);
@@ -356,7 +391,7 @@ export default function ConfiguracoesScreen() {
 
   useEffect(() => {
     const onBackPress = () => {
-      if (currentView === 'adicionar_questoes' || currentView === 'cronograma') {
+      if (currentView === 'adicionar_questoes' || currentView === 'cronograma' || currentView === 'calendario') {
         setCurrentView('menu');
         return true;
       }
@@ -1257,6 +1292,99 @@ export default function ConfiguracoesScreen() {
     setSucessoAcaoCronograma({ titulo: 'Cronograma Removido', mensagem: 'O cronograma ativo e todo o progresso associado foram excluídos do dispositivo com sucesso.' });
   };
 
+  const formatarUltimaSincronizacao = (ts?: number | null): string => {
+    if (!ts) return 'Nunca sincronizado';
+    const agora = Date.now();
+    const diffSegundos = Math.floor((agora - ts) / 1000);
+    if (diffSegundos < 60) return 'Agora mesmo';
+    const diffMinutos = Math.floor(diffSegundos / 60);
+    if (diffMinutos < 60) return `Há ${diffMinutos} ${diffMinutos === 1 ? 'minuto' : 'minutos'}`;
+    const diffHoras = Math.floor(diffMinutos / 60);
+    if (diffHoras < 24) return `Há ${diffHoras} ${diffHoras === 1 ? 'hora' : 'horas'}`;
+    const diffDias = Math.floor(diffHoras / 24);
+    return `Há ${diffDias} ${diffDias === 1 ? 'dia' : 'dias'}`;
+  };
+
+  const handleToggleAutoSync = () => {
+    const novoStatus = !autoSyncAtivo;
+    setAutoSyncAtivo(novoStatus);
+    setAutoSyncEnabled(novoStatus);
+  };
+
+  const handleSincronizarTudo = async () => {
+    try {
+      setSincronizandoTudo(true);
+      const res = await syncAllICalFeeds(false);
+      carregarDadosCalendario();
+      Alert.alert(
+        'Sincronização Concluída',
+        `Foram sincronizados ${res.total} ${res.total === 1 ? 'evento' : 'eventos'} em ${res.feedsCount} ${res.feedsCount === 1 ? 'calendário' : 'calendários'}.`
+      );
+    } catch (err: any) {
+      console.error('Erro ao sincronizar todos os feeds:', err);
+      Alert.alert('Erro na Sincronização', err?.message || 'Falha ao sincronizar calendários.');
+    } finally {
+      setSincronizandoTudo(false);
+    }
+  };
+
+  const handleSincronizarFeed = async (feedId: string) => {
+    try {
+      setSincronizandoFeedId(feedId);
+      const res = await syncICalFeed(feedId);
+      carregarDadosCalendario();
+      Alert.alert('Sucesso', `${res.count} ${res.count === 1 ? 'evento sincronizado' : 'eventos sincronizados'} com sucesso.`);
+    } catch (err: any) {
+      console.error('Erro ao sincronizar feed:', err);
+      Alert.alert('Erro ao Sincronizar', err?.message || 'Não foi possível sincronizar este calendário.');
+    } finally {
+      setSincronizandoFeedId(null);
+    }
+  };
+
+  const handleSalvarNovoFeed = async () => {
+    if (!novoFeedUrl.trim()) {
+      Alert.alert('Campo Obrigatório', 'Por favor, insira o link de iCal / Google Calendar.');
+      return;
+    }
+    try {
+      setSalvandoNovoFeed(true);
+      const feed = await addICalFeed({
+        nome: novoFeedNome.trim() || 'Google Calendar',
+        url: novoFeedUrl.trim(),
+        tipo: novoFeedTipo,
+      });
+      setModalAddFeedVisible(false);
+      setNovoFeedNome('');
+      setNovoFeedUrl('');
+      setNovoFeedTipo('Faculdade');
+      carregarDadosCalendario();
+      Alert.alert(
+        'Calendário Adicionado!',
+        `O calendário "${feed.nome}" foi conectado e ${feed.totalEventos} ${feed.totalEventos === 1 ? 'evento foi importado' : 'eventos foram importados'} para a sua agenda.`
+      );
+    } catch (err: any) {
+      console.error('Erro ao adicionar feed iCal:', err);
+      Alert.alert('Erro ao Adicionar', err?.message || 'Não foi possível validar ou conectar este link de calendário.');
+    } finally {
+      setSalvandoNovoFeed(false);
+    }
+  };
+
+  const handleConfirmarRemoverFeed = async () => {
+    if (!feedParaRemover) return;
+    const feed = feedParaRemover;
+    try {
+      setFeedParaRemover(null);
+      await removeICalFeed(feed.id);
+      carregarDadosCalendario();
+      Alert.alert('Calendário Removido', `O calendário "${feed.nome}" e todas as suas atividades foram removidos com sucesso.`);
+    } catch (err: any) {
+      console.error('Erro ao remover feed:', err);
+      Alert.alert('Erro', err?.message || 'Não foi possível remover o calendário.');
+    }
+  };
+
   const handleImportarICS = async () => {
     try {
       setImportandoICS(true);
@@ -1264,6 +1392,7 @@ export default function ConfiguracoesScreen() {
       if (!resultado) {
         return;
       }
+      carregarDadosCalendario();
       Alert.alert(
         'Sucesso!',
         `${resultado.count} ${resultado.count === 1 ? 'evento foi importado' : 'eventos foram importados'} para a sua agenda.`
@@ -1322,33 +1451,38 @@ export default function ConfiguracoesScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
 
-            {/* Seção: Calendário e Dados */}
+            {/* Seção: Calendário e Agenda */}
             <View style={{ marginTop: 12 }}>
               <View style={styles.minSectionHeader}>
-                <Text style={styles.minSectionTitle}>Calendário e Dados</Text>
+                <Text style={styles.minSectionTitle}>Calendário e Agenda</Text>
               </View>
               <TouchableOpacity
-                style={[styles.menuOptionCard, importandoICS && styles.buttonDisabled]}
+                style={styles.menuOptionCard}
                 activeOpacity={0.7}
-                onPress={handleImportarICS}
-                disabled={importandoICS}
+                onPress={() => {
+                  carregarDadosCalendario();
+                  setCurrentView('calendario');
+                }}
               >
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                  <Feather name="download-cloud" size={24} color={Colors.primary} />
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                  <Ionicons name="calendar" size={24} color="#3B82F6" />
                 </View>
                 <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Importar Calendário (.ICS)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.menuOptionTitle}>Calendário & Sincronização</Text>
+                    {icalFeeds.length > 0 && (
+                      <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(59, 130, 246, 0.18)', borderColor: 'rgba(59, 130, 246, 0.35)' }]}>
+                        <Text style={[styles.menuUpdateBadgeText, { color: '#60A5FA' }]}>
+                          {icalFeeds.length} {icalFeeds.length === 1 ? 'link ativo' : 'links ativos'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.menuOptionSubtitle}>
-                    {importandoICS
-                      ? 'Processando eventos e salvando na agenda...'
-                      : 'Carregar aulas e eventos da faculdade para a agenda'}
+                    Google Calendar (iCal/Webcal), sincronização automática e arquivos .ICS
                   </Text>
                 </View>
-                {importandoICS ? (
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-                )}
+                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1597,7 +1731,7 @@ export default function ConfiguracoesScreen() {
               </TouchableOpacity>
             </View>
           </>
-        ) : (
+        ) : currentView === 'cronograma' ? (
           /* Sub-tela: Cronograma de Estudos */
           <>
             <View style={styles.subScreenHeader}>
@@ -1660,6 +1794,236 @@ export default function ConfiguracoesScreen() {
                   <Text style={styles.menuOptionSubtitle}>Excluir o cronograma salvo no aparelho e o progresso associado</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          /* Sub-tela: Calendário & iCal */
+          <>
+            <View style={styles.subScreenHeader}>
+              <TouchableOpacity
+                style={styles.subScreenBackBtn}
+                onPress={() => setCurrentView('menu')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              </TouchableOpacity>
+              <Text style={styles.subScreenHeaderTitle}>Calendário & Sincronização</Text>
+            </View>
+
+            {/* Card de Resumo */}
+            <View style={styles.menuSummaryCard}>
+              <View style={styles.menuSummaryLeft}>
+                <Text style={styles.menuSummaryLabel}>STATUS DO CALENDÁRIO</Text>
+                <Text style={styles.menuSummaryValue}>
+                  {icalFeeds.length === 0
+                    ? 'Nenhum link conectado'
+                    : `${icalFeeds.length} ${icalFeeds.length === 1 ? 'calendário conectado' : 'calendários conectados'}`}
+                </Text>
+                <Text style={styles.menuSummarySubValue}>
+                  {ultimoSyncTimestamp
+                    ? `Última sincronização: ${formatarUltimaSincronizacao(ultimoSyncTimestamp)}`
+                    : 'Nenhuma sincronização realizada ainda.'}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: icalFeeds.length > 0 ? 'rgba(59, 130, 246, 0.15)' : Colors.background },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: icalFeeds.length > 0 ? '#3B82F6' : Colors.textSecondary },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: icalFeeds.length > 0 ? '#3B82F6' : Colors.textSecondary },
+                  ]}
+                >
+                  {icalFeeds.length > 0 ? 'Ativo' : 'Vazio'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Sincronização Automática Silenciosa */}
+            <TouchableOpacity
+              style={styles.menuOptionCard}
+              activeOpacity={0.7}
+              onPress={handleToggleAutoSync}
+            >
+              <View
+                style={[
+                  styles.menuOptionIconBox,
+                  { backgroundColor: autoSyncAtivo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(156, 163, 175, 0.12)' },
+                ]}
+              >
+                <Ionicons
+                  name={autoSyncAtivo ? 'sync' : 'sync-outline'}
+                  size={24}
+                  color={autoSyncAtivo ? '#10B981' : Colors.textSecondary}
+                />
+              </View>
+              <View style={styles.menuOptionContent}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.menuOptionTitle}>Sincronização Automática Silenciosa</Text>
+                </View>
+                <Text style={styles.menuOptionSubtitle}>
+                  {autoSyncAtivo
+                    ? 'Ativa: atualiza eventos em segundo plano ao abrir o app e ao ver a agenda (a cada 15 min)'
+                    : 'Desativada: os eventos só serão atualizados ao tocar em Sincronizar'}
+                </Text>
+              </View>
+              <Ionicons
+                name={autoSyncAtivo ? 'toggle' : 'toggle-outline'}
+                size={34}
+                color={autoSyncAtivo ? '#10B981' : Colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {/* Ações de Sincronização e Adição */}
+            <View style={styles.menuOptionsContainer}>
+              <TouchableOpacity
+                style={[styles.menuOptionCard, (sincronizandoTudo || icalFeeds.length === 0) && styles.buttonDisabled]}
+                activeOpacity={0.7}
+                onPress={handleSincronizarTudo}
+                disabled={sincronizandoTudo || icalFeeds.length === 0}
+              >
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                  <Ionicons name="refresh" size={24} color="#3B82F6" />
+                </View>
+                <View style={styles.menuOptionContent}>
+                  <Text style={styles.menuOptionTitle}>Sincronizar Todos os Calendários</Text>
+                  <Text style={styles.menuOptionSubtitle}>
+                    {sincronizandoTudo
+                      ? 'Baixando eventos e atualizando a agenda...'
+                      : 'Baixa as alterações mais recentes dos seus links cadastrados'}
+                  </Text>
+                </View>
+                {sincronizandoTudo ? (
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuOptionCard}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setNovoFeedNome('');
+                  setNovoFeedUrl('');
+                  setNovoFeedTipo('Faculdade');
+                  setModalAddFeedVisible(true);
+                }}
+              >
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.15)' }]}>
+                  <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
+                </View>
+                <View style={styles.menuOptionContent}>
+                  <Text style={[styles.menuOptionTitle, { color: Colors.primary }]}>+ Adicionar Link de iCal</Text>
+                  <Text style={styles.menuOptionSubtitle}>
+                    Google Calendar, Outlook ou qualquer link no formato .ics / webcal
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Lista de Feeds Configurados */}
+            <View style={{ marginTop: 16 }}>
+              <View style={styles.minSectionHeader}>
+                <Text style={styles.minSectionTitle}>LINKS CONFIGURADOS ({icalFeeds.length})</Text>
+              </View>
+
+              {icalFeeds.length === 0 ? (
+                <View style={styles.emptyDayContainer}>
+                  <Ionicons name="calendar-outline" size={40} color="#454A52" />
+                  <Text style={styles.emptyDayTitle}>Nenhum link adicionado</Text>
+                  <Text style={styles.emptyDaySub}>
+                    Adicione o endereço secreto iCal do seu Google Calendar para que suas aulas e plantões apareçam na sua agenda diária.
+                  </Text>
+                </View>
+              ) : (
+                icalFeeds.map((feed) => {
+                  const isSincronizandoEste = sincronizandoFeedId === feed.id;
+                  return (
+                    <View key={feed.id} style={[styles.menuOptionCard, { paddingVertical: 14, marginBottom: 10 }]}>
+                      <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                        <Ionicons name="logo-google" size={22} color="#3B82F6" />
+                      </View>
+                      <View style={styles.menuOptionContent}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                          <Text style={styles.menuOptionTitle} numberOfLines={1}>{feed.nome}</Text>
+                          <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(139, 92, 246, 0.18)', borderColor: 'rgba(139, 92, 246, 0.35)' }]}>
+                            <Text style={[styles.menuUpdateBadgeText, { color: '#A78BFA' }]}>{feed.tipo}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.menuOptionSubtitle} numberOfLines={1}>
+                          {feed.url}
+                        </Text>
+                        <Text style={[styles.menuOptionSubtitle, { color: '#68707B', fontSize: 11, marginTop: 4 }]}>
+                          {feed.totalEventos !== undefined ? `${feed.totalEventos} eventos ativos` : 'Eventos sincronizados'} • {formatarUltimaSincronizacao(feed.ultimaSincronizacao)}
+                        </Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <TouchableOpacity
+                          onPress={() => handleSincronizarFeed(feed.id)}
+                          disabled={isSincronizandoEste}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          {isSincronizandoEste ? (
+                            <ActivityIndicator size="small" color="#3B82F6" />
+                          ) : (
+                            <Ionicons name="sync-outline" size={20} color="#3B82F6" />
+                          )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => setFeedParaRemover(feed)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
+            {/* Importação Manual por Arquivo */}
+            <View style={{ marginTop: 14 }}>
+              <View style={styles.minSectionHeader}>
+                <Text style={styles.minSectionTitle}>IMPORTAÇÃO MANUAL</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.menuOptionCard, importandoICS && styles.buttonDisabled]}
+                activeOpacity={0.7}
+                onPress={handleImportarICS}
+                disabled={importandoICS}
+              >
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
+                  <Feather name="download-cloud" size={24} color={Colors.primary} />
+                </View>
+                <View style={styles.menuOptionContent}>
+                  <Text style={styles.menuOptionTitle}>Importar Arquivo .ICS Local</Text>
+                  <Text style={styles.menuOptionSubtitle}>
+                    {importandoICS
+                      ? 'Processando eventos e salvando na agenda...'
+                      : 'Carregar arquivo salvo na memória do aparelho'}
+                  </Text>
+                </View>
+                {importandoICS ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                )}
               </TouchableOpacity>
             </View>
           </>
@@ -3346,6 +3710,157 @@ export default function ConfiguracoesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal: Adicionar Feed de iCal */}
+      <Modal
+        visible={modalAddFeedVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => !salvandoNovoFeed && setModalAddFeedVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <TouchableOpacity
+            style={styles.confirmBackdropDismiss}
+            activeOpacity={1}
+            onPress={() => !salvandoNovoFeed && setModalAddFeedVisible(false)}
+          />
+          <View style={styles.confirmModalCard}>
+            <View style={[styles.gitHubSyncIconBox, { marginBottom: 12, width: 50, height: 50, borderRadius: 14, backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+              <Ionicons name="logo-google" size={26} color="#3B82F6" />
+            </View>
+            <Text style={styles.confirmTitle}>Conectar Calendário iCal</Text>
+            <Text style={[styles.confirmDescription, { marginBottom: 14 }]}>
+              Cole o link secreto do Google Calendar para espelhar suas aulas e eventos no Athena.
+            </Text>
+
+            <View style={{ width: '100%', marginBottom: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' }}>
+                Nome do Calendário
+              </Text>
+              <TextInput
+                style={[styles.searchBarInput, { backgroundColor: '#141618', borderRadius: 10, borderWidth: 1, borderColor: '#26292C', paddingHorizontal: 12, height: 42, color: Colors.text }]}
+                placeholder="Ex: Faculdade, Trabalho, Plantões"
+                placeholderTextColor="#68707B"
+                value={novoFeedNome}
+                onChangeText={setNovoFeedNome}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={{ width: '100%', marginBottom: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' }}>
+                URL do iCal / Webcal
+              </Text>
+              <TextInput
+                style={[styles.searchBarInput, { backgroundColor: '#141618', borderRadius: 10, borderWidth: 1, borderColor: '#26292C', paddingHorizontal: 12, height: 42, color: Colors.text }]}
+                placeholder="https://calendar.google.com/calendar/ical/..."
+                placeholderTextColor="#68707B"
+                value={novoFeedUrl}
+                onChangeText={setNovoFeedUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={{ width: '100%', marginBottom: 14 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 6, textTransform: 'uppercase' }}>
+                Categoria Padrão dos Eventos
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                {['Faculdade', 'Estudos', 'Saúde', 'Pessoal', 'Lazer'].map((cat) => {
+                  const isSelected = novoFeedTipo === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#2A2E33', backgroundColor: '#16191B' },
+                        isSelected && { backgroundColor: 'rgba(234, 225, 21, 0.15)', borderColor: Colors.primary },
+                      ]}
+                      onPress={() => setNovoFeedTipo(cat)}
+                    >
+                      <Text style={[{ fontSize: 12, fontWeight: '600', color: Colors.textSecondary }, isSelected && { color: Colors.primary, fontWeight: '700' }]}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={[styles.confirmWarningBox, { marginBottom: 16 }]}>
+              <Ionicons name="information-circle-outline" size={16} color="#60A5FA" style={{ marginRight: 6 }} />
+              <Text style={[styles.confirmWarningText, { color: '#93C5FD' }]}>
+                No Google Calendar no PC: Configurações &gt; Selecione sua agenda &gt; Integrar agenda &gt; Copie o "Endereço secreto no formato iCal".
+              </Text>
+            </View>
+
+            <View style={styles.confirmButtonsRow}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setModalAddFeedVisible(false)}
+                disabled={salvandoNovoFeed}
+              >
+                <Text style={styles.confirmCancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.gitHubSaveBtn, salvandoNovoFeed && styles.buttonDisabled]}
+                activeOpacity={0.85}
+                onPress={handleSalvarNovoFeed}
+                disabled={salvandoNovoFeed}
+              >
+                {salvandoNovoFeed ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
+                  <Text style={styles.gitHubSaveBtnText}>Salvar e Conectar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Remover Feed iCal */}
+      <Modal
+        visible={feedParaRemover !== null}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setFeedParaRemover(null)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <TouchableOpacity
+            style={styles.confirmBackdropDismiss}
+            activeOpacity={1}
+            onPress={() => setFeedParaRemover(null)}
+          />
+          <View style={styles.confirmModalCard}>
+            <View style={styles.dangerIconCircle}>
+              <Ionicons name="trash" size={30} color={Colors.error} />
+            </View>
+            <Text style={styles.confirmTitle}>Remover Calendário</Text>
+            <Text style={styles.confirmDescription}>
+              Deseja remover o calendário "{feedParaRemover?.nome}"? Todas as aulas e eventos importados por este link serão apagados da sua agenda.
+            </Text>
+            <View style={styles.confirmButtonsRow}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setFeedParaRemover(null)}
+              >
+                <Text style={styles.confirmCancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                activeOpacity={0.85}
+                onPress={handleConfirmarRemoverFeed}
+              >
+                <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.confirmDeleteBtnText}>Sim, Remover</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -3632,4 +4147,30 @@ const styles = StyleSheet.create({
   accordionBody: { padding: 16, backgroundColor: '#131517' },
   gitHubSyncCardInner: { width: '100%' },
   minStorageCardInner: { width: '100%' },
+  emptyDayContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    backgroundColor: '#181A1D',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#26292C',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  emptyDayTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#E1E4EA',
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyDaySub: {
+    fontSize: 12,
+    color: '#8E959E',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 });

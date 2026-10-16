@@ -37,6 +37,7 @@ import ModalBuscaUniversal from '@/components/cronograma/ModalBuscaUniversal';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
+import { subscribeToICalSync } from '@/services/icsService';
 
 export { CATEGORIA_CORES };
 
@@ -291,6 +292,14 @@ export default function DashboardScreen() {
       carregarAgenda();
     }, [carregarAgenda])
   );
+
+  // Recarrega automaticamente a timeline se a sincronização do iCal atualizar eventos
+  useEffect(() => {
+    const unsubscribe = subscribeToICalSync(() => {
+      carregarAgenda();
+    });
+    return () => unsubscribe();
+  }, [carregarAgenda]);
 
   // Alterna o status de concluída (materializando tarefas virtuais ou atualizando SQLite nos passos ou blocos)
   const handleToggle = async (atividade: AtividadeAgenda) => {

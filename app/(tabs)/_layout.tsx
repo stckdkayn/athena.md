@@ -10,6 +10,7 @@ import {
   checkSilentUpdates,
   UpdateNotificationStatus,
 } from '@/services/githubSync';
+import { checkSilentICalSync } from '@/services/icsService';
 
 export default function TabLayout() {
   const { width, height } = useWindowDimensions();
@@ -24,11 +25,13 @@ export default function TabLayout() {
 
     // Dispara a checagem silenciosa em segundo plano ao abrir o app
     checkSilentUpdates();
+    checkSilentICalSync();
 
     // Re-verifica ao voltar ao primeiro plano
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         checkSilentUpdates();
+        checkSilentICalSync();
       }
     });
 
