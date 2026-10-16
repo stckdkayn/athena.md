@@ -9,6 +9,9 @@ import {
   Modal,
   Image,
   Alert,
+  TextInput,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -30,6 +33,7 @@ import {
   moverTopicoDeSemanaNoBanco,
   ItemBuscaCronograma,
   excluirAtividade,
+  buscarNoCronogramaCompleto,
 } from '@/services/database';
 import { getSemanaDoCronogramaPorData } from '@/services/scheduleService';
 import { gerarPlanoDiario, verificarEPlanejarAutomaticamente, sincronizarLimitesHorarioUtil } from '@/services/schedulerService';
@@ -37,7 +41,6 @@ import { getStreakInfo, StreakInfo } from '@/services/streakService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
-import ModalBuscaUniversal from '@/components/cronograma/ModalBuscaUniversal';
 import { StreakModal } from '@/components/modals/StreakModal';
 import { NomeUsuarioModal } from '@/components/modals/NomeUsuarioModal';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
@@ -53,6 +56,16 @@ function toLocalDateStr(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+const DIAS_SHORT_MAP: Record<string, string> = {
+  segunda: 'Seg',
+  terca: 'Ter',
+  quarta: 'Qua',
+  quinta: 'Qui',
+  sexta: 'Sex',
+  sabado: 'Sáb',
+  domingo: 'Dom',
+};
 
 // Gera um array com 15 dias (7 dias para trás, o dia atual, e 7 dias para frente)
 const gerarDiasVisiveis = () => {
@@ -81,7 +94,37 @@ export default function DashboardScreen() {
   const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
   const [atividadeDetalhes, setAtividadeDetalhes] = useState<any | null>(null);
-  const [searchModalVisible, setSearchModalVisible] = useState<boolean>(false);
+
+  // Busca inline no cronograma e lista flutuante de resultados
+  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<ItemBuscaCronograma[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  // Busca em tempo real no cronograma completo ao digitar
+  useEffect(() => {
+    const trimmed = searchText.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const data = await buscarNoCronogramaCompleto(trimmed);
+        setSearchResults(data);
+      } catch (err) {
+        console.error('[Dashboard] Erro na busca universal:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Perfil do usuário, foto e streak
   const [userName, setUserName] = useState<string>(() => storage.getString('@athena_user_name') || '');
@@ -803,12 +846,28 @@ export default function DashboardScreen() {
         {/* Segunda linha: Lupa à esquerda, Semana centralizada e Calendário à direita */}
         <View style={styles.headerSubRow}>
           <TouchableOpacity
-            style={styles.calendarIconButton}
-            onPress={() => setSearchModalVisible(true)}
+            style={[
+              styles.calendarIconButton,
+              showSearch && styles.calendarIconButtonActive,
+            ]}
+            onPress={() => {
+              setShowSearch((prev) => {
+                const next = !prev;
+                if (!next) {
+                  setSearchText('');
+                  setSearchResults([]);
+                }
+                return next;
+              });
+            }}
             activeOpacity={0.7}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Ionicons name="search" size={23} color={Colors.text} />
+            <Ionicons
+              name="search"
+              size={23}
+              color={showSearch ? Colors.primary : Colors.text}
+            />
           </TouchableOpacity>
 
           <Text style={styles.weekLabel} numberOfLines={1}>
@@ -824,6 +883,112 @@ export default function DashboardScreen() {
             <Ionicons name="calendar-number-outline" size={23} color={Colors.text} />
           </TouchableOpacity>
         </View>
+
+        {/* Barra Expansível de Pesquisa abaixo do ícone */}
+        {showSearch && (
+          <View style={styles.searchBarRow}>
+            <Ionicons name="search" size={16} color={Colors.primary} style={styles.searchIcon} />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Pesquisar tema, especialidade ou aula..."
+              placeholderTextColor="#8E959E"
+              value={searchText}
+              onChangeText={setSearchText}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              autoFocus={true}
+            />
+            {isSearching && (
+              <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 6 }} />
+            )}
+            {searchText.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchText('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color="#8E959E" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Lista Flutuante para os Resultados */}
+        {showSearch && searchText.trim().length > 0 && (
+          <View style={styles.floatingResultsContainer}>
+            {isSearching && searchResults.length === 0 ? (
+              <View style={styles.floatingLoadingBox}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.floatingLoadingText}>Buscando matérias e temas...</Text>
+              </View>
+            ) : searchResults.length > 0 ? (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item, index) => `${item.topico_id}_${item.passo_id || index}`}
+                style={styles.floatingResultsList}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+                renderItem={({ item }) => {
+                  const diaCurto = DIAS_SHORT_MAP[item.assigned_day?.toLowerCase()] || item.assigned_day;
+
+                  return (
+                    <TouchableOpacity
+                      style={styles.floatingResultCard}
+                      onPress={() => {
+                        handleSelectSearchItem(item);
+                        setShowSearch(false);
+                        setSearchText('');
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.floatingResultHeader}>
+                        <View style={styles.floatingWeekPill}>
+                          <Text style={styles.floatingWeekPillText}>
+                            Semana {item.semana_numero} • {diaCurto}
+                          </Text>
+                        </View>
+
+                        {item.especialidade ? (
+                          <Text style={styles.floatingEspecialidadeText} numberOfLines={1}>
+                            {item.especialidade}
+                          </Text>
+                        ) : null}
+                      </View>
+
+                      <Text style={styles.floatingTopicTitle} numberOfLines={2}>
+                        {item.topico_titulo}
+                      </Text>
+
+                      {(item.passo_label || item.passo_detalhe || item.tema_questoes) && (
+                        <View style={styles.floatingMatchRow}>
+                          <Ionicons
+                            name="checkmark-circle-outline"
+                            size={13}
+                            color={Colors.primary}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={styles.floatingMatchText} numberOfLines={1}>
+                            {item.passo_label || item.passo_detalhe || item.tema_questoes}
+                            {item.meta_questoes ? ` • ${item.meta_questoes} questões` : ''}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            ) : (
+              <View style={styles.floatingEmptyBox}>
+                <Ionicons name="search-outline" size={32} color="#454B52" style={{ marginBottom: 6 }} />
+                <Text style={styles.floatingEmptyTitle}>Nenhum tema encontrado</Text>
+                <Text style={styles.floatingEmptySubtitle}>
+                  Tente buscar por especialidade (ex: Cardio) ou assunto (ex: PCR).
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* 2. Seletor de Semana Estilo Calendário Folha */}
@@ -966,13 +1131,6 @@ export default function DashboardScreen() {
         }}
       />
 
-      {/* Modal de Pesquisa Universal pelas 45 Semanas */}
-      <ModalBuscaUniversal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-        onSelectItem={handleSelectSearchItem}
-      />
-
       {/* Modal detalhado de Streak / Ofensiva */}
       <StreakModal
         visible={modalStreakVisible}
@@ -1002,6 +1160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 14,
     gap: 12,
+    zIndex: 100,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -1092,6 +1251,133 @@ const styles = StyleSheet.create({
     borderColor: '#2e3235',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  calendarIconButtonActive: {
+    backgroundColor: 'rgba(234, 225, 21, 0.12)',
+    borderColor: Colors.primary,
+  },
+  searchBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2D3238',
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    marginTop: 6,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    paddingVertical: 0,
+  },
+  floatingResultsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 16,
+    right: 16,
+    maxHeight: 340,
+    backgroundColor: '#1E2124',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2E3339',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 20,
+    zIndex: 9999,
+    overflow: 'hidden',
+  },
+  floatingResultsList: {
+    padding: 10,
+  },
+  floatingResultCard: {
+    backgroundColor: '#262A2E',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#343A40',
+  },
+  floatingResultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  floatingWeekPill: {
+    backgroundColor: 'rgba(234, 225, 21, 0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 225, 21, 0.25)',
+  },
+  floatingWeekPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.primary,
+    fontFamily: Fonts.bold,
+  },
+  floatingEspecialidadeText: {
+    fontSize: 11,
+    color: '#8E959E',
+    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
+  },
+  floatingTopicTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+    fontFamily: Fonts.bold,
+    marginBottom: 4,
+  },
+  floatingMatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  floatingMatchText: {
+    fontSize: 11,
+    color: '#B0B7C0',
+    fontFamily: Fonts.medium,
+  },
+  floatingLoadingBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  floatingLoadingText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.medium,
+  },
+  floatingEmptyBox: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingEmptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+    fontFamily: Fonts.bold,
+    marginBottom: 2,
+  },
+  floatingEmptySubtitle: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontFamily: Fonts.regular,
   },
   streakBadge: {
     flexDirection: 'row',
