@@ -131,6 +131,35 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
       CREATE INDEX IF NOT EXISTS idx_passos_topico ON Passos (topico_id);
       CREATE INDEX IF NOT EXISTS idx_passos_dia_semana ON Passos (dia_semana);
       CREATE INDEX IF NOT EXISTS idx_passos_concluido ON Passos (concluido);
+
+      -- NOVAS TABELAS PARA O PLANNER DINÂMICO
+      
+      -- Tabela 1: Sua Rotina Fixa (Plantões, Aulas, Academia)
+      CREATE TABLE IF NOT EXISTS eventos_fixos (
+        id TEXT PRIMARY KEY,
+        titulo TEXT NOT NULL,
+        tipo TEXT NOT NULL, -- ex: 'plantao', 'aula', 'pessoal'
+        hora_inicio TEXT NOT NULL, -- formato 'HH:mm'
+        hora_fim TEXT NOT NULL, -- formato 'HH:mm'
+        dias_semana TEXT NOT NULL, -- JSON com os dias [0, 1, 2...]
+        ativo INTEGER DEFAULT 1
+      );
+
+      -- Tabela 2: Blocos de Estudo (Gerados pelo Algoritmo)
+      CREATE TABLE IF NOT EXISTS blocos_estudo (
+        id TEXT PRIMARY KEY,
+        tipo TEXT NOT NULL, -- 'questoes', 'flashcards', 'videoaula', 'leitura'
+        tema_id TEXT NOT NULL, -- Ex: 'Pediatria - Neonatologia'
+        data_agendada TEXT NOT NULL, -- formato 'YYYY-MM-DD'
+        hora_inicio TEXT, -- Preenchido se o algoritmo travar num horário específico
+        hora_fim TEXT,
+        duracao_minutos INTEGER NOT NULL,
+        prioridade REAL NOT NULL, -- Calculado com base nos seus erros na tabela 'progresso'
+        status TEXT DEFAULT 'pendente', -- 'pendente', 'concluido', 'ignorado'
+        timestamp_geracao INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_blocos_data ON blocos_estudo (data_agendada);
+      CREATE INDEX IF NOT EXISTS idx_blocos_status ON blocos_estudo (status);
     `);
 
     // Migração transparente de colunas caso as tabelas já existissem
@@ -1282,5 +1311,88 @@ export async function getCronogramaFromSQLite(): Promise<any | null> {
       topicos: topicosPorSemana[s.numero] || topicosPorSemana[s.id] || [],
     })),
   };
+}
+
+/* =========================================================================
+   OPERAÇÕES DO PLANNER DINÂMICO DE ESTUDOS
+   ========================================================================= */
+
+export type EventoFixoType = 'plantao' | 'aula' | 'pessoal' | 'sono';
+export type BlocoEstudoType = 'questoes' | 'flashcards' | 'videoaula' | 'leitura';
+export type BlocoStatus = 'pendente' | 'concluido' | 'ignorado';
+
+export interface DbEventoFixo {
+  id: string;
+  titulo: string;
+  tipo: EventoFixoType;
+  hora_inicio: string; // 'HH:mm'
+  hora_fim: string; // 'HH:mm'
+  dias_semana: number[]; // 0 a 6
+  ativo: boolean;
+}
+
+export interface DbBlocoEstudo {
+  id: string;
+  tipo: BlocoEstudoType;
+  tema_id: string;
+  data_agendada: string; // 'YYYY-MM-DD'
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
+  duracao_minutos: number;
+  prioridade: number;
+  status: BlocoStatus;
+  timestamp_geracao: number;
+}
+
+/**
+ * Retorna todos os eventos fixos da rotina do usuário.
+ */
+export async function getEventosFixosAtivos(): Promise<DbEventoFixo[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<any>(
+      `SELECT * FROM eventos_fixos WHERE ativo = 1;`
+    );
+    return rows.map((r) => ({
+      ...r,
+      dias_semana: JSON.parse(r.dias_semana),
+      ativo: true,
+    }));
+  } catch (err) {
+    console.error('[database] Erro ao buscar eventos fixos:', err);
+    return [];
+  }
+}
+
+/**
+ * Retorna os blocos de estudo gerados pelo algoritmo para um dia específico.
+ */
+export async function getBlocosEstudoPorData(dataYYYYMMDD: string): Promise<DbBlocoEstudo[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<any>(
+      `SELECT * FROM blocos_estudo WHERE data_agendada = ? ORDER BY hora_inicio ASC, prioridade DESC;`,
+      [dataYYYYMMDD]
+    );
+    return rows;
+  } catch (err) {
+    console.error('[database] Erro ao buscar blocos de estudo:', err);
+    return [];
+  }
+}
+
+/**
+ * Atualiza o status de um bloco de estudo (ex: quando você termina de resolver as questões).
+ */
+export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStatus): Promise<void> {
+  try {
+    const database = getDatabase();
+    await database.runAsync(
+      `UPDATE blocos_estudo SET status = ? WHERE id = ?;`,
+      [status, blocoId]
+    );
+  } catch (err) {
+    console.error('[database] Erro ao atualizar status do bloco:', err);
+  }
 }
 
