@@ -14,7 +14,7 @@ import {
 import { Ionicons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
-import { criarNovaAtividade } from '@/services/database';
+import { criarNovaAtividade, atualizarAtividade, excluirAtividade } from '@/services/database';
 import { canScheduleActivity } from '@/services/scheduleService';
 
 interface Props {
@@ -22,6 +22,7 @@ interface Props {
   onClose: () => void;
   onSaveSuccess: () => void; // Para recarregar a lista na tela principal
   dataInicial?: string; // Formato YYYY-MM-DD
+  atividadeEmEdicao?: any;
 }
 
 const TIPOS_DISPONIVEIS = ['Estudo', 'Faculdade', 'Pessoal', 'Lazer'];
@@ -52,6 +53,7 @@ export default function ModalNovaAtividade({
   onClose,
   onSaveSuccess,
   dataInicial,
+  atividadeEmEdicao,
 }: Props) {
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState('Estudo');
@@ -74,24 +76,72 @@ export default function ModalNovaAtividade({
 
   useEffect(() => {
     if (visible) {
-      setTitulo('');
-      setTipo('Estudo');
-      setIconeSelecionado('book');
-      setShowIconMenu(false);
-      const now = new Date();
-      setHoraInicio(now);
-      setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
-      setShowPickerInicio(false);
-      setShowPickerFim(false);
-      setFrequencia('unica');
-      setDemanda(3);
-      setIsChecking(false);
+      if (atividadeEmEdicao) {
+        setTitulo(atividadeEmEdicao.titulo || '');
+        setTipo(atividadeEmEdicao.tipo || 'Estudo');
+        setIconeSelecionado(atividadeEmEdicao.icone || 'book');
+        setDemanda(typeof atividadeEmEdicao.feedback_cansaco === 'number' ? atividadeEmEdicao.feedback_cansaco : 3);
+        setFrequencia('unica');
+        setShowIconMenu(false);
+        setShowPickerInicio(false);
+        setShowPickerFim(false);
+        setIsChecking(false);
+
+        // Converte as strings de hora de volta para Date objects para o Picker
+        const [hI, mI] = (atividadeEmEdicao.hora_inicio || '08:00').split(':');
+        const dI = new Date();
+        dI.setHours(parseInt(hI, 10) || 8, parseInt(mI, 10) || 0, 0, 0);
+        setHoraInicio(dI);
+
+        const [hF, mF] = (atividadeEmEdicao.hora_fim || '09:00').split(':');
+        const dF = new Date();
+        dF.setHours(parseInt(hF, 10) || 9, parseInt(mF, 10) || 0, 0, 0);
+        setHoraFim(dF);
+      } else {
+        setTitulo('');
+        setTipo('Estudo');
+        setIconeSelecionado('book');
+        setShowIconMenu(false);
+        const now = new Date();
+        setHoraInicio(now);
+        setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
+        setShowPickerInicio(false);
+        setShowPickerFim(false);
+        setFrequencia('unica');
+        setDemanda(3);
+        setIsChecking(false);
+      }
     }
-  }, [visible]);
+  }, [visible, atividadeEmEdicao]);
 
   const toggleDiaSemana = (diaId: number) => {
     setDiasSemanaSelecionados((prev) =>
       prev.includes(diaId) ? prev.filter((d) => d !== diaId) : [...prev, diaId]
+    );
+  };
+
+  const handleExcluir = () => {
+    if (!atividadeEmEdicao) return;
+    Alert.alert(
+      'Excluir Evento',
+      'Tem certeza que deseja excluir esta atividade da sua agenda?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await excluirAtividade(atividadeEmEdicao.id);
+              onSaveSuccess();
+              onClose();
+            } catch (err) {
+              console.error('[ModalNovaAtividade] Erro ao excluir:', err);
+              Alert.alert('Erro', 'Não foi possível excluir a atividade.');
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -149,17 +199,28 @@ export default function ModalNovaAtividade({
   const executarSalvamento = async (data: string) => {
     setIsChecking(true);
     try {
-      await criarNovaAtividade({
-        titulo: titulo.trim(),
-        tipo,
-        icone: iconeSelecionado,
-        frequencia,
-        data_inicio: data,
-        hora_inicio: formatTimeStr(horaInicio),
-        hora_fim: formatTimeStr(horaFim),
-        feedback_cansaco: demanda,
-        dias_semana: frequencia === 'semanal' ? diasSemanaSelecionados : undefined,
-      });
+      if (atividadeEmEdicao) {
+        await atualizarAtividade(atividadeEmEdicao.id, {
+          titulo: titulo.trim(),
+          tipo,
+          icone: iconeSelecionado,
+          hora_inicio: formatTimeStr(horaInicio),
+          hora_fim: formatTimeStr(horaFim),
+          feedback_cansaco: demanda,
+        });
+      } else {
+        await criarNovaAtividade({
+          titulo: titulo.trim(),
+          tipo,
+          icone: iconeSelecionado,
+          frequencia,
+          data_inicio: data,
+          hora_inicio: formatTimeStr(horaInicio),
+          hora_fim: formatTimeStr(horaFim),
+          feedback_cansaco: demanda,
+          dias_semana: frequencia === 'semanal' ? diasSemanaSelecionados : undefined,
+        });
+      }
 
       setTitulo('');
       setIconeSelecionado('book');
@@ -190,7 +251,7 @@ export default function ModalNovaAtividade({
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <Ionicons name="calendar" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.modalTitle}>Novo Evento</Text>
+              <Text style={styles.modalTitle}>{atividadeEmEdicao ? 'Editar Evento' : 'Novo Evento'}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
@@ -263,45 +324,49 @@ export default function ModalNovaAtividade({
               </View>
 
               {/* Pílulas de Repetição diretamente abaixo, centralizadas, sem título */}
-              <View style={styles.repetitionContainer}>
-                {(['unica', 'diaria', 'semanal'] as const).map((freq) => (
-                  <TouchableOpacity 
-                    key={freq} 
-                    style={[styles.freqPill, frequencia === freq && styles.freqPillActive]} 
-                    onPress={() => setFrequencia(freq)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.freqPillText, frequencia === freq && styles.freqPillTextActive]}>
-                      {freq === 'unica' ? 'Não se repete' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Seletor de dias para frequência Semanal */}
-              {frequencia === 'semanal' && (
-                <View style={styles.weekDaysContainer}>
-                  {DIAS_SEMANA_NOMES.map((d) => {
-                    const isSelected = diasSemanaSelecionados.includes(d.id);
-                    return (
-                      <TouchableOpacity
-                        key={d.id}
-                        style={[styles.weekDayCircle, isSelected && styles.weekDayCircleSelected]}
-                        onPress={() => toggleDiaSemana(d.id)}
+              {!atividadeEmEdicao && (
+                <>
+                  <View style={styles.repetitionContainer}>
+                    {(['unica', 'diaria', 'semanal'] as const).map((freq) => (
+                      <TouchableOpacity 
+                        key={freq} 
+                        style={[styles.freqPill, frequencia === freq && styles.freqPillActive]} 
+                        onPress={() => setFrequencia(freq)}
                         activeOpacity={0.7}
                       >
-                        <Text
-                          style={[
-                            styles.weekDayText,
-                            isSelected && styles.weekDayTextSelected,
-                          ]}
-                        >
-                          {d.label}
+                        <Text style={[styles.freqPillText, frequencia === freq && styles.freqPillTextActive]}>
+                          {freq === 'unica' ? 'Não se repete' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
                         </Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                    ))}
+                  </View>
+
+                  {/* Seletor de dias para frequência Semanal */}
+                  {frequencia === 'semanal' && (
+                    <View style={styles.weekDaysContainer}>
+                      {DIAS_SEMANA_NOMES.map((d) => {
+                        const isSelected = diasSemanaSelecionados.includes(d.id);
+                        return (
+                          <TouchableOpacity
+                            key={d.id}
+                            style={[styles.weekDayCircle, isSelected && styles.weekDayCircleSelected]}
+                            onPress={() => toggleDiaSemana(d.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.weekDayText,
+                                isSelected && styles.weekDayTextSelected,
+                              ]}
+                            >
+                              {d.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </>
               )}
 
               {/* Picker de Início */}
@@ -400,9 +465,25 @@ export default function ModalNovaAtividade({
               activeOpacity={0.85}
             >
               <Text style={styles.saveButtonText}>
-                {isChecking ? 'Analisando...' : 'Adicionar à Agenda'}
+                {isChecking
+                  ? 'Analisando...'
+                  : atividadeEmEdicao
+                  ? 'Salvar Alterações'
+                  : 'Adicionar à Agenda'}
               </Text>
             </TouchableOpacity>
+
+            {/* Botão Excluir (apenas em modo de edição) */}
+            {atividadeEmEdicao && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleExcluir}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="trash-outline" size={18} color="#EF4444" style={{ marginRight: 6 }} />
+                <Text style={styles.deleteButtonText}>Excluir Evento</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -688,5 +769,21 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 15,
     fontWeight: '800',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EF444440',
+    backgroundColor: '#EF444415',
+    marginBottom: 10,
+  },
+  deleteButtonText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

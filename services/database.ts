@@ -972,7 +972,58 @@ export async function toggleAtividadeStatus(atividade: AtividadeAgenda): Promise
   }
 }
 
+/**
+ * Atualiza uma atividade na agenda diária.
+ */
+export async function atualizarAtividade(id: string, dados: Partial<AtividadeAgenda>): Promise<void> {
+  const database = getDatabase();
+  const keys = Object.keys(dados).filter((k) => k !== 'id' && k !== 'isVirtual');
+  if (keys.length === 0) return;
 
+  const fields = keys.map((k) => `${k} = ?`).join(', ');
+  const values = keys.map((k) => (dados as any)[k]);
+  values.push(id);
 
+  if (id.startsWith('virtual_')) {
+    const parts = id.split('_');
+    const recId = parts[1];
+    const recKeys = keys.filter((k) =>
+      ['titulo', 'tipo', 'icone', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+    );
+    if (recKeys.length > 0) {
+      const recFields = recKeys.map((k) => `${k} = ?`).join(', ');
+      const recValues = recKeys.map((k) => (dados as any)[k]);
+      recValues.push(recId);
+      await database.runAsync(`UPDATE AtividadesRecorrentes SET ${recFields} WHERE id = ?;`, recValues);
+    }
+  } else {
+    await database.runAsync(`UPDATE AtividadesAgenda SET ${fields} WHERE id = ?;`, values);
+    try {
+      const recKeys = keys.filter((k) =>
+        ['titulo', 'tipo', 'icone', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+      );
+      if (recKeys.length > 0) {
+        const recFields = recKeys.map((k) => `${k} = ?`).join(', ');
+        const recValues = recKeys.map((k) => (dados as any)[k]);
+        recValues.push(id);
+        await database.runAsync(`UPDATE AtividadesRecorrentes SET ${recFields} WHERE id = ?;`, recValues);
+      }
+    } catch {}
+  }
+}
 
+/**
+ * Exclui uma atividade da agenda.
+ */
+export async function excluirAtividade(id: string): Promise<void> {
+  const database = getDatabase();
+  await database.runAsync(`DELETE FROM AtividadesAgenda WHERE id = ?;`, [id]);
+  if (id.startsWith('virtual_')) {
+    const parts = id.split('_');
+    const recId = parts[1];
+    await database.runAsync(`DELETE FROM AtividadesRecorrentes WHERE id = ?;`, [recId]);
+  } else {
+    await database.runAsync(`DELETE FROM AtividadesRecorrentes WHERE id = ?;`, [id]);
+  }
+}
 

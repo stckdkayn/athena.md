@@ -62,6 +62,7 @@ export default function DashboardScreen() {
   const [limiteDiario, setLimiteDiario] = useState<number>(15);
   const [loading, setLoading] = useState<boolean>(true);
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
+  const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
 
   // Busca o nome do usuário salvo localmente ou fallback
@@ -328,6 +329,10 @@ export default function DashboardScreen() {
 
         <TouchableOpacity
           onPress={() => handleToggle(item)}
+          onLongPress={() => {
+            setAtividadeParaEditar(item);
+            setModalNovaVisible(true);
+          }}
           activeOpacity={0.75}
           style={{ flex: 1 }}
         >
@@ -481,15 +486,22 @@ export default function DashboardScreen() {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => setModalNovaVisible(true)}
+        onPress={() => {
+          setAtividadeParaEditar(null);
+          setModalNovaVisible(true);
+        }}
       >
         <Ionicons name="add" size={28} color="#000000" />
       </TouchableOpacity>
 
-      {/* Modal para Adicionar Nova Atividade */}
+      {/* Modal para Adicionar ou Editar Atividade */}
       <ModalNovaAtividade
         visible={modalNovaVisible}
-        onClose={() => setModalNovaVisible(false)}
+        atividadeEmEdicao={atividadeParaEditar}
+        onClose={() => {
+          setModalNovaVisible(false);
+          setAtividadeParaEditar(null);
+        }}
         onSaveSuccess={carregarAgenda}
         dataInicial={dataSelecionada}
       />
