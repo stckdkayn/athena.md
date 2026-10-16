@@ -918,7 +918,7 @@ export default function TreinoScreen() {
           columnWrapperStyle={styles.columnWrapper}
           ListEmptyComponent={renderEmpty}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.listContent, { paddingBottom: temTemasSelecionados ? 160 : 105 }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: temTemasSelecionados ? 245 : 185 }]}
           showsVerticalScrollIndicator={false}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
@@ -927,7 +927,7 @@ export default function TreinoScreen() {
         />
 
         {/* Gaveta Inferior Limpa e Compacta (Filtros avançados movidos para o menu de 3 pontos) */}
-        <Animated.View style={[styles.bottomDrawer, { height: painelHeight }]}>
+        <Animated.View style={[styles.bottomDrawer, { height: painelHeight, bottom: isLandscape ? 68 : 86 }]}>
           {isModoSimulado ? (
             <View style={[styles.cartThemesWrapper, isLandscape && { maxWidth: 560, alignSelf: 'center', width: '100%' }]}>
               <View style={styles.simuladoBottomBanner}>
@@ -1743,7 +1743,25 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     cartBadgeContainer: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder, marginTop: 6 },
     cartBadgeText: { fontSize: 10, fontWeight: '700', color: theme.primary, textTransform: 'uppercase' },
     columnWrapper: { justifyContent: 'space-between', marginBottom: 12 },
-    bottomDrawer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, elevation: 0, shadowOpacity: 0, zIndex: 999 },
+    bottomDrawer: {
+      position: 'absolute',
+      bottom: 86,
+      left: 16,
+      right: 16,
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      overflow: 'hidden',
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.35 : 0.08,
+      shadowRadius: 12,
+      elevation: 6,
+      zIndex: 999,
+    },
     cartActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     cartStartButton: { flex: 1, height: 52, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, elevation: 0, shadowOpacity: 0 },
     cartStartButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },

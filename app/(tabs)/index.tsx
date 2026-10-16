@@ -1638,7 +1638,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
 
     /* 4. Timeline Vertical */
     timelineContainer: {
-      paddingBottom: 90,
+      paddingBottom: 115,
     },
     timelineRow: {
       flexDirection: 'row',
@@ -1810,7 +1810,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     /* 5. FAB */
     fab: {
       position: 'absolute',
-      bottom: 24,
+      bottom: 100,
       right: 20,
       width: 52,
       height: 52,

@@ -928,7 +928,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     content: {
       paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: 40,
+      paddingBottom: 110,
     },
     header: {
       marginBottom: 14,

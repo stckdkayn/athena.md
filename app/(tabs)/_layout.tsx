@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useWindowDimensions, View, StyleSheet, AppState } from 'react-native';
+import { useWindowDimensions, View, StyleSheet, AppState, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
 import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
@@ -14,10 +16,15 @@ import {
 import { checkSilentICalSync } from '@/services/icsService';
 
 export default function TabLayout() {
-  const { colors: themeColors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const { colors: themeColors, isDark } = useAppTheme();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const [hasUpdate, setHasUpdate] = useState(false);
+
+  const pillHeight = isLandscape ? 56 : 64;
+  const horizontalMargin = isLandscape ? Math.max(width * 0.22, 48) : 20;
+  const bottomMargin = isLandscape ? 12 : Math.max(insets.bottom, 16);
 
   useEffect(() => {
     // Inscreve no status reativo de atualização
@@ -47,22 +54,61 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: themeColors.surface,
+          position: 'absolute',
+          left: horizontalMargin,
+          right: horizontalMargin,
+          bottom: bottomMargin,
+          height: pillHeight,
+          borderRadius: pillHeight / 2,
+          backgroundColor: Platform.OS === 'ios'
+            ? 'transparent'
+            : (isDark ? 'rgba(30, 30, 32, 0.96)' : 'rgba(255, 255, 255, 0.98)'),
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
           borderTopWidth: 1,
-          borderTopColor: themeColors.border,
-          height: isLandscape ? 58 : 72,
-          paddingBottom: isLandscape ? 8 : 16,
-          paddingTop: isLandscape ? 6 : 10,
-          elevation: 0,
-          shadowOpacity: 0,
+          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: isDark ? 0.35 : 0.08,
+          shadowRadius: 16,
+          elevation: 10,
+          paddingTop: 6,
+          paddingBottom: 6,
         },
+        tabBarBackground: () => (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                borderRadius: pillHeight / 2,
+                overflow: 'hidden',
+                backgroundColor: isDark
+                  ? (Platform.OS === 'ios' ? 'rgba(28, 28, 30, 0.88)' : '#1C1C1E')
+                  : (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.90)' : '#FFFFFF'),
+              },
+            ]}
+          >
+            {Platform.OS === 'ios' && (
+              <BlurView
+                intensity={85}
+                tint={isDark ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+          </View>
+        ),
         tabBarActiveTintColor: themeColors.primary,
         tabBarInactiveTintColor: themeColors.textSecondary,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: '600',
           fontFamily: Fonts.semiBold,
           marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         headerStyle: {
           backgroundColor: themeColors.background,
@@ -76,7 +122,7 @@ export default function TabLayout() {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={21} color={color} />
           ),
         }}
       />
@@ -87,7 +133,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'document-text' : 'document-text-outline'}
-              size={26}
+              size={21}
               color={color}
             />
           ),
@@ -98,7 +144,7 @@ export default function TabLayout() {
         options={{
           title: 'Desempenho',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={21} color={color} />
           ),
         }}
       />
@@ -114,8 +160,15 @@ export default function TabLayout() {
           title: 'Configurações',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={26} color={color} />
-              {hasUpdate && <View style={[styles.notificationDot, { borderColor: themeColors.surface }]} />}
+              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={21} color={color} />
+              {hasUpdate && (
+                <View
+                  style={[
+                    styles.notificationDot,
+                    { borderColor: isDark ? '#1C1C1E' : '#FFFFFF' },
+                  ]}
+                />
+              )}
             </View>
           ),
         }}
@@ -127,18 +180,18 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabIconWrapper: {
     position: 'relative',
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   notificationDot: {
     position: 'absolute',
-    top: 0,
-    right: -1,
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
+    top: -1,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#FF3B30',
     borderWidth: 1.5,
     borderColor: Colors.surface,

@@ -4269,7 +4269,7 @@ export default function ConfiguracoesScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
   container: { flex: 1, backgroundColor: Colors.background },
-  scrollContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, alignItems: 'stretch' },
+  scrollContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 110, alignItems: 'stretch' },
   headerContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#2e3235' },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
   headerIcon: { marginRight: 10 },
