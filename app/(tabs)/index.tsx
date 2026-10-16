@@ -660,7 +660,9 @@ export default function DashboardScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
             <Text style={styles.boardSubtitle}>
-              {concluidas} de {total} {total === 1 ? 'atividade completa' : 'atividades completas'} hoje!
+              Você completou <Text style={styles.boardSubtitleBold}>{concluidas}</Text> de{' '}
+              <Text style={styles.boardSubtitleBold}>{total}</Text>{' '}
+              {total === 1 ? 'atividade agendada' : 'atividades agendadas'}!
             </Text>
           </View>
         </View>
@@ -885,6 +887,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.textSecondary,
     marginBottom: 16,
+  },
+  boardSubtitleBold: {
+    fontFamily: Fonts.bold,
+    fontWeight: '700',
+    color: Colors.text,
   },
 
   /* 4. Timeline Vertical */
