@@ -103,8 +103,8 @@ export default function DashboardScreen() {
   // Lógica de Saudação (sem o nome embutido, pois agora fica ao lado do avatar)
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'sunny' as const };
-    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'sunny' as const };
+    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'sunrise' as const };
+    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'sun' as const };
     return { text: 'Boa noite', icon: 'moon' as const };
   };
   const greeting = getGreeting();
@@ -767,7 +767,10 @@ export default function DashboardScreen() {
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               style={styles.greetingContainer}
             >
-              <Text style={styles.greetingSubtitleText}>{greeting.text}</Text>
+              <View style={styles.greetingRow}>
+                <Text style={styles.greetingSubtitleText}>{greeting.text}</Text>
+                <Feather name={greeting.icon} size={13} color="#8E959E" />
+              </View>
               <View style={styles.userNameRow}>
                 <Text style={styles.bigGreetingText} numberOfLines={1}>
                   {userName && userName.trim() ? userName.trim() : 'Gabriel'}
@@ -1052,17 +1055,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 0,
+  },
   greetingSubtitleText: {
     fontSize: 13,
     fontFamily: Fonts.semiBold,
     fontWeight: '600',
     color: '#8E959E',
-    marginBottom: 2,
+    lineHeight: 16,
   },
   userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: -1,
   },
   bigGreetingText: {
     fontSize: 22,
@@ -1071,6 +1081,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.4,
     flexShrink: 1,
+    lineHeight: 26,
   },
   specialtyIcon: {
     marginTop: 1,
