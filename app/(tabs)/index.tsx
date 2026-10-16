@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors, CATEGORIA_CORES, getTopicColor } from '@/constants/Colors';
@@ -759,9 +759,6 @@ export default function DashboardScreen() {
                   </View>
                 )}
               </View>
-              <View style={styles.avatarCameraBadge}>
-                <Ionicons name="camera" size={10} color="#000000" />
-              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -771,9 +768,12 @@ export default function DashboardScreen() {
               style={styles.greetingContainer}
             >
               <Text style={styles.greetingSubtitleText}>{greeting.text}</Text>
-              <Text style={styles.bigGreetingText} numberOfLines={1}>
-                {userName && userName.trim() ? userName.trim() : 'Gabriel'}
-              </Text>
+              <View style={styles.userNameRow}>
+                <Text style={styles.bigGreetingText} numberOfLines={1}>
+                  {userName && userName.trim() ? userName.trim() : 'Gabriel'}
+                </Text>
+                <MaterialCommunityIcons name="heart-pulse" size={20} color="#EF4444" style={styles.specialtyIcon} />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -1026,7 +1026,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#33383F',
+    borderColor: '#EF4444',
     overflow: 'hidden',
   },
   avatarImage: {
@@ -1048,19 +1048,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.primary,
   },
-  avatarCameraBadge: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.background,
-  },
   greetingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1072,12 +1059,21 @@ const styles = StyleSheet.create({
     color: '#8E959E',
     marginBottom: 2,
   },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   bigGreetingText: {
     fontSize: 22,
     fontFamily: Fonts.extraBold,
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -0.4,
+    flexShrink: 1,
+  },
+  specialtyIcon: {
+    marginTop: 1,
   },
   headerSubRow: {
     flexDirection: 'row',
