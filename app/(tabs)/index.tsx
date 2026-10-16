@@ -514,7 +514,7 @@ export default function DashboardScreen() {
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <Ionicons name="sunny" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
+            <Feather name="sunrise" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
             <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>07:00</Text>
             {renderDottedProgress(timePassed)}
           </View>
@@ -554,8 +554,8 @@ export default function DashboardScreen() {
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
           {item.hasAnchorStart && (
-            <Ionicons
-              name="sunny"
+            <Feather
+              name="sunrise"
               size={20}
               color={(isDayPast || (isToday && currentHour >= 7)) ? Colors.text : '#656B73'}
               style={{ marginBottom: 4 }}
