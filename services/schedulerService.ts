@@ -87,17 +87,17 @@ export async function calcularTempoLivreLiquido(dataYYYYMMDD: string): Promise<J
     console.warn('[scheduler] Erro ao ler blocos concluídos:', err);
   }
 
-  // D. Bloqueio de Sono Fixo (00:00 às 06:00 e 23:00 às 24:00)
-  intervalosOcupados.push({ inicio: 0, fim: 360 });       // 00:00 - 06:00
-  intervalosOcupados.push({ inicio: 1380, fim: 1440 });   // 23:00 - 24:00
+  // D. Bloqueio de Sono Fixo / Limite de Horário Útil (00:00 às 07:00 e 22:00 às 24:00)
+  intervalosOcupados.push({ inicio: 0, fim: 420 });       // 00:00 - 07:00 (fora do horário útil)
+  intervalosOcupados.push({ inicio: 1320, fim: 1440 });   // 22:00 - 24:00 (fora do horário útil)
 
-  // E. Se for o dia de HOJE e já passou das 06:00, bloqueia o tempo decorrido
+  // E. Se for o dia de HOJE e já passou das 07:00, bloqueia o tempo decorrido
   // para que o replanejamento não tente agendar tarefas no passado
   const hoje = new Date();
   const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
   if (dataYYYYMMDD === hojeStr) {
     const minutoAtual = hoje.getHours() * 60 + hoje.getMinutes();
-    if (minutoAtual > 360) {
+    if (minutoAtual > 420) {
       intervalosOcupados.push({ inicio: 0, fim: minutoAtual });
     }
   }

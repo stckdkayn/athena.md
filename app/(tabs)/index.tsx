@@ -357,37 +357,47 @@ export default function DashboardScreen() {
   // Referência para o auto-scroll
   const flatListRef = useRef<FlatList>(null);
 
-  // Processamento da Timeline (Injetando âncoras de 6h e 00h)
+  // Processamento da Timeline (Injetando âncoras de 07:00 e 22:00)
   const timelineItems = useMemo(() => {
     let items: any[] = [...atividades];
 
     // Ordena tudo pelo horário
     items.sort((a, b) => {
-      const horaA = a.hora_inicio || a.time || '24:00';
-      const horaB = b.hora_inicio || b.time || '24:00';
+      const horaA = a.hora_inicio || a.time || '22:00';
+      const horaB = b.hora_inicio || b.time || '22:00';
       return horaA.localeCompare(horaB);
     });
 
-    // Unifica a âncora de início: se já existe atividade começando às 06:00,
-    // marca ela com hasAnchorStart em vez de injetar uma linha extra de 06:00 com pontilhado duplicado
-    const has06hActivity = items.some((a) => (a.hora_inicio || a.time) === '06:00');
+    // Unifica a âncora de início: se já existe atividade começando às 07:00,
+    // marca ela com hasAnchorStart em vez de injetar uma linha extra de 07:00 com pontilhado duplicado
+    const has07hActivity = items.some((a) => (a.hora_inicio || a.time) === '07:00');
 
-    if (has06hActivity) {
+    if (has07hActivity) {
       let marked = false;
       items = items.map((a) => {
-        if (!marked && (a.hora_inicio || a.time) === '06:00') {
+        if (!marked && (a.hora_inicio || a.time) === '07:00') {
           marked = true;
           return { ...a, hasAnchorStart: true };
         }
         return a;
       });
     } else {
-      // Se não há atividade às 06:00, insere a âncora de início de forma independente
-      items.unshift({ id: 'ancora_6h', type: 'anchor_start', time: '06:00' });
+      // Se não há atividade às 07:00, insere a âncora de início de forma independente
+      items.unshift({ id: 'ancora_7h', type: 'anchor_start', time: '07:00' });
     }
 
-    // Injeta âncora de fim
-    items.push({ id: 'ancora_00h', type: 'anchor_end', time: '24:00' });
+    // Injeta âncora de fim às 22:00
+    items.push({ id: 'ancora_22h', type: 'anchor_end', time: '22:00' });
+
+    // Ordena tudo pelo horário com âncoras nas posições exatas
+    items.sort((a, b) => {
+      const getHora = (item: any) => {
+        if (item.type === 'anchor_start') return '06:59:59';
+        if (item.type === 'anchor_end') return '22:00:01';
+        return item.hora_inicio || item.time || '22:00';
+      };
+      return getHora(a).localeCompare(getHora(b));
+    });
 
     return items;
   }, [atividades]);
@@ -403,7 +413,7 @@ export default function DashboardScreen() {
         const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
 
         let targetIndex = timelineItems.findIndex((i) => {
-          const itemHora = i.hora_inicio || i.time || '24:00';
+          const itemHora = i.hora_inicio || i.time || '22:00';
           return itemHora >= currentTimeStr;
         });
 
@@ -466,15 +476,15 @@ export default function DashboardScreen() {
       </View>
     );
 
-    // 1. Renderiza âncoras fixas (6h e 00h)
+    // 1. Renderiza âncoras fixas (07:00 e 22:00)
     if (item.type === 'anchor_start') {
-      const timePassed = calcTimePassed(6, 0);
-      const isPastOrCurrent = isDayPast || (isToday && currentHour >= 6);
+      const timePassed = calcTimePassed(7, 0);
+      const isPastOrCurrent = isDayPast || (isToday && currentHour >= 7);
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
             <Ionicons name="sunny" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
-            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>06:00</Text>
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>07:00</Text>
             {renderDottedProgress(timePassed)}
           </View>
         </View>
@@ -482,7 +492,7 @@ export default function DashboardScreen() {
     }
 
     if (item.type === 'anchor_end') {
-      const isPastOrCurrent = isDayPast || (isToday && (currentHour >= 23));
+      const isPastOrCurrent = isDayPast || (isToday && currentHour >= 22);
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
@@ -493,7 +503,7 @@ export default function DashboardScreen() {
               style={{ marginTop: 2, marginBottom: 4 }}
             />
             <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>
-              00:00
+              22:00
             </Text>
           </View>
         </View>
@@ -516,7 +526,7 @@ export default function DashboardScreen() {
             <Ionicons
               name="sunny"
               size={20}
-              color={(isDayPast || (isToday && currentHour >= 6)) ? Colors.text : '#656B73'}
+              color={(isDayPast || (isToday && currentHour >= 7)) ? Colors.text : '#656B73'}
               style={{ marginBottom: 4 }}
             />
           )}
