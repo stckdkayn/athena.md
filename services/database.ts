@@ -736,6 +736,14 @@ export async function deleteProgressByThemes(themes: string[]): Promise<void> {
         `DELETE FROM progresso WHERE tema IN (${placeholders});`,
         chunk
       );
+      // Remove também blocos de estudo pendentes de gargalo associados a esses temas
+      await database.runAsync(
+        `DELETE FROM blocos_estudo 
+         WHERE status = 'pendente' 
+           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%') 
+           AND tema_id IN (${placeholders});`,
+        chunk
+      );
     }
   } catch (err) {
     console.error('[database] Erro ao deletar progresso por temas:', err);
@@ -749,6 +757,12 @@ export async function clearAllProgressRecords(): Promise<void> {
   try {
     const database = getDatabase();
     await database.runAsync('DELETE FROM progresso;');
+    // Remove todos os blocos de estudo pendentes de gargalo
+    await database.runAsync(
+      `DELETE FROM blocos_estudo 
+       WHERE status = 'pendente' 
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+    );
   } catch (err) {
     console.error('[database] Erro ao limpar todo o progresso no SQLite:', err);
   }

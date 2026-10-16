@@ -37,6 +37,7 @@ import {
   getDistinctProgressThemes,
   deleteProgressByThemes,
 } from '@/services/progressService';
+import { limparGargalosEReplanejar } from '@/services/schedulerService';
 import { invalidateImageCache, clearAllAthenaImages } from '@/services/imageService';
 import {
   getGitHubConfig,
@@ -1108,6 +1109,7 @@ export default function ConfiguracoesScreen() {
     try {
       setResettingTema(true);
       await deleteProgressByThemes(temasParaConfirmar);
+      await limparGargalosEReplanejar(temasParaConfirmar);
       const temasExcluidosArray = [...temasParaConfirmar];
       setTemasParaConfirmar(null);
       setTemasSelecionados([]);

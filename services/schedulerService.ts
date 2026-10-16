@@ -150,8 +150,9 @@ export async function obterGargalos(): Promise<{ tema: string; prioridade: numbe
              CAST(SUM(correta) AS REAL) / COUNT(*) as taxa_acerto,
              COUNT(*) as total_questoes
       FROM progresso
+      WHERE tema IS NOT NULL AND tema != ''
       GROUP BY tema
-      HAVING total_questoes >= 3
+      HAVING total_questoes >= 3 AND taxa_acerto < 0.8
       ORDER BY taxa_acerto ASC
       LIMIT 5;
     `);
@@ -163,27 +164,12 @@ export async function obterGargalos(): Promise<{ tema: string; prioridade: numbe
         return { tema: r.tema, prioridade: parseFloat(prioridade.toFixed(2)) };
       });
     }
-
-    // Se o usuário ainda não respondeu 3 questões por tema, busca da base de questões
-    const sampleTopics = await database.getAllAsync<{ tema: string }>(
-      `SELECT DISTINCT tema FROM questoes WHERE tema IS NOT NULL AND tema != '' ORDER BY RANDOM() LIMIT 5;`
-    );
-
-    if (sampleTopics && sampleTopics.length > 0) {
-      return sampleTopics.map((s) => ({ tema: s.tema, prioridade: 5.0 }));
-    }
   } catch (err) {
     console.warn('[scheduler] Erro ao obter gargalos do banco:', err);
   }
 
-  // Fallback padrão de grandes áreas da residência médica
-  return [
-    { tema: 'Cardiologia - Hipertensão e Síndrome Coronariana', prioridade: 6.0 },
-    { tema: 'Pediatria - Neonatologia e Aleitamento', prioridade: 5.5 },
-    { tema: 'Cirurgia Geral - Abdome Agudo e Trauma', prioridade: 5.0 },
-    { tema: 'Obstetrícia - Pré-natal e Hemorragias da Gestação', prioridade: 5.0 },
-    { tema: 'Medicina Preventiva - Epidemiologia e SUS', prioridade: 4.5 },
-  ];
+  // Se o usuário não tem histórico com erros suficientes (ou acabou de resetar), NÃO inventa gargalos artificiais
+  return [];
 }
 
 interface TarefaPlanejada {
@@ -314,14 +300,14 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
       let tempoAtual = janela.inicio;
 
       while (minutosDisponiveis >= 15) {
-        let tarefa: TarefaPlanejada;
+        let tarefa: TarefaPlanejada | null = null;
 
         // Se a janela restante for curta (< 30 min), prioriza flashcards
         if (minutosDisponiveis < 30) {
           const idxFlash = filaTarefas.findIndex((t) => t.tipo === 'flashcards');
           if (idxFlash >= 0) {
             tarefa = filaTarefas.splice(idxFlash, 1)[0];
-          } else {
+          } else if (gargalos.length > 0) {
             const g = proximoGargalo();
             tarefa = {
               ...g,
@@ -333,9 +319,14 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
         } else {
           if (filaTarefas.length > 0) {
             tarefa = filaTarefas.shift()!;
-          } else {
+          } else if (gargalos.length > 0) {
             tarefa = proximoGargalo();
           }
+        }
+
+        if (!tarefa) {
+          // Não há mais tarefas oficiais nem gargalos reais para alocar nesta janela
+          break;
         }
 
         let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
@@ -449,12 +440,25 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       }
     }
 
+    // Verifica se existem blocos de gargalo obsoletos (ex: após reset de progresso)
+    const gargalosAtuais = await obterGargalos();
+    const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema));
+    const blocosGargaloRow = await database.getAllAsync<{ id: string; tema_id: string }>(
+      `SELECT id, tema_id FROM blocos_estudo 
+       WHERE data_agendada = ? 
+         AND status = 'pendente' 
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`,
+      [dataYYYYMMDD]
+    );
+    const temGargaloInvalido = blocosGargaloRow.some((b) => !temasGargaloSet.has(b.tema_id));
+
     if (
       !countRow || 
       countRow.count === 0 || 
       (foraDosLimitesRow && foraDosLimitesRow.count > 0) ||
       (blocosOutraSemanaRow && blocosOutraSemanaRow.count > 0) ||
-      temAtrasadoFaltando
+      temAtrasadoFaltando ||
+      temGargaloInvalido
     ) {
       await gerarPlanoDiario(dataYYYYMMDD);
       return true;
@@ -467,9 +471,9 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
 }
 
 /**
- * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES E SEMANAS
- * Replaneja todas as datas que contenham blocos pendentes fora dos limites de 07:00 às 22:00
- * ou que contenham blocos de semanas antigas/loopadas.
+ * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES, SEMANAS E GARGALOS
+ * Replaneja todas as datas que contenham blocos pendentes fora dos limites de 07:00 às 22:00,
+ * que contenham blocos de semanas antigas/loopadas ou blocos de gargalo de temas resetados.
  */
 export async function sincronizarLimitesHorarioUtil(): Promise<void> {
   const database = getDatabase();
@@ -509,8 +513,86 @@ export async function sincronizarLimitesHorarioUtil(): Promise<void> {
         await gerarPlanoDiario(dataStr);
       }
     }
+
+    // Limpa blocos de gargalo obsoletos (quando o usuário resetou o progresso de questões)
+    const gargalosAtuais = await obterGargalos();
+    const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema));
+    const todosGargalosPendentes = await database.getAllAsync<{ id: string; data_agendada: string; tema_id: string }>(
+      `SELECT id, data_agendada, tema_id FROM blocos_estudo 
+       WHERE status = 'pendente' 
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+    );
+
+    const datasReplanejarGargalo = new Set<string>();
+    for (const bg of todosGargalosPendentes) {
+      if (!temasGargaloSet.has(bg.tema_id)) {
+        await database.runAsync(`DELETE FROM blocos_estudo WHERE id = ?;`, [bg.id]);
+        if (bg.data_agendada) {
+          datasReplanejarGargalo.add(bg.data_agendada);
+        }
+      }
+    }
+
+    for (const d of datasReplanejarGargalo) {
+      await gerarPlanoDiario(d);
+    }
   } catch (err) {
     console.warn('[scheduler] Erro ao sincronizar limites de horário útil e semanas:', err);
+  }
+}
+
+/**
+ * 6. LIMPEZA MANUAL IMEDIATA DE GARGALOS E REPLANEJAMENTO
+ * Disparado quando o usuário reseta o progresso de um ou mais temas nas Configurações.
+ */
+export async function limparGargalosEReplanejar(temas?: string[]): Promise<void> {
+  const database = getDatabase();
+  try {
+    if (temas && temas.length > 0) {
+      const placeholders = temas.map(() => '?').join(',');
+      await database.runAsync(
+        `DELETE FROM blocos_estudo 
+         WHERE status = 'pendente' 
+           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%') 
+           AND (tema_id IN (${placeholders}) OR LOWER(tema_id) IN (${placeholders}));`,
+        [...temas, ...temas.map((t) => t.toLowerCase())]
+      );
+    } else {
+      await database.runAsync(
+        `DELETE FROM blocos_estudo 
+         WHERE status = 'pendente' 
+           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+      );
+    }
+
+    // Validação extra: qualquer bloco de gargalo pendente que não esteja na lista atual de gargalos reais é excluído
+    const gargalosAtuais = await obterGargalos();
+    const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema.toLowerCase()));
+    const todosGargalosPendentes = await database.getAllAsync<{ id: string; data_agendada: string; tema_id: string }>(
+      `SELECT id, data_agendada, tema_id FROM blocos_estudo 
+       WHERE status = 'pendente' 
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+    );
+
+    const datasReplanejar = new Set<string>();
+    const hoje = new Date();
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    datasReplanejar.add(hojeStr);
+
+    for (const bg of todosGargalosPendentes) {
+      if (!temasGargaloSet.has((bg.tema_id || '').toLowerCase())) {
+        await database.runAsync(`DELETE FROM blocos_estudo WHERE id = ?;`, [bg.id]);
+        if (bg.data_agendada) {
+          datasReplanejar.add(bg.data_agendada);
+        }
+      }
+    }
+
+    for (const d of datasReplanejar) {
+      await gerarPlanoDiario(d);
+    }
+  } catch (err) {
+    console.error('[scheduler] Erro ao limpar gargalos e replanejar:', err);
   }
 }
 
