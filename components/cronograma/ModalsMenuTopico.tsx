@@ -47,7 +47,7 @@ export interface ModalsMenuTopicoProps {
   progresso: CronogramaProgresso; // Para calcular o anel de progresso na escolha de semana
 
   // Callbacks de Ação (A execução fica no pai, o filho só avisa "O usuário clicou")
-  onMoveToDay: (topicoId: string, targetDay: DiaSemana | 'revisao') => void;
+  onMoveToDay: (topicoId: string, targetDay: DiaSemana) => void;
   onConfirmMoverSemana: (semanaDestinoNum: number) => void;
   onRequestDeleteTopico: (topico: CronogramaTopico, semanaOrigemNumero: number) => void;
   onRequestEditLembrete?: (topico: CronogramaTopico, semanaOrigemNumero: number) => void;
@@ -155,14 +155,12 @@ export function ModalsMenuTopico({
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.actionMenuTitle}>
-                  {topicoMenuAberto?.topico.isRevisao ? 'Encaixar em um Dia da Semana' : 'Mudar Dia da Semana'}
+                  {topicoMenuAberto?.topico.isRevisao ? 'Mudar Dia da Revisão' : 'Mudar Dia da Semana'}
                 </Text>
                 <Text style={styles.actionMenuDesc}>
-                  {topicoMenuAberto?.topico.isRevisao
-                    ? topicoMenuAberto.currentDay && topicoMenuAberto.currentDay !== 'segunda'
-                      ? `Atualmente alocado para ${DIAS_SEMANA_LISTA.find((d) => d.id === topicoMenuAberto?.currentDay)?.label}`
-                      : 'Escolha em qual dia da semana estudar esta revisão'
-                    : `Atualmente alocado para ${DIAS_SEMANA_LISTA.find((d) => d.id === topicoMenuAberto?.currentDay)?.label}`}
+                  {topicoMenuAberto?.currentDay
+                    ? `Atualmente alocado para ${DIAS_SEMANA_LISTA.find((d) => d.id === topicoMenuAberto?.currentDay)?.label}`
+                    : 'Escolha em qual dia da semana estudar'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -238,7 +236,7 @@ export function ModalsMenuTopico({
             <View style={styles.modalHeaderRow}>
               <View>
                 <Text style={styles.modalSheetTitle}>
-                  {showMoveDayModal?.topico.isRevisao ? 'Encaixar Revisão no Dia' : 'Mover Tópico de Dia'}
+                  {showMoveDayModal?.topico.isRevisao ? 'Mover Revisão de Dia' : 'Mover Tópico de Dia'}
                 </Text>
                 <Text style={styles.modalSheetSub} numberOfLines={1}>
                   {showMoveDayModal?.topico.titulo}
@@ -250,29 +248,6 @@ export function ModalsMenuTopico({
             </View>
 
             <ScrollView style={{ maxHeight: 380 }}>
-              {/* Opção para manter apenas na aba REV (desencaixar de um dia fixo) */}
-              {showMoveDayModal?.topico.isRevisao && (
-                <TouchableOpacity
-                  style={[
-                    styles.dayOptionRow,
-                    { borderBottomColor: '#282C32', borderBottomWidth: 1, marginBottom: 4 },
-                  ]}
-                  onPress={() => {
-                    if (showMoveDayModal) {
-                      onMoveToDay(showMoveDayModal.topico.id, 'revisao');
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.dayOptionLeft}>
-                    <Ionicons name="sparkles-outline" size={18} color="#A78BFA" />
-                    <Text style={[styles.dayOptionLabel, { color: '#A78BFA' }]}>
-                      Manter apenas na aba REV
-                    </Text>
-                  </View>
-                  <Ionicons name="arrow-forward" size={16} color="#68707B" />
-                </TouchableOpacity>
-              )}
 
               {DIAS_SEMANA_LISTA.map((dia) => {
                 const isCurrent = showMoveDayModal?.currentDay === dia.id;

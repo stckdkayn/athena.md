@@ -740,7 +740,7 @@ export async function deleteProgressByThemes(themes: string[]): Promise<void> {
       await database.runAsync(
         `DELETE FROM blocos_estudo 
          WHERE status = 'pendente' 
-           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%') 
+           AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%') 
            AND tema_id IN (${placeholders});`,
         chunk
       );
@@ -761,7 +761,7 @@ export async function clearAllProgressRecords(): Promise<void> {
     await database.runAsync(
       `DELETE FROM blocos_estudo 
        WHERE status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
+         AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%');`
     );
   } catch (err) {
     console.error('[database] Erro ao limpar todo o progresso no SQLite:', err);

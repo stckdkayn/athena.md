@@ -1,6 +1,14 @@
 import { getDatabase, getAtividadesPorData, getPassosPorDiaSemana, getPassosAtrasadosPendentes } from './database';
 import type { DbEventoFixo, DbBlocoEstudo, BlocoEstudoType, PassoComTopicoDB } from './database';
-import { getSemanaDoCronogramaPorData } from './scheduleService';
+import { 
+  getSemanaDoCronogramaPorData, 
+  getCronograma, 
+  getCronogramaDays, 
+  getCronogramaProgresso, 
+  getRevisoesDaSemana, 
+  getStepUniqueId, 
+  isStepConcluido 
+} from './scheduleService';
 import { storage } from './storage';
 
 // Helpers de tempo para facilitar o cálculo do algoritmo
@@ -263,6 +271,45 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
     };
   });
 
+  // 4.1 Inclui as revisões espaçadas de ciclo longo (1, 3, 6, 12 semanas) alocadas para este dia (Sexta e Sábado por padrão)
+  try {
+    const cronogramaData = getCronograma();
+    const daysMap = getCronogramaDays();
+    const progressoCronograma = getCronogramaProgresso();
+    const revisoesDaSemana = getRevisoesDaSemana(semanaDaData, cronogramaData);
+
+    revisoesDaSemana.forEach((rev, rIdx) => {
+      const assignedRevDay = daysMap[rev.id]
+        ? daysMap[rev.id]
+        : (rIdx % 2 === 0 ? 'sexta' : 'sabado');
+
+      if (assignedRevDay === diaSemanaStr) {
+        rev.passos.forEach((p, pIdx) => {
+          const stepUniqueId = getStepUniqueId(p, pIdx);
+          const isDone = isStepConcluido(progressoCronograma, rev.id, stepUniqueId, p.tipo);
+          if (!isDone) {
+            const isQuestoes = p.tipo === 'questoes';
+            const duracao = isQuestoes ? 35 : 20;
+            const temaNome = Array.isArray(p.temaQuestoes)
+              ? p.temaQuestoes[0]
+              : (p.temaQuestoes || rev.topicoOriginal.titulo);
+
+            filaTarefas.push({
+              tipo: isQuestoes ? 'questoes' : 'flashcards',
+              tema_id: temaNome,
+              titulo: `${rev.topicoOriginal.titulo} • ${rev.intervaloLabel} (${p.label})`,
+              passo_id: null,
+              prioridade: 8.8,
+              duracaoSugerida: duracao,
+            });
+          }
+        });
+      }
+    });
+  } catch (err) {
+    console.warn('[scheduler] Erro ao carregar revisões espaçadas para o dia:', err);
+  }
+
   let gargaloIndex = 0;
   const proximoGargalo = (): TarefaPlanejada => {
     const g = gargalos[gargaloIndex % gargalos.length];
@@ -440,14 +487,14 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       }
     }
 
-    // Verifica se existem blocos de gargalo / temas críticos obsoletos (ex: após reset de progresso)
+    // Verifica se existem blocos de temas críticos obsoletos (ex: após reset de progresso)
     const gargalosAtuais = await obterGargalos();
     const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema));
     const blocosGargaloRow = await database.getAllAsync<{ id: string; tema_id: string }>(
       `SELECT id, tema_id FROM blocos_estudo 
        WHERE data_agendada = ? 
          AND status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`,
+         AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%');`,
       [dataYYYYMMDD]
     );
     const temGargaloInvalido = blocosGargaloRow.some((b) => !temasGargaloSet.has(b.tema_id));
@@ -527,7 +574,7 @@ export async function sincronizarLimitesHorarioUtil(): Promise<void> {
     const todosGargalosPendentes = await database.getAllAsync<{ id: string; data_agendada: string; tema_id: string }>(
       `SELECT id, data_agendada, tema_id FROM blocos_estudo 
        WHERE status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
+         AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%');`
     );
 
     const datasReplanejarGargalo = new Set<string>();
@@ -560,7 +607,7 @@ export async function limparGargalosEReplanejar(temas?: string[]): Promise<void>
       await database.runAsync(
         `DELETE FROM blocos_estudo 
          WHERE status = 'pendente' 
-           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%') 
+           AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%') 
            AND (tema_id IN (${placeholders}) OR LOWER(tema_id) IN (${placeholders}));`,
         [...temas, ...temas.map((t) => t.toLowerCase())]
       );
@@ -568,7 +615,7 @@ export async function limparGargalosEReplanejar(temas?: string[]): Promise<void>
       await database.runAsync(
         `DELETE FROM blocos_estudo 
          WHERE status = 'pendente' 
-           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
+           AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%');`
       );
     }
 
@@ -578,7 +625,7 @@ export async function limparGargalosEReplanejar(temas?: string[]): Promise<void>
     const todosGargalosPendentes = await database.getAllAsync<{ id: string; data_agendada: string; tema_id: string }>(
       `SELECT id, data_agendada, tema_id FROM blocos_estudo 
        WHERE status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
+         AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%');`
     );
 
     const datasReplanejar = new Set<string>();

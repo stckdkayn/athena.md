@@ -210,7 +210,7 @@ export interface CronogramaSearchResult {
   matchSource?: string;
 }
 
-export type AbaDiaCronograma = DiaSemana | 'revisao';
+export type AbaDiaCronograma = DiaSemana;
 
 export default function CronogramaScreen() {
   const router = useRouter();
@@ -310,10 +310,6 @@ export default function CronogramaScreen() {
   );
 
   useEffect(() => {
-    if (diaAtivo === 'revisao') {
-      dayScrollViewRef.current?.scrollTo({ x: 0, animated: true });
-      return;
-    }
     const idx = DIAS_SEMANA_LISTA.findIndex((d) => d.id === diaAtivo);
     if (idx > 1 && dayScrollViewRef.current) {
       setTimeout(() => {
@@ -399,8 +395,13 @@ export default function CronogramaScreen() {
         }
       }
 
-      for (const rev of revisoesDaSemana) {
-        if (daysMap[rev.id] === d) {
+      for (let rIdx = 0; rIdx < revisoesDaSemana.length; rIdx++) {
+        const rev = revisoesDaSemana[rIdx];
+        const assignedRevDay = daysMap[rev.id]
+          ? daysMap[rev.id]
+          : (rIdx % 2 === 0 ? 'sexta' : 'sabado');
+
+        if (assignedRevDay === d) {
           stats[d].count += 1;
           const concluidos = rev.passos.filter((p, pIdx) =>
             isStepConcluido(progresso, rev.id, getStepUniqueId(p, pIdx), p.tipo)
@@ -477,27 +478,6 @@ export default function CronogramaScreen() {
     if (!semanaAtual) return [];
     const list: { cardKey: string; topico: CronogramaTopico & { assignedDay: DiaSemana }; passos: FlowStep[]; topicProgress: number; isCardDone: boolean; }[] = [];
 
-    if (diaAtivo === 'revisao') {
-      revisoesDaSemana.forEach((rev) => {
-        // Se a revisão foi alocada para um dia da semana específico, não exibe mais na aba REV
-        if (daysMap[rev.id]) return;
-
-        const passos = rev.passos;
-        const concluidos = passos.filter((p, pIdx) => isStepConcluido(progresso, rev.id, getStepUniqueId(p, pIdx), p.tipo)).length;
-        const total = passos.length;
-        const topicProgress = total > 0 ? Math.round((concluidos / total) * 100) : 0;
-        
-        list.push({
-          cardKey: rev.id,
-          topico: { ...rev.topicoOriginal, id: rev.id, isRevisao: true, revisaoIntervaloLabel: rev.intervaloLabel, revisaoOrigemSemana: rev.semanaOrigemNumero, assignedDay: 'segunda', passos: rev.passos },
-          passos: rev.passos,
-          topicProgress,
-          isCardDone: total > 0 && concluidos === total,
-        });
-      });
-      return list;
-    }
-
     if (!semanaAtual.topicos) return [];
 
     semanaAtual.topicos.forEach((topico, idx) => {
@@ -537,8 +517,12 @@ export default function CronogramaScreen() {
       }
     });
 
-    revisoesDaSemana.forEach((rev) => {
-      if (daysMap[rev.id] === diaAtivo) {
+    revisoesDaSemana.forEach((rev, rIdx) => {
+      const assignedRevDay = daysMap[rev.id]
+        ? daysMap[rev.id]
+        : (rIdx % 2 === 0 ? 'sexta' : 'sabado');
+
+      if (assignedRevDay === diaAtivo) {
         const passos = rev.passos;
         const concluidos = passos.filter((p, pIdx) => isStepConcluido(progresso, rev.id, getStepUniqueId(p, pIdx), p.tipo)).length;
         const total = passos.length;
@@ -751,23 +735,13 @@ export default function CronogramaScreen() {
     }
   };
 
-  const handleMoveToDay = (topicoId: string, targetDay: DiaSemana | 'revisao') => {
+  const handleMoveToDay = (topicoId: string, targetDay: DiaSemana) => {
     try {
-      if (targetDay === 'revisao') {
-        const novoMapa = { ...daysMap };
-        delete novoMapa[topicoId];
-        saveCronogramaDays(novoMapa);
-        setDaysMap(novoMapa);
-        setShowMoveDayModal(null);
-        setTopicoMenuAberto(null);
-        return;
-      }
-
       if (showMoveDayModal?.currentDay && !showMoveDayModal.topico.isRevisao) {
-        const res = moverPassosDoTopicoDeDia(topicoId, showMoveDayModal.currentDay, targetDay as DiaSemana);
+        const res = moverPassosDoTopicoDeDia(topicoId, showMoveDayModal.currentDay, targetDay);
         if (res.success && res.data) setCronograma(res.data);
       }
-      const novoMapa = setTopicAssignedDay(topicoId, targetDay as DiaSemana);
+      const novoMapa = setTopicAssignedDay(topicoId, targetDay);
       setDaysMap(novoMapa);
       setShowMoveDayModal(null);
       setTopicoMenuAberto(null);
@@ -1115,39 +1089,6 @@ export default function CronogramaScreen() {
         <>
           <View style={styles.daySelectorWrapper}>
             <ScrollView ref={dayScrollViewRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daySelectorContent}>
-              {(() => {
-                const isSelected = diaAtivo === 'revisao';
-                const revisoesNaoAlocadas = revisoesDaSemana.filter((r) => !daysMap[r.id]);
-                const revTotalTarefas = revisoesNaoAlocadas.reduce((acc, r) => acc + r.passos.length, 0);
-                const revConcluidas = revisoesNaoAlocadas.reduce((acc, r) => acc + r.passos.filter((p, pIdx) => isStepConcluido(progresso, r.id, getStepUniqueId(p, pIdx), p.tipo)).length, 0);
-                const isDone = revTotalTarefas === 0 || (revTotalTarefas > 0 && revConcluidas === revTotalTarefas);
-
-                return (
-                  <TouchableOpacity
-                    key="revisao"
-                    style={[styles.dayPillVertical, isDone && styles.dayPillRevDone, isSelected && (isDone ? styles.dayPillRevDoneSelected : styles.dayPillRevSelected)]}
-                    onPress={() => setDiaAtivo('revisao')}
-                    hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.dayPillTopSegment}>
-                      <Text style={[styles.dayPillAbbrText, { color: isSelected ? '#A78BFA' : '#C4B5FD' }, isDone && styles.dayPillRevAbbrTextDone, isSelected && isDone && { color: '#FFFFFF' }]}>REV</Text>
-                    </View>
-                    <View style={styles.dayPillBottomSegment}>
-                      {isDone ? (
-                        <View style={styles.dayStatusRevDoneCircle}>
-                          <Ionicons name="checkmark" size={11} color="#FFFFFF" />
-                        </View>
-                      ) : (
-                        <View style={[styles.dayStatusProgressOuter, { backgroundColor: '#8B5CF6' }]}>
-                          <View style={[styles.dayStatusProgressInner, { backgroundColor: '#141617' }]} />
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })()}
-
               {DIAS_SEMANA_LISTA.map((dia) => {
                 const isSelected = diaAtivo === dia.id;
                 const displayStatus = dayDisplayStatusMap[dia.id];
@@ -1196,12 +1137,12 @@ export default function CronogramaScreen() {
             contentContainerStyle={styles.topicsListContent}
             ListEmptyComponent={
               <View style={styles.emptyDayContainer}>
-                <Ionicons name={diaAtivo === 'revisao' ? 'sparkles-outline' : 'cafe-outline'} size={44} color="#454A52" />
+                <Ionicons name="cafe-outline" size={44} color="#454A52" />
                 <Text style={styles.emptyDayTitle}>
-                  {diaAtivo === 'revisao' ? 'Nenhuma revisão para esta semana' : `Nenhum tópico para ${DIAS_SEMANA_LISTA.find((d) => d.id === diaAtivo)?.label}`}
+                  {`Nenhum tópico para ${DIAS_SEMANA_LISTA.find((d) => d.id === diaAtivo)?.label}`}
                 </Text>
                 <Text style={styles.emptyDaySub}>
-                  {diaAtivo === 'revisao' ? 'As revisões de 1 semana, 1 mês e outros intervalos aparecerão aqui conforme você avança nos tópicos das semanas anteriores.' : 'Aproveite para revisar ou adiantar matérias de outros dias.'}
+                  Aproveite para revisar ou adiantar matérias de outros dias.
                 </Text>
               </View>
             }
@@ -1278,7 +1219,7 @@ export default function CronogramaScreen() {
                               setTopicoMenuAberto({
                                 topico: item,
                                 semanaOrigemNumero: semanaAtiva,
-                                currentDay: daysMap[item.id] || (diaAtivo === 'revisao' ? 'segunda' : diaAtivo),
+                                currentDay: daysMap[item.id] || diaAtivo,
                               })
                             }
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1327,7 +1268,7 @@ export default function CronogramaScreen() {
                       <CircularProgressRing progress={topicProgress} size={38} strokeWidth={3.5} color={isCardDone ? '#FFFFFF' : topicColor} backgroundColor={isCardDone ? 'rgba(0, 0, 0, 0.25)' : '#26292C'} completedColor={isCardDone ? '#FFFFFF' : '#10B981'} />
                       <TouchableOpacity
                         style={styles.threeDotsButton}
-                        onPress={() => setTopicoMenuAberto({ topico: item, semanaOrigemNumero: semanaAtiva, currentDay: item.isRevisao ? daysMap[item.id] || (diaAtivo === 'revisao' ? 'segunda' : diaAtivo) : diaAtivo === 'revisao' ? 'segunda' : diaAtivo })}
+                        onPress={() => setTopicoMenuAberto({ topico: item, semanaOrigemNumero: semanaAtiva, currentDay: item.isRevisao ? daysMap[item.id] || diaAtivo : diaAtivo })}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       >
                         <Ionicons name="ellipsis-vertical" size={16} color={isCardDone ? '#FFFFFF' : '#8E959E'} />
@@ -1468,7 +1409,7 @@ export default function CronogramaScreen() {
         }}
         semanasList={semanasList}
         semanaAtivaNumero={semanaAtiva}
-        diaSugerido={diaAtivo === 'revisao' ? 'segunda' : diaAtivo}
+        diaSugerido={diaAtivo}
         topicoParaEditar={topicoParaEditar}
         onSalvar={handleSalvarNovoTopico}
       />
