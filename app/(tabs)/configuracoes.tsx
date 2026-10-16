@@ -33,6 +33,8 @@ import {
   setAutoSyncEnabled,
   getLastSyncTimestamp,
   importarArquivoICS,
+  contarEventosICSLocais,
+  limparEventosICSLocais,
 } from '@/services/icsService';
 
 import { storage } from '@/services/storage'; // <-- Motor Síncrono MMKV
@@ -312,6 +314,9 @@ export default function ConfiguracoesScreen() {
   const [novoFeedTipo, setNovoFeedTipo] = useState<string>('Faculdade');
   const [salvandoNovoFeed, setSalvandoNovoFeed] = useState<boolean>(false);
   const [feedParaRemover, setFeedParaRemover] = useState<ICalFeed | null>(null);
+  const [modalLimparICSVisible, setModalLimparICSVisible] = useState<boolean>(false);
+  const [limpandoICS, setLimpandoICS] = useState<boolean>(false);
+  const [totalEventosICSParaLimpar, setTotalEventosICSParaLimpar] = useState<number>(0);
 
   const carregarDadosCalendario = () => {
     try {
@@ -380,6 +385,7 @@ export default function ConfiguracoesScreen() {
       setModalRemoverCronogramaVisible(false);
       setModalResetCronogramaVisible(false);
       setModalAddFeedVisible(false);
+      setModalLimparICSVisible(false);
       setFeedParaRemover(null);
       setSucessoCronogramaModal(null);
       setErroCronogramaModal(null);
@@ -1405,6 +1411,36 @@ export default function ConfiguracoesScreen() {
     }
   };
 
+  const handleAbrirModalLimparICS = async () => {
+    try {
+      const total = await contarEventosICSLocais();
+      setTotalEventosICSParaLimpar(total);
+      setModalLimparICSVisible(true);
+    } catch (e) {
+      console.error('Erro ao contar eventos do .ICS:', e);
+      setTotalEventosICSParaLimpar(0);
+      setModalLimparICSVisible(true);
+    }
+  };
+
+  const handleConfirmarLimparICS = async () => {
+    try {
+      setLimpandoICS(true);
+      const totalRemovidos = await limparEventosICSLocais();
+      setModalLimparICSVisible(false);
+      carregarDadosCalendario();
+      Alert.alert(
+        'Limpeza Concluída',
+        `${totalRemovidos} ${totalRemovidos === 1 ? 'evento do .ICS foi removido' : 'eventos do .ICS foram removidos'} da sua agenda com sucesso.`
+      );
+    } catch (err: any) {
+      console.error('Erro ao limpar eventos do .ICS:', err);
+      Alert.alert('Erro', err?.message || 'Não foi possível limpar os eventos do .ICS.');
+    } finally {
+      setLimpandoICS(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar hidden={true} barStyle="light-content" />
@@ -2024,6 +2060,23 @@ export default function ConfiguracoesScreen() {
                 ) : (
                   <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
                 )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.menuOptionCard, { marginTop: 10 }]}
+                activeOpacity={0.7}
+                onPress={handleAbrirModalLimparICS}
+              >
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                  <Ionicons name="trash-outline" size={22} color={Colors.error} />
+                </View>
+                <View style={styles.menuOptionContent}>
+                  <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Limpar Eventos do .ICS</Text>
+                  <Text style={styles.menuOptionSubtitle}>
+                    Remover todas as aulas e atividades adicionadas por arquivo .ICS
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </>
@@ -3857,6 +3910,62 @@ export default function ConfiguracoesScreen() {
                 <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.confirmDeleteBtnText}>Sim, Remover</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Limpar Eventos do .ICS */}
+      <Modal
+        visible={modalLimparICSVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => !limpandoICS && setModalLimparICSVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <TouchableOpacity
+            style={styles.confirmBackdropDismiss}
+            activeOpacity={1}
+            onPress={() => !limpandoICS && setModalLimparICSVisible(false)}
+          />
+          <View style={styles.confirmModalCard}>
+            <View style={styles.dangerIconCircle}>
+              <Ionicons name="trash" size={30} color={Colors.error} />
+            </View>
+            <Text style={styles.confirmTitle}>Limpar Eventos do .ICS</Text>
+            <Text style={styles.confirmDescription}>
+              {totalEventosICSParaLimpar > 0
+                ? `Deseja remover todos os ${totalEventosICSParaLimpar} eventos importados manualmente via arquivo .ICS? Suas outras tarefas, rotinas e revisões não serão afetadas.`
+                : 'Nenhum evento importado por .ICS foi encontrado para remoção.'}
+            </Text>
+            <View style={styles.confirmButtonsRow}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setModalLimparICSVisible(false)}
+                disabled={limpandoICS}
+              >
+                <Text style={styles.confirmCancelBtnText}>
+                  {totalEventosICSParaLimpar > 0 ? 'Cancelar' : 'Fechar'}
+                </Text>
+              </TouchableOpacity>
+              {totalEventosICSParaLimpar > 0 && (
+                <TouchableOpacity
+                  style={[styles.confirmDeleteBtn, limpandoICS && styles.buttonDisabled]}
+                  activeOpacity={0.85}
+                  onPress={handleConfirmarLimparICS}
+                  disabled={limpandoICS}
+                >
+                  {limpandoICS ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.confirmDeleteBtnText}>Sim, Limpar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>

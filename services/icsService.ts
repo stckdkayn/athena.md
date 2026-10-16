@@ -408,7 +408,9 @@ export async function salvarEventosICSNoBanco(eventos: EventoICS[], feedId?: str
   if (!eventos || eventos.length === 0) return 0;
   const database = getDatabase();
   const ts = Date.now();
-  const feedRecorrenteId = feedId ? `ical_${feedId}` : null;
+  const feedRecorrenteId = feedId
+    ? (feedId === 'manual' ? 'ics_manual' : `ical_${feedId}`)
+    : 'ics_manual';
 
   let inseridos = 0;
   await database.withExclusiveTransactionAsync(async (txn) => {
@@ -731,11 +733,41 @@ export async function importarArquivoICS(): Promise<{ count: number } | null> {
     }
   }
 
-  const eventos = parseICSContent(text, 'Faculdade');
+  const eventos = parseICSContent(text, 'Faculdade', 'manual');
   if (eventos.length === 0) {
     throw new Error('Nenhum evento válido foi encontrado no arquivo .ics selecionado.');
   }
 
-  const count = await salvarEventosICSNoBanco(eventos);
+  const count = await salvarEventosICSNoBanco(eventos, 'manual');
   return { count };
+}
+
+/**
+ * Conta quantos eventos adicionados via .ICS local existem na agenda.
+ * Considera tags 'ics_manual', 'ics_local', 'ical_manual' ou registros legados do importador ICS.
+ */
+export async function contarEventosICSLocais(): Promise<number> {
+  const database = getDatabase();
+  const row = await database.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM AtividadesAgenda 
+     WHERE id_recorrente IN ('ics_manual', 'ics_local', 'ical_manual') 
+        OR id LIKE 'ical_manual_%'
+        OR (id_recorrente IS NULL AND icone = 'book' AND tipo = 'Faculdade' AND feedback_cansaco = 2);`
+  );
+  return row?.count || 0;
+}
+
+/**
+ * Remove todos os eventos adicionados via .ICS da agenda no SQLite.
+ */
+export async function limparEventosICSLocais(): Promise<number> {
+  const database = getDatabase();
+  const res = await database.runAsync(
+    `DELETE FROM AtividadesAgenda 
+     WHERE id_recorrente IN ('ics_manual', 'ics_local', 'ical_manual') 
+        OR id LIKE 'ical_manual_%'
+        OR (id_recorrente IS NULL AND icone = 'book' AND tipo = 'Faculdade' AND feedback_cansaco = 2);`
+  );
+  notifySyncListeners();
+  return res.changes;
 }
