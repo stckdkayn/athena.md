@@ -230,9 +230,9 @@ export default function SwipeableActivityCard({
                   <View style={[styles.playButtonCircle, { backgroundColor: corBase }]}>
                     <Ionicons
                       name="play"
-                      size={14}
+                      size={18}
                       color={playIconColor}
-                      style={{ marginLeft: 2 }}
+                      style={{ marginLeft: 2.5 }}
                     />
                   </View>
                   <Text style={[styles.iniciarUnderText, { color: corBase }]}>iniciar</Text>
@@ -240,17 +240,17 @@ export default function SwipeableActivityCard({
               ) : (
                 <View style={styles.cardRightIconWrapper}>
                   {isAulas ? (
-                    <Ionicons name="laptop-outline" size={28} color={corBase} />
+                    <Ionicons name="laptop-outline" size={36} color={corBase} />
                   ) : isApostila ? (
-                    <Ionicons name="library-outline" size={28} color={corBase} />
+                    <Ionicons name="library-outline" size={36} color={corBase} />
                   ) : isFlashcards ? (
-                    <Ionicons name="flash-outline" size={28} color={corBase} />
+                    <Ionicons name="flash-outline" size={36} color={corBase} />
                   ) : item.icone === 'calendar' ? (
-                    <Ionicons name="calendar-outline" size={26} color={corBase} />
+                    <Ionicons name="calendar-outline" size={34} color={corBase} />
                   ) : (
                     <Feather
                       name={(item.icone as any) || 'circle'}
-                      size={26}
+                      size={34}
                       color={corBase}
                     />
                   )}
@@ -367,24 +367,24 @@ const styles = StyleSheet.create({
   cardRightQuestoesWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 46,
+    minWidth: 50,
     paddingLeft: 6,
     paddingVertical: 2,
   },
   playButtonCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2.5,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
   },
   iniciarUnderText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: Fonts.bold,
     fontWeight: '700',
     marginTop: 3,
