@@ -1511,7 +1511,8 @@ export interface ItemBuscaCronograma {
 }
 
 /**
- * Busca universal através das 45 semanas do cronograma no SQLite.
+ * Busca universal através das 45 semanas do cronograma no SQLite,
+ * agrupando por Tópico (1 resultado único por tema).
  */
 export async function buscarNoCronogramaCompleto(query: string): Promise<ItemBuscaCronograma[]> {
   const termo = query.trim();
@@ -1527,24 +1528,32 @@ export async function buscarNoCronogramaCompleto(query: string): Promise<ItemBus
         t.especialidade,
         t.semana_id as semana_numero,
         t.assigned_day,
-        p.id as passo_id,
-        p.tipo as passo_tipo,
-        p.label as passo_label,
-        p.detalhe as passo_detalhe,
-        p.meta_questoes,
-        p.tema_questoes,
-        p.dia_semana as passo_dia_semana
+        (SELECT p.id FROM Passos p WHERE p.topico_id = t.id AND (p.label LIKE ? OR p.detalhe LIKE ? OR p.tema_questoes LIKE ?) LIMIT 1) as matched_passo_id,
+        (SELECT p.tipo FROM Passos p WHERE p.topico_id = t.id AND (p.label LIKE ? OR p.detalhe LIKE ? OR p.tema_questoes LIKE ?) LIMIT 1) as matched_passo_tipo,
+        (SELECT p.label FROM Passos p WHERE p.topico_id = t.id AND (p.label LIKE ? OR p.detalhe LIKE ? OR p.tema_questoes LIKE ?) LIMIT 1) as matched_passo_label,
+        (SELECT p.detalhe FROM Passos p WHERE p.topico_id = t.id AND (p.label LIKE ? OR p.detalhe LIKE ? OR p.tema_questoes LIKE ?) LIMIT 1) as matched_passo_detalhe,
+        (SELECT p.label FROM Passos p WHERE p.topico_id = t.id ORDER BY p.id ASC LIMIT 1) as primeiro_label,
+        (SELECT p.detalhe FROM Passos p WHERE p.topico_id = t.id ORDER BY p.id ASC LIMIT 1) as primeiro_detalhe,
+        (SELECT p.tipo FROM Passos p WHERE p.topico_id = t.id ORDER BY p.id ASC LIMIT 1) as primeiro_tipo,
+        (SELECT p.meta_questoes FROM Passos p WHERE p.topico_id = t.id AND p.meta_questoes IS NOT NULL LIMIT 1) as meta_questoes,
+        (SELECT p.tema_questoes FROM Passos p WHERE p.topico_id = t.id AND p.tema_questoes IS NOT NULL LIMIT 1) as tema_questoes
        FROM Topicos t
-       LEFT JOIN Passos p ON t.id = p.topico_id
        WHERE t.titulo LIKE ?
           OR t.especialidade LIKE ?
           OR t.area LIKE ?
-          OR p.label LIKE ?
-          OR p.detalhe LIKE ?
-          OR p.tema_questoes LIKE ?
+          OR EXISTS (SELECT 1 FROM Passos p WHERE p.topico_id = t.id AND (p.label LIKE ? OR p.detalhe LIKE ? OR p.tema_questoes LIKE ?))
        ORDER BY t.semana_id ASC, t.id ASC
-       LIMIT 50;`,
-      [like, like, like, like, like, like]
+       LIMIT 30;`,
+      [
+        like, like, like,
+        like, like, like,
+        like, like, like,
+        like, like, like,
+        like,
+        like,
+        like,
+        like, like, like,
+      ]
     );
 
     return rows.map((r) => {
@@ -1552,10 +1561,14 @@ export async function buscarNoCronogramaCompleto(query: string): Promise<ItemBus
       const qLower = termo.toLowerCase();
       if (r.topico_titulo?.toLowerCase().includes(qLower)) match_source = 'Tópico';
       else if (r.especialidade?.toLowerCase().includes(qLower)) match_source = 'Especialidade';
-      else if (r.passo_detalhe?.toLowerCase().includes(qLower)) match_source = 'Capítulo';
-      else if (r.passo_label?.toLowerCase().includes(qLower)) match_source = 'Material';
+      else if (r.matched_passo_detalhe?.toLowerCase().includes(qLower)) match_source = 'Capítulo';
+      else if (r.matched_passo_label?.toLowerCase().includes(qLower)) match_source = 'Material';
       else if (r.tema_questoes?.toLowerCase().includes(qLower)) match_source = 'Questões';
       else if (r.area?.toLowerCase().includes(qLower)) match_source = 'Área';
+
+      const finalLabel = r.matched_passo_label || r.primeiro_label;
+      const finalDetalhe = r.matched_passo_detalhe || r.primeiro_detalhe;
+      const finalTipo = r.matched_passo_tipo || r.primeiro_tipo || 'apostila';
 
       return {
         topico_id: r.topico_id,
@@ -1563,11 +1576,11 @@ export async function buscarNoCronogramaCompleto(query: string): Promise<ItemBus
         area: r.area || 'Geral',
         especialidade: r.especialidade || '',
         semana_numero: r.semana_numero || 1,
-        assigned_day: r.passo_dia_semana || r.assigned_day || 'segunda',
-        passo_id: r.passo_id,
-        passo_tipo: r.passo_tipo,
-        passo_label: r.passo_label,
-        passo_detalhe: r.passo_detalhe,
+        assigned_day: r.assigned_day || 'segunda',
+        passo_id: r.matched_passo_id,
+        passo_tipo: finalTipo,
+        passo_label: finalLabel,
+        passo_detalhe: finalDetalhe,
         meta_questoes: r.meta_questoes,
         tema_questoes: r.tema_questoes,
         match_source,
