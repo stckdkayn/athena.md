@@ -454,7 +454,7 @@ export default function DashboardScreen() {
             style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
           >
             <View style={styles.cardHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {/* Ícone com a cor da categoria */}
                 <Feather name={(item.icone as any) || 'circle'} size={18} color={corBase} style={{ marginRight: 8 }} />
                 <Text
@@ -466,13 +466,6 @@ export default function DashboardScreen() {
                 >
                   {item.titulo}
                 </Text>
-              </View>
-
-              <View style={styles.badgesRow}>
-                {/* Badge de Categoria */}
-                <View style={[styles.typeBadge, { borderColor: `${corBase}40` }]}>
-                  <Text style={[styles.typeBadgeText, { color: corBase }]}>{item.tipo.toUpperCase()}</Text>
-                </View>
               </View>
             </View>
 
@@ -865,25 +858,6 @@ const styles = StyleSheet.create({
   textStrikethrough: {
     textDecorationLine: 'line-through',
     color: Colors.textSecondary,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  typeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  typeBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#D1D5DB',
-    letterSpacing: 0.4,
   },
   metaRow: {
     flexDirection: 'row',
