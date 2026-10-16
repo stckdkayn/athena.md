@@ -755,7 +755,7 @@ export default function TreinoScreen() {
         onPress={handleCardPress}
       >
         {isSelected && (
-          <View style={styles.selectedBadge}>
+          <View style={[styles.selectedBadge, selectedThemesCount <= 1 && { width: 22, paddingHorizontal: 0 }]}>
             <Ionicons name="checkmark" size={12} color="#FFFFFF" />
             {selectedThemesCount > 1 && <Text style={styles.selectedBadgeCount}>{selectedThemesCount}</Text>}
           </View>
@@ -1774,9 +1774,53 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     cartThemeChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, borderWidth: 1, borderColor: theme.border, borderRadius: 20, paddingVertical: 6, paddingLeft: 12, paddingRight: 8, gap: 6 },
     cartThemeChipText: { fontSize: 12, fontWeight: '600', color: theme.text, maxWidth: 160 },
     cartThemeRemoveButton: { alignItems: 'center', justifyContent: 'center' },
-    gridCard: { width: '48.5%', minHeight: 140, backgroundColor: theme.surfaceCard, borderRadius: 16, paddingVertical: 20, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border, elevation: 0, shadowOpacity: 0, position: 'relative' },
-    gridCardSelected: { borderColor: theme.primary, backgroundColor: theme.primarySubtle },
-    selectedBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 2 },
+    gridCard: {
+      width: '48.5%',
+      minHeight: 140,
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 16,
+      paddingVertical: 20,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      position: 'relative',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.35 : 0.06,
+      shadowRadius: 6,
+      elevation: isDark ? 4 : 2,
+    },
+    gridCardSelected: {
+      borderColor: isDark ? '#9CA3AF' : '#37352F',
+      borderWidth: 1.5,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: isDark ? 0.45 : 0.10,
+      shadowRadius: 8,
+      elevation: isDark ? 5 : 3,
+    },
+    selectedBadge: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      backgroundColor: isDark ? '#4B5563' : '#37352F',
+      height: 22,
+      minWidth: 22,
+      borderRadius: 11,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 5,
+      gap: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.3 : 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
     selectedBadgeCount: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
     cardIconBox: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
     cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 6 },
