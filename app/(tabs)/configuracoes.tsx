@@ -12,6 +12,7 @@ import {
   TextInput,
   Platform,
   BackHandler,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -3771,13 +3772,16 @@ export default function ConfiguracoesScreen() {
         transparent={true}
         onRequestClose={() => !salvandoNovoFeed && setModalAddFeedVisible(false)}
       >
-        <View style={styles.confirmModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.confirmModalOverlay}
+        >
           <TouchableOpacity
             style={styles.confirmBackdropDismiss}
             activeOpacity={1}
             onPress={() => !salvandoNovoFeed && setModalAddFeedVisible(false)}
           />
-          <View style={styles.confirmModalCard}>
+          <View style={[styles.confirmModalCard, { maxWidth: 400 }]}>
             <View style={[styles.gitHubSyncIconBox, { marginBottom: 12, width: 50, height: 50, borderRadius: 14, backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
               <Ionicons name="logo-google" size={26} color="#3B82F6" />
             </View>
@@ -3786,52 +3790,57 @@ export default function ConfiguracoesScreen() {
               Cole o link secreto do Google Calendar para espelhar suas aulas e eventos no Athena.
             </Text>
 
-            <View style={{ width: '100%', marginBottom: 10 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' }}>
-                Nome do Calendário
-              </Text>
-              <TextInput
-                style={[styles.searchBarInput, { backgroundColor: '#141618', borderRadius: 10, borderWidth: 1, borderColor: '#26292C', paddingHorizontal: 12, height: 42, color: Colors.text }]}
-                placeholder="Ex: Faculdade, Trabalho, Plantões"
-                placeholderTextColor="#68707B"
-                value={novoFeedNome}
-                onChangeText={setNovoFeedNome}
-                autoCapitalize="words"
-              />
+            {/* Nome do Calendário Input */}
+            <View style={styles.pkgInputContainer}>
+              <Text style={styles.pkgInputLabel}>NOME DO CALENDÁRIO</Text>
+              <View style={styles.pkgInputWrapper}>
+                <Ionicons name="calendar-outline" size={17} color={Colors.primary} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.pkgInput}
+                  value={novoFeedNome}
+                  onChangeText={setNovoFeedNome}
+                  placeholder="Ex: Faculdade, Trabalho, Plantões"
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="words"
+                />
+              </View>
             </View>
 
-            <View style={{ width: '100%', marginBottom: 10 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' }}>
-                URL do iCal / Webcal
-              </Text>
-              <TextInput
-                style={[styles.searchBarInput, { backgroundColor: '#141618', borderRadius: 10, borderWidth: 1, borderColor: '#26292C', paddingHorizontal: 12, height: 42, color: Colors.text }]}
-                placeholder="https://calendar.google.com/calendar/ical/..."
-                placeholderTextColor="#68707B"
-                value={novoFeedUrl}
-                onChangeText={setNovoFeedUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+            {/* URL do iCal Input */}
+            <View style={styles.pkgInputContainer}>
+              <Text style={styles.pkgInputLabel}>URL DO ICAL / WEBCAL (GOOGLE CALENDAR)</Text>
+              <View style={styles.pkgInputWrapper}>
+                <Ionicons name="link-outline" size={17} color={Colors.primary} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.pkgInput}
+                  value={novoFeedUrl}
+                  onChangeText={setNovoFeedUrl}
+                  placeholder="https://calendar.google.com/calendar/ical/..."
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
             </View>
 
+            {/* Categoria Padrão */}
             <View style={{ width: '100%', marginBottom: 14 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 6, textTransform: 'uppercase' }}>
-                Categoria Padrão dos Eventos
+              <Text style={styles.pkgInputLabel}>
+                CATEGORIA PADRÃO DOS EVENTOS
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingTop: 2 }}>
                 {['Faculdade', 'Estudos', 'Saúde', 'Pessoal', 'Lazer'].map((cat) => {
                   const isSelected = novoFeedTipo === cat;
                   return (
                     <TouchableOpacity
                       key={cat}
                       style={[
-                        { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#2A2E33', backgroundColor: '#16191B' },
+                        { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#2A2E33', backgroundColor: '#16191B' },
                         isSelected && { backgroundColor: 'rgba(234, 225, 21, 0.15)', borderColor: Colors.primary },
                       ]}
                       onPress={() => setNovoFeedTipo(cat)}
                     >
-                      <Text style={[{ fontSize: 12, fontWeight: '600', color: Colors.textSecondary }, isSelected && { color: Colors.primary, fontWeight: '700' }]}>
+                      <Text style={[{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary }, isSelected && { color: Colors.primary, fontWeight: '700' }]}>
                         {cat}
                       </Text>
                     </TouchableOpacity>
@@ -3840,6 +3849,7 @@ export default function ConfiguracoesScreen() {
               </ScrollView>
             </View>
 
+            {/* Dica / Info Box */}
             <View style={[styles.confirmWarningBox, { marginBottom: 16 }]}>
               <Ionicons name="information-circle-outline" size={16} color="#60A5FA" style={{ marginRight: 6 }} />
               <Text style={[styles.confirmWarningText, { color: '#93C5FD' }]}>
@@ -3847,6 +3857,7 @@ export default function ConfiguracoesScreen() {
               </Text>
             </View>
 
+            {/* Botões */}
             <View style={styles.confirmButtonsRow}>
               <TouchableOpacity
                 style={styles.confirmCancelBtn}
@@ -3870,7 +3881,7 @@ export default function ConfiguracoesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal: Remover Feed iCal */}
