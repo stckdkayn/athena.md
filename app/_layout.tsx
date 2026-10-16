@@ -66,12 +66,17 @@ export default function RootLayout() {
   }, [loaded]);
 
   useEffect(() => {
-    migrateAsyncStorageToMMKV();
-    ensureQuestionsDatabaseReady().catch(() => {});
-    migrateStorageProgressToSQLite().catch(() => {});
-    seedCronogramaResidencia(cronogramaJson).catch((err) => {
-      console.error('[RootLayout] Erro ao semear cronograma no SQLite:', err);
-    });
+    const initBoot = async () => {
+      try {
+        migrateAsyncStorageToMMKV();
+        await ensureQuestionsDatabaseReady();
+        await migrateStorageProgressToSQLite();
+        await seedCronogramaResidencia(cronogramaJson);
+      } catch (err) {
+        console.error('[RootLayout] Erro na inicialização do banco:', err);
+      }
+    };
+    initBoot();
   }, []);
 
   if (!loaded) {

@@ -529,31 +529,32 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
     }
   }
 
-  // Insere em lote dentro de uma transação normal compartilhada (sem conflitos de conexão exclusiva)
+  // Insere em lote em uma única instrução SQL atômica (eliminando contenções de transação)
   if (blocosParaInserir.length > 0) {
-    await database.withTransactionAsync(async () => {
-      for (const b of blocosParaInserir) {
-        await database.runAsync(
-          `INSERT INTO blocos_estudo (
-            id, tipo, tema_id, titulo, passo_id, data_agendada, hora_inicio, hora_fim, duracao_minutos, prioridade, status, timestamp_geracao
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-          [
-            b.id,
-            b.tipo,
-            b.tema_id,
-            b.titulo,
-            b.passo_id,
-            b.data_agendada,
-            b.hora_inicio,
-            b.hora_fim,
-            b.duracao_minutos,
-            b.prioridade,
-            b.status,
-            b.timestamp_geracao,
-          ]
-        );
-      }
-    });
+    const placeholders = blocosParaInserir.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const params: any[] = [];
+    for (const b of blocosParaInserir) {
+      params.push(
+        b.id,
+        b.tipo,
+        b.tema_id,
+        b.titulo,
+        b.passo_id,
+        b.data_agendada,
+        b.hora_inicio,
+        b.hora_fim,
+        b.duracao_minutos,
+        b.prioridade,
+        b.status,
+        b.timestamp_geracao
+      );
+    }
+    await database.runAsync(
+      `INSERT INTO blocos_estudo (
+        id, tipo, tema_id, titulo, passo_id, data_agendada, hora_inicio, hora_fim, duracao_minutos, prioridade, status, timestamp_geracao
+      ) VALUES ${placeholders};`,
+      params
+    );
   }
 
   return totalGerados;

@@ -19,9 +19,10 @@ export function getDatabase(): SQLite.SQLiteDatabase {
  */
 function initSchema(database: SQLite.SQLiteDatabase): void {
   try {
+    database.execSync('PRAGMA journal_mode = WAL;');
+    database.execSync('PRAGMA busy_timeout = 10000;');
+    database.execSync('PRAGMA synchronous = NORMAL;');
     database.execSync(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA busy_timeout = 5000;
       CREATE TABLE IF NOT EXISTS questoes (
         id TEXT PRIMARY KEY,
         especialidade TEXT NOT NULL,
