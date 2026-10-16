@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useWindowDimensions, View, StyleSheet, AppState } from 'react-native';
 
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import {
   subscribeToUpdateStatus,
   checkSilentUpdates,
@@ -58,6 +59,7 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
+          fontFamily: Fonts.semiBold,
           marginTop: 2,
         },
         headerStyle: {

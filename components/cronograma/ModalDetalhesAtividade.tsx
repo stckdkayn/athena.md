@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { CATEGORIA_CORES } from '@/app/(tabs)/index';
 
 interface Props {
@@ -408,6 +409,7 @@ const styles = StyleSheet.create({
   areaBadgeText: {
     fontSize: 10,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: Colors.primary,
     letterSpacing: 0.5,
   },
@@ -422,6 +424,7 @@ const styles = StyleSheet.create({
   especialidadeBadgeText: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
   },
   semanaBadge: {
@@ -435,11 +438,13 @@ const styles = StyleSheet.create({
   semanaBadgeText: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: '#60A5FA',
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
     lineHeight: 24,
   },
@@ -476,6 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.semiBold,
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -484,6 +490,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     fontWeight: '600',
+    fontFamily: Fonts.semiBold,
     lineHeight: 20,
   },
   toggleBtn: {
@@ -501,6 +508,7 @@ const styles = StyleSheet.create({
   toggleBtnText: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: '#000',
   },
   toggleBtnTextCompleted: {
@@ -518,6 +526,7 @@ const styles = StyleSheet.create({
   praticarCtaText: {
     fontSize: 15,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: '#000',
   },
   actionsRow: {
@@ -542,6 +551,7 @@ const styles = StyleSheet.create({
   remanejarBtnText: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.primary,
   },
   remanejarBtnTextActive: {
@@ -561,6 +571,7 @@ const styles = StyleSheet.create({
   editBtnText: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
   },
   deleteBtn: {
@@ -577,6 +588,7 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: '#EF4444',
   },
   remanejarBox: {
@@ -590,6 +602,7 @@ const styles = StyleSheet.create({
   remanejarHeaderTitle: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.textSecondary,
     marginBottom: 10,
     textTransform: 'uppercase',
@@ -615,10 +628,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
   diaPillTextActive: {
     color: '#000',
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
   },
   semanasScroll: {
     flexDirection: 'row',
@@ -640,9 +655,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
   semanaPillTextActive: {
     color: '#000',
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
   },
 });

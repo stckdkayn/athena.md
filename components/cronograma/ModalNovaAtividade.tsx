@@ -14,6 +14,7 @@ import {
 import { Ionicons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { criarNovaAtividade, atualizarAtividade, excluirAtividade } from '@/services/database';
 
 interface Props {
@@ -483,12 +484,14 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: Colors.text,
     letterSpacing: -0.3,
   },
   title: {
     fontSize: 18,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: Colors.text,
     letterSpacing: -0.3,
   },
@@ -517,12 +520,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
+    fontFamily: Fonts.medium,
     color: Colors.text,
     fontWeight: '500',
   },
   detailsInputBox: {
     minHeight: 80,
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.text,
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
@@ -546,6 +551,7 @@ const styles = StyleSheet.create({
   },
   dropdownButtonText: {
     fontSize: 14,
+    fontFamily: Fonts.medium,
     color: Colors.text,
     fontWeight: '500',
   },
@@ -567,11 +573,13 @@ const styles = StyleSheet.create({
   },
   dropdownListItemText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.text,
   },
   dropdownListItemTextActive: {
     color: Colors.primary,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
   },
   gridOverlay: {
     flex: 1,
@@ -615,6 +623,7 @@ const styles = StyleSheet.create({
   },
   subLabel: {
     fontSize: 12,
+    fontFamily: Fonts.semiBold,
     color: Colors.textSecondary,
     marginBottom: 6,
     fontWeight: '600',
@@ -640,12 +649,14 @@ const styles = StyleSheet.create({
   },
   freqPillText: {
     fontSize: 13,
+    fontFamily: Fonts.semiBold,
     color: Colors.textSecondary,
     fontWeight: '600',
   },
   freqPillTextActive: {
     color: '#000000',
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
   },
   nativeTimeButton: {
     flex: 1,
@@ -661,6 +672,7 @@ const styles = StyleSheet.create({
   },
   nativeTimeText: {
     fontSize: 16,
+    fontFamily: Fonts.semiBold,
     color: Colors.text,
     fontWeight: '600',
   },
@@ -689,11 +701,13 @@ const styles = StyleSheet.create({
   weekDayText: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.textSecondary,
   },
   weekDayTextSelected: {
     color: '#000000',
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
   },
   saveButton: {
     backgroundColor: Colors.primary,
@@ -711,6 +725,7 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 15,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
   },
   deleteButton: {
     flexDirection: 'row',
@@ -727,5 +742,6 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
   },
 });

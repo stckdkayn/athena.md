@@ -7,6 +7,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { Fonts } from '@/constants/Typography';
 
 // Configuração do Locale para Português do Brasil
 LocaleConfig.locales['pt-br'] = {
@@ -113,6 +114,9 @@ export default function ModalCalendarioMensal({
                 textDayFontSize: 15,
                 textMonthFontSize: 16,
                 textDayHeaderFontSize: 12,
+                textDayFontFamily: Fonts.medium,
+                textMonthFontFamily: Fonts.bold,
+                textDayHeaderFontFamily: Fonts.semiBold,
               }}
               style={styles.calendar}
             />

@@ -33,6 +33,7 @@ import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
 import ModalBuscaUniversal from '@/components/cronograma/ModalBuscaUniversal';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Fonts } from '@/constants/Typography';
 
 export const CATEGORIA_CORES: Record<string, string> = {
   'Estudos': '#3B82F6',   // Azul
@@ -820,6 +821,7 @@ const styles = StyleSheet.create({
   weekLabel: { 
     fontSize: 14, 
     fontWeight: '600', 
+    fontFamily: Fonts.semiBold,
     color: '#888', 
     textAlign: 'center', 
     paddingHorizontal: 20, 
@@ -828,6 +830,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 22,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: Colors.text,
     letterSpacing: -0.5,
   },
@@ -888,11 +891,13 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textTransform: 'uppercase',
     fontWeight: '700',
+    fontFamily: Fonts.bold,
   },
   dayMonthText: {
     fontSize: 16,
     color: Colors.text,
     fontWeight: 'bold',
+    fontFamily: Fonts.bold,
   },
   dayTextActive: {
     color: '#000000',
@@ -914,11 +919,13 @@ const styles = StyleSheet.create({
   boardTitle: {
     fontSize: 22,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: Colors.text,
     marginBottom: 4,
   },
   boardSubtitle: {
     fontSize: 13,
+    fontFamily: Fonts.regular,
     color: Colors.textSecondary,
     marginBottom: 16,
   },
@@ -941,6 +948,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.textSecondary,
     marginTop: 2,
     marginBottom: 6,
@@ -978,6 +986,7 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 8, // Fonte reduzida para não quebrar linha
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     letterSpacing: 0.5, // Dá um pequeno respiro entre as letras
   },
   anchorRow: {
@@ -1006,6 +1015,7 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
     flex: 1,
   },
@@ -1025,6 +1035,7 @@ const styles = StyleSheet.create({
   },
   timeRangeText: {
     fontSize: 12,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
   },
   routineBox: {
@@ -1038,6 +1049,7 @@ const styles = StyleSheet.create({
   routineText: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.primary,
   },
   detailsRow: {
@@ -1048,6 +1060,7 @@ const styles = StyleSheet.create({
   },
   detailsText: {
     fontSize: 12,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
     flex: 1,
     lineHeight: 16,
@@ -1069,11 +1082,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 13,
+    fontFamily: Fonts.regular,
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,

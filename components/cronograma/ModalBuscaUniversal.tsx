@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
 import { buscarNoCronogramaCompleto, ItemBuscaCronograma } from '@/services/database';
 
 interface Props {
@@ -212,6 +213,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
+    fontFamily: Fonts.regular,
     color: Colors.text,
     paddingVertical: 0,
   },
@@ -225,6 +227,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: Colors.textSecondary,
     fontSize: 13,
+    fontFamily: Fonts.medium,
   },
   listContent: {
     padding: 16,
@@ -255,16 +258,19 @@ const styles = StyleSheet.create({
   weekPillText: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: Fonts.extraBold,
     color: Colors.primary,
   },
   especialidadeText: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: Fonts.semiBold,
     color: Colors.textSecondary,
   },
   topicTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
     marginBottom: 6,
   },
@@ -281,6 +287,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: '500',
+    fontFamily: Fonts.medium,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -291,11 +298,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.text,
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 13,
+    fontFamily: Fonts.regular,
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
