@@ -721,71 +721,48 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
-      {/* 1. Header Dinâmico com Foto de Perfil, Nome e Streak */}
+      {/* 1. Header Dinâmico de 2 Linhas */}
       <View style={styles.header}>
-        {/* Lado Esquerdo: Avatar em Círculo + Nome ao lado */}
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={styles.avatarContainer}
-            onPress={handleAvatarPress}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <View style={styles.avatarCircle}>
-              {userPhoto ? (
-                <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  {userName && userName.trim() ? (
-                    <Text style={styles.avatarInitials}>
-                      {userName.trim().charAt(0).toUpperCase()}
-                    </Text>
-                  ) : (
-                    <Ionicons name="person" size={20} color={Colors.textSecondary} />
-                  )}
-                </View>
-              )}
-            </View>
-            <View style={styles.avatarCameraBadge}>
-              <Ionicons name="camera" size={9} color="#000000" />
-            </View>
-          </TouchableOpacity>
+        {/* Primeira linha: Foto e Nome (à esquerda) e Streak (à direita) */}
+        <View style={styles.headerTopRow}>
+          <View style={styles.headerProfileLeft}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={handleAvatarPress}
+              activeOpacity={0.8}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <View style={styles.avatarCircle}>
+                {userPhoto ? (
+                  <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    {userName && userName.trim() ? (
+                      <Text style={styles.avatarInitials}>
+                        {userName.trim().charAt(0).toUpperCase()}
+                      </Text>
+                    ) : (
+                      <Ionicons name="person" size={20} color={Colors.textSecondary} />
+                    )}
+                  </View>
+                )}
+              </View>
+              <View style={styles.avatarCameraBadge}>
+                <Ionicons name="camera" size={9} color="#000000" />
+              </View>
+            </TouchableOpacity>
 
-          <View style={styles.userInfoContainer}>
-            <View style={styles.greetingRow}>
-              <Text style={styles.greetingText}>{greeting.text}</Text>
-              <Ionicons name={greeting.icon} size={12} color={Colors.primary} />
-            </View>
             <TouchableOpacity
               onPress={() => setModalNomeVisible(true)}
               activeOpacity={0.7}
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              style={{ flex: 1 }}
             >
               <Text style={styles.userNameText} numberOfLines={1}>
                 {userName && userName.trim() ? userName.trim() : 'Dr. Usuário'}
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Lado Direito: Ações + Streak com ícone no canto */}
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.calendarIconButton}
-            onPress={() => setSearchModalVisible(true)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          >
-            <Ionicons name="search" size={20} color={Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.calendarIconButton}
-            onPress={() => setCalendarVisible(true)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          >
-            <Ionicons name="calendar-number-outline" size={21} color={Colors.text} />
-          </TouchableOpacity>
 
           {/* Feature de Streak Alinhada à Direita no Canto */}
           <TouchableOpacity
@@ -810,6 +787,33 @@ export default function DashboardScreen() {
               {streakInfo?.streak || 0}
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Segunda linha: Saudação (à esquerda) e Botões de Busca e Visão Mensal (à direita) */}
+        <View style={styles.headerBottomRow}>
+          <View style={styles.greetingRow}>
+            <Text style={styles.greetingText}>{greeting.text}</Text>
+            <Ionicons name={greeting.icon} size={13} color={Colors.primary} />
+          </View>
+
+          <View style={styles.headerActionsRight}>
+            <TouchableOpacity
+              style={styles.calendarIconButton}
+              onPress={() => setSearchModalVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            >
+              <Ionicons name="search" size={19} color={Colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.calendarIconButton}
+              onPress={() => setCalendarVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            >
+              <Ionicons name="calendar-number-outline" size={20} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -983,11 +987,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 14,
+    gap: 10,
   },
   weekLabel: { 
     fontSize: 14, 
@@ -998,11 +1000,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     marginBottom: 12,
   },
-  headerLeft: {
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerProfileLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
   },
   avatarContainer: {
     position: 'relative',
@@ -1051,30 +1058,31 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.background,
   },
-  userInfoContainer: {
-    justifyContent: 'center',
-    flex: 1,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 1,
-  },
-  greetingText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
   userNameText: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: Fonts.extraBold,
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -0.3,
   },
-  headerRight: {
+  headerBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 2,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  greetingText: {
+    fontSize: 13,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  headerActionsRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
