@@ -861,11 +861,11 @@ export default function DashboardScreen() {
               });
             }}
             activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons
-              name="search"
-              size={23}
+              name={showSearch ? 'close' : 'search'}
+              size={20}
               color={showSearch ? Colors.primary : Colors.text}
             />
           </TouchableOpacity>
@@ -878,9 +878,9 @@ export default function DashboardScreen() {
             style={styles.calendarIconButton}
             onPress={() => setCalendarVisible(true)}
             activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="calendar-number-outline" size={23} color={Colors.text} />
+            <Ionicons name="calendar-number-outline" size={20} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -1243,9 +1243,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   calendarIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: '#2e3235',
