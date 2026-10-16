@@ -611,7 +611,7 @@ export default function DashboardScreen() {
             onPress={() => setCalendarVisible(true)}
             activeOpacity={0.7}
           >
-            <Feather name="calendar" size={20} color={Colors.text} />
+            <Ionicons name="calendar-number-outline" size={21} color={Colors.text} />
           </TouchableOpacity>
         </View>
       </View>
