@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Colors } from '@/constants/Colors';
+import { Colors, CATEGORIA_CORES } from '@/constants/Colors';
 import { storage } from '@/services/storage';
 import {
   getAtividadesPorData,
@@ -38,15 +38,7 @@ import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
 
-export const CATEGORIA_CORES: Record<string, string> = {
-  'Estudos': '#3B82F6',   // Azul
-  'Estudo': '#3B82F6',    // Azul
-  'Faculdade': '#8B5CF6', // Roxo
-  'Saúde': '#10B981',     // Verde
-  'Pessoal': '#10B981',   // Verde
-  'Lazer': '#F59E0B',     // Amarelo
-  'default': '#9CA3AF'    // Cinza
-};
+export { CATEGORIA_CORES };
 
 function toLocalDateStr(date: Date): string {
   const year = date.getFullYear();

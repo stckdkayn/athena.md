@@ -9,9 +9,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+import { Colors, CATEGORIA_CORES } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
-import { CATEGORIA_CORES } from '@/app/(tabs)/index';
 
 interface Props {
   visible: boolean;
