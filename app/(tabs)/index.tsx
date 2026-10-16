@@ -288,14 +288,19 @@ export default function DashboardScreen() {
     }
 
     if (item.type === 'anchor_end') {
-      const timePassed = calcTimePassed(23, 0); // O pontilhado que precede 00:00 (23:00 às 00:00)
-      const isPastOrCurrent = timePassed >= 60;
+      const isPastOrCurrent = isDayPast || (isToday && (currentHour >= 23));
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            {renderDottedProgress(timePassed)}
-            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>00:00</Text>
-            <Feather name="moon" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginTop: 4 }} />
+            <Feather
+              name="moon"
+              size={20}
+              color={isPastOrCurrent ? Colors.text : '#656B73'}
+              style={{ marginTop: 2, marginBottom: 4 }}
+            />
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>
+              00:00
+            </Text>
           </View>
         </View>
       );
