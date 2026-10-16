@@ -139,7 +139,40 @@ export const LABELS_INTERVALO_REVISAO: Record<number, string> = {
 export const getCronograma = (): CronogramaData | null => {
   try {
     const data = storage.getString(CRONOGRAMA_KEY) || storage.getString(LEGACY_CRONOGRAMA_KEY);
-    if (data) return JSON.parse(data);
+    if (data) {
+      const parsed: CronogramaData = JSON.parse(data);
+      // Sincroniza Semana 2 no MMKV para o modelo balanceado (Teoria na Seg/Ter/Qui e Prática na Qua/Sex)
+      const s2 = parsed.semanas?.find((s) => s.numero === 2 || (s as any).id === 2);
+      if (s2 && s2.topicos) {
+        let mudou = false;
+        const topNefro = s2.topicos.find((t) => t.id === 'clinica-glomerulopatias-2');
+        if (topNefro && topNefro.passos) {
+          for (const p of topNefro.passos) {
+            if ((p.tipo === 'questoes' || p.tipo === 'flashcards') && p.dia !== 'quarta') {
+              p.dia = 'quarta';
+              mudou = true;
+            }
+          }
+        }
+        const topGO = s2.topicos.find((t) => t.id === 'go-amenorreia');
+        if (topGO && topGO.passos) {
+          for (const p of topGO.passos) {
+            if (p.detalhe === 'Ovário Policístico' && (p.tipo === 'apostila' || p.tipo === 'aulas') && p.dia !== 'quinta') {
+              p.dia = 'quinta';
+              mudou = true;
+            }
+            if ((p.tipo === 'questoes' || p.tipo === 'flashcards') && p.dia !== 'sexta') {
+              p.dia = 'sexta';
+              mudou = true;
+            }
+          }
+        }
+        if (mudou) {
+          saveCronograma(parsed);
+        }
+      }
+      return parsed;
+    }
   } catch (err) {
     console.error('Erro ao ler cronograma do MMKV:', err);
   }

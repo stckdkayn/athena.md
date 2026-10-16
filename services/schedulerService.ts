@@ -62,11 +62,13 @@ export async function calcularTempoLivreLiquido(dataYYYYMMDD: string): Promise<J
     console.warn('[scheduler] Erro ao ler eventos_fixos:', err);
   }
 
-  // B. Busca atividades já cadastradas na agenda para este dia (que não sejam estudos)
+  // B. Busca atividades já cadastradas na agenda para este dia
+  // Importante: TODAS as atividades da agenda do usuário (mesmo com tipo Estudos/Pessoal/Faculdade)
+  // representam compromissos explícitos e DEVEM bloquear os horários de estudo automático.
   try {
     const atividadesAgenda = await getAtividadesPorData(dataYYYYMMDD);
     for (const atv of atividadesAgenda) {
-      if (atv.tipo !== 'Estudos' && atv.tipo !== 'Estudo' && atv.hora_inicio) {
+      if (atv.hora_inicio) {
         const ini = timeToMinutes(atv.hora_inicio);
         const fim = atv.hora_fim ? timeToMinutes(atv.hora_fim) : Math.min(1440, ini + 60);
         if (fim > ini) {
@@ -97,8 +99,12 @@ export async function calcularTempoLivreLiquido(dataYYYYMMDD: string): Promise<J
   }
 
   // D. Bloqueio de Sono Fixo / Limite de Horário Útil (00:00 às 07:00 e 22:00 às 24:00)
-  intervalosOcupados.push({ inicio: 0, fim: 420 });       // 00:00 - 07:00 (fora do horário útil)
-  intervalosOcupados.push({ inicio: 1320, fim: 1440 });   // 22:00 - 24:00 (fora do horário útil)
+  intervalosOcupados.push({ inicio: 0, fim: 420 });       // 00:00 - 07:00 (sono / fora do horário útil)
+  intervalosOcupados.push({ inicio: 1320, fim: 1440 });   // 22:00 - 24:00 (sono / fora do horário útil)
+
+  // Proteção Sagrada do Horário de Almoço (12:00 às 13:00 / 720 a 780 min):
+  // Garante que nenhum bloco de estudo seja sobreposto durante o intervalo de refeição do meio-dia
+  intervalosOcupados.push({ inicio: 720, fim: 780 });
 
   // E. Se for o dia de HOJE e já passou das 07:00, bloqueia o tempo decorrido
   // para que o replanejamento não tente agendar tarefas no passado
@@ -341,45 +347,107 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
   const ts = Date.now();
   let totalGerados = 0;
 
+  // Separa as tarefas do dia por perfil cognitivo:
+  // - Teoria: leitura (apostila), videoaula (aulas)
+  // - Prática: questoes, flashcards
+  const tarefasTeoria: TarefaPlanejada[] = filaTarefas.filter(
+    (t) => t.tipo === 'leitura' || t.tipo === 'videoaula'
+  );
+  const tarefasPratica: TarefaPlanejada[] = filaTarefas.filter(
+    (t) => t.tipo === 'questoes' || t.tipo === 'flashcards'
+  );
+
+  // Intervalo de descanso saudável entre blocos consecutivos (15 minutos)
+  const PAUSA_ENTRE_BLOCOS_MIN = 15;
+
+  const temJanelaManha = janelasLivres.some((j) => j.inicio < 720);
+  const temJanelaTardeNoite = janelasLivres.some((j) => j.inicio >= 780 || j.fim > 780);
+
+  const obterProximaTarefa = (minutosDisponiveis: number, isManha: boolean): TarefaPlanejada | null => {
+    // 1. Se a janela for muito curta (< 30 min), prioriza flashcard
+    if (minutosDisponiveis < 30) {
+      const idxPraticaFlash = tarefasPratica.findIndex((t) => t.tipo === 'flashcards');
+      if (idxPraticaFlash >= 0) {
+        return tarefasPratica.splice(idxPraticaFlash, 1)[0];
+      }
+      if (gargalos.length > 0) {
+        const g = proximoGargalo();
+        return {
+          ...g,
+          tipo: 'flashcards',
+          titulo: `Flashcards Rápidos: ${g.tema_id}`,
+          duracaoSugerida: minutosDisponiveis,
+        };
+      }
+    }
+
+    // 2. Se for de MANHÃ e temos janelas também à tarde/noite:
+    // Prioriza alocar TEORIA de manhã!
+    if (isManha && temJanelaTardeNoite) {
+      if (tarefasTeoria.length > 0) {
+        return tarefasTeoria.shift()!;
+      }
+      // Se não há mais teoria para a manhã e a tarde/noite já tem janelas livres,
+      // reserva as práticas para a tarde/noite para manter o equilíbrio cognitivo
+      return null;
+    }
+
+    // 3. Se for à TARDE / NOITE:
+    // Prioriza alocar PRÁTICA (Questões / Flashcards)
+    if (!isManha) {
+      if (tarefasPratica.length > 0) {
+        return tarefasPratica.shift()!;
+      }
+      if (tarefasTeoria.length > 0) {
+        return tarefasTeoria.shift()!;
+      }
+      if (gargalos.length > 0) {
+        return proximoGargalo();
+      }
+      return null;
+    }
+
+    // 4. Caso geral (ex: só tem janela de manhã, ou só janela de tarde):
+    if (tarefasTeoria.length > 0) {
+      return tarefasTeoria.shift()!;
+    }
+    if (tarefasPratica.length > 0) {
+      return tarefasPratica.shift()!;
+    }
+    if (gargalos.length > 0) {
+      return proximoGargalo();
+    }
+    return null;
+  };
+
   await database.withExclusiveTransactionAsync(async (txn) => {
     for (const janela of janelasLivres) {
-      let minutosDisponiveis = janela.fim - janela.inicio;
+      const isManha = janela.inicio < 720;
       let tempoAtual = janela.inicio;
 
+      // Se a janela da manhã começar às 07:00 (420) e tiver ampla folga (>= 4h),
+      // inicia confortavelmente às 08:00 (480) em vez de forçar às 07:00
+      if (isManha && janela.inicio === 420 && janela.fim - janela.inicio >= 240) {
+        tempoAtual = 480;
+      }
+      // Se a janela da tarde começar logo após o almoço (13:00) e tiver folga,
+      // inicia confortavelmente às 14:00 (840) para permitir digestão e descanso
+      if (!isManha && janela.inicio >= 720 && janela.inicio <= 780 && janela.fim - janela.inicio >= 240) {
+        tempoAtual = 840;
+      }
+
+      let minutosDisponiveis = janela.fim - tempoAtual;
+
       while (minutosDisponiveis >= 15) {
-        let tarefa: TarefaPlanejada | null = null;
-
-        // Se a janela restante for curta (< 30 min), prioriza flashcards
-        if (minutosDisponiveis < 30) {
-          const idxFlash = filaTarefas.findIndex((t) => t.tipo === 'flashcards');
-          if (idxFlash >= 0) {
-            tarefa = filaTarefas.splice(idxFlash, 1)[0];
-          } else if (gargalos.length > 0) {
-            const g = proximoGargalo();
-            tarefa = {
-              ...g,
-              tipo: 'flashcards',
-              titulo: `Flashcards Rápidos: ${g.tema_id}`,
-              duracaoSugerida: minutosDisponiveis,
-            };
-          }
-        } else {
-          if (filaTarefas.length > 0) {
-            tarefa = filaTarefas.shift()!;
-          } else if (gargalos.length > 0) {
-            tarefa = proximoGargalo();
-          }
-        }
-
+        const tarefa = obterProximaTarefa(minutosDisponiveis, isManha);
         if (!tarefa) {
-          // Não há mais tarefas oficiais nem gargalos reais para alocar nesta janela
           break;
         }
 
         let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
         const sobra = minutosDisponiveis - duracaoBloco;
         if (sobra > 0 && sobra < 15) {
-          duracaoBloco += sobra; // Absorve a sobra para não deixar vácuos curtos
+          duracaoBloco += sobra;
         }
 
         const novoId = Math.random().toString(36).substring(2, 15);
@@ -405,8 +473,60 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
         );
 
         totalGerados++;
-        tempoAtual += duracaoBloco;
-        minutosDisponiveis -= duracaoBloco;
+        // Avança o horário com o bloco + intervalo de descanso de 15 minutos
+        const tempoAvanco = duracaoBloco + PAUSA_ENTRE_BLOCOS_MIN;
+        tempoAtual += tempoAvanco;
+        minutosDisponiveis = janela.fim - tempoAtual;
+      }
+    }
+
+    // Se sobrou alguma tarefa não alocada por falta de turno específico,
+    // faz uma segunda passada nas janelas restantes
+    const tarefasRestantes = [...tarefasTeoria, ...tarefasPratica];
+    if (tarefasRestantes.length > 0) {
+      for (const janela of janelasLivres) {
+        let tempoAtual = janela.inicio;
+        const ultimoBloco = await txn.getFirstAsync<{ hora_fim: string }>(
+          `SELECT hora_fim FROM blocos_estudo 
+           WHERE data_agendada = ? AND hora_inicio >= ? AND hora_fim <= ?
+           ORDER BY hora_fim DESC LIMIT 1;`,
+          [dataYYYYMMDD, minutesToTime(janela.inicio), minutesToTime(janela.fim)]
+        );
+        if (ultimoBloco && ultimoBloco.hora_fim) {
+          tempoAtual = timeToMinutes(ultimoBloco.hora_fim) + PAUSA_ENTRE_BLOCOS_MIN;
+        }
+
+        let minutosDisponiveis = janela.fim - tempoAtual;
+        while (minutosDisponiveis >= 15 && tarefasRestantes.length > 0) {
+          const tarefa = tarefasRestantes.shift()!;
+          let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
+          const novoId = Math.random().toString(36).substring(2, 15);
+
+          await txn.runAsync(
+            `INSERT INTO blocos_estudo (
+              id, tipo, tema_id, titulo, passo_id, data_agendada, hora_inicio, hora_fim, duracao_minutos, prioridade, status, timestamp_geracao
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              novoId,
+              tarefa.tipo,
+              tarefa.tema_id,
+              tarefa.titulo,
+              tarefa.passo_id ?? null,
+              dataYYYYMMDD,
+              minutesToTime(tempoAtual),
+              minutesToTime(tempoAtual + duracaoBloco),
+              duracaoBloco,
+              tarefa.prioridade,
+              'pendente',
+              ts,
+            ]
+          );
+
+          totalGerados++;
+          const tempoAvanco = duracaoBloco + PAUSA_ENTRE_BLOCOS_MIN;
+          tempoAtual += tempoAvanco;
+          minutosDisponiveis = janela.fim - tempoAtual;
+        }
       }
     }
   });
@@ -419,7 +539,8 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
  * Executado silenciosamente na inicialização da agenda.
  * Se já passou das 05:00 da manhã e a data não possui blocos gerados,
  * ou se os blocos pendentes estão fora dos limites úteis (07:00 - 22:00),
- * aciona o agendador autônomo em segundo plano.
+ * colidem com horários ocupados (ex: Almoço ou novos compromissos)
+ * ou pertencem a passos desatualizados, aciona o agendador autônomo em segundo plano.
  */
 export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): Promise<boolean> {
   const database = getDatabase();
@@ -468,14 +589,14 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       [dataYYYYMMDD, semanaEsperada]
     );
 
+    const [ano, mes, dia] = dataYYYYMMDD.split('-').map(Number);
+    const dayIdx = new Date(ano, mes - 1, dia).getDay();
+    const DIAS_SEMANA_MAP = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+    const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
+
     // Se for o dia de hoje, verifica se há passos atrasados que ainda não foram integrados nos blocos de hoje
     let temAtrasadoFaltando = false;
     if (dataYYYYMMDD === hojeStr) {
-      const [ano, mes, dia] = dataYYYYMMDD.split('-').map(Number);
-      const dayIdx = new Date(ano, mes - 1, dia).getDay();
-      const DIAS_SEMANA_MAP = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
-      const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
-
       const atrasados = await getPassosAtrasadosPendentes(semanaEsperada, diaSemanaStr);
       if (atrasados.length > 0) {
         const blocosHoje = await database.getAllAsync<{ passo_id: number }>(
@@ -499,13 +620,48 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
     );
     const temGargaloInvalido = blocosGargaloRow.some((b) => !temasGargaloSet.has(b.tema_id));
 
+    // 5. Verifica se algum bloco pendente colide com horários ocupados (ex: Almoço ou novo evento da agenda)
+    let temColisaoComAgenda = false;
+    let temPassoIncompativel = false;
+
+    const blocosPendentesExistentes = await database.getAllAsync<{ id: string; passo_id: number | null; hora_inicio: string; hora_fim: string }>(
+      `SELECT id, passo_id, hora_inicio, hora_fim FROM blocos_estudo 
+       WHERE data_agendada = ? AND status = 'pendente';`,
+      [dataYYYYMMDD]
+    );
+
+    if (blocosPendentesExistentes.length > 0) {
+      const janelasLivresAtuais = await calcularTempoLivreLiquido(dataYYYYMMDD);
+      for (const b of blocosPendentesExistentes) {
+        if (!b.hora_inicio || !b.hora_fim) continue;
+        const bIni = timeToMinutes(b.hora_inicio);
+        const bFim = timeToMinutes(b.hora_fim);
+        const cabeEmJanela = janelasLivresAtuais.some(
+          (j) => bIni >= j.inicio && bFim <= j.fim
+        );
+        if (!cabeEmJanela) {
+          temColisaoComAgenda = true;
+          break;
+        }
+      }
+
+      // Verifica se os blocos pendentes vinculados a passos oficiais ainda pertencem ao dia de hoje
+      const passosEsperados = await getPassosPorDiaSemana(diaSemanaStr, semanaEsperada);
+      const idsPassosEsperados = new Set(passosEsperados.map((p) => p.id));
+      temPassoIncompativel = blocosPendentesExistentes.some(
+        (b) => b.passo_id !== null && !idsPassosEsperados.has(b.passo_id)
+      );
+    }
+
     if (
       !countRow || 
       countRow.count === 0 || 
       (foraDosLimitesRow && foraDosLimitesRow.count > 0) ||
       (blocosOutraSemanaRow && blocosOutraSemanaRow.count > 0) ||
       temAtrasadoFaltando ||
-      temGargaloInvalido
+      temGargaloInvalido ||
+      temColisaoComAgenda ||
+      temPassoIncompativel
     ) {
       await gerarPlanoDiario(dataYYYYMMDD);
       return true;

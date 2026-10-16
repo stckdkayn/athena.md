@@ -225,12 +225,12 @@
               "detalhe": "Síndrome Nefrótica",
               "metaQuestoes": 30,
               "temaQuestoes": "Síndrome Nefrótica",
-              "dia": "segunda"
+              "dia": "quarta"
             },
             {
               "tipo": "flashcards",
               "label": "Flashcards",
-              "dia": "segunda"
+              "dia": "quarta"
             },
             {
               "tipo": "apostila",
@@ -250,12 +250,12 @@
               "detalhe": "Glomerulopatias nas Desordens Sistêmicas",
               "metaQuestoes": 30,
               "temaQuestoes": "Glomerulopatias",
-              "dia": "terca"
+              "dia": "quarta"
             },
             {
               "tipo": "flashcards",
               "label": "Flashcards",
-              "dia": "terca"
+              "dia": "quarta"
             }
           ]
         },
@@ -285,24 +285,24 @@
               "detalhe": "Amenorreia",
               "metaQuestoes": 30,
               "temaQuestoes": "Amenorreia",
-              "dia": "quinta"
+              "dia": "sexta"
             },
             {
               "tipo": "flashcards",
               "label": "Flashcards",
-              "dia": "quinta"
+              "dia": "sexta"
             },
             {
               "tipo": "apostila",
               "label": "Apostila: Ginecologia I",
               "detalhe": "Ovário Policístico",
-              "dia": "sexta"
+              "dia": "quinta"
             },
             {
               "tipo": "aulas",
               "label": "Aula Principal",
               "detalhe": "Ovário Policístico",
-              "dia": "sexta"
+              "dia": "quinta"
             },
             {
               "tipo": "questoes",

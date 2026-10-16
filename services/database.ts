@@ -186,6 +186,20 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
     try {
       database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN detalhes TEXT;`);
     } catch {}
+
+    // Migração de balanceamento de passos: Semana 2 (Teoria na Seg/Ter/Qui e Prática na Qua/Sex)
+    try {
+      database.execSync(`
+        UPDATE Passos SET dia_semana = 'quarta' 
+        WHERE topico_id = 'clinica-glomerulopatias-2' AND tipo IN ('questoes', 'flashcards');
+
+        UPDATE Passos SET dia_semana = 'quinta' 
+        WHERE topico_id = 'go-amenorreia' AND detalhe = 'Ovário Policístico' AND tipo IN ('apostila', 'aulas');
+
+        UPDATE Passos SET dia_semana = 'sexta' 
+        WHERE topico_id = 'go-amenorreia' AND tipo IN ('questoes', 'flashcards');
+      `);
+    } catch {}
   } catch (err) {
     console.error('[database] Erro ao inicializar schema SQLite:', err);
   }

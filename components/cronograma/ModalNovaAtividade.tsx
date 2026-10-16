@@ -16,6 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { criarNovaAtividade, atualizarAtividade, excluirAtividade } from '@/services/database';
+import { gerarPlanoDiario } from '@/services/schedulerService';
 
 interface Props {
   visible: boolean;
@@ -25,9 +26,9 @@ interface Props {
   atividadeEmEdicao?: any;
 }
 
-const TIPOS_DISPONIVEIS = ['Estudo', 'Faculdade', 'Pessoal', 'Lazer'];
+const TIPOS_DISPONIVEIS = ['Pessoal', 'Estudo', 'Faculdade', 'Lazer'];
 const ICONES_DISPONIVEIS = [
-  'book', 'book-open', 'activity', 'heart', 'users', 'user', 'home', 
+  'calendar', 'book', 'book-open', 'activity', 'heart', 'users', 'user', 'home', 
   'briefcase', 'monitor', 'coffee', 'edit-2', 'zap', 'target', 
   'award', 'clock', 'map-pin', 'folder', 'file-text'
 ];
@@ -57,8 +58,8 @@ export default function ModalNovaAtividade({
 }: Props) {
   const [titulo, setTitulo] = useState('');
   const [detalhes, setDetalhes] = useState('');
-  const [tipo, setTipo] = useState('Estudos');
-  const [iconeSelecionado, setIconeSelecionado] = useState('book');
+  const [tipo, setTipo] = useState('Pessoal');
+  const [iconeSelecionado, setIconeSelecionado] = useState('calendar');
   const [showCategoriaDrop, setShowCategoriaDrop] = useState(false);
   const [horaInicio, setHoraInicio] = useState(new Date());
   const [horaFim, setHoraFim] = useState(new Date(new Date().getTime() + 60 * 60 * 1000)); // +1 hora padrão
@@ -80,8 +81,8 @@ export default function ModalNovaAtividade({
       if (atividadeEmEdicao) {
         setTitulo(atividadeEmEdicao.titulo || '');
         setDetalhes(atividadeEmEdicao.detalhes || '');
-        setTipo(atividadeEmEdicao.tipo || 'Estudos');
-        setIconeSelecionado(atividadeEmEdicao.icone || 'book');
+        setTipo(atividadeEmEdicao.tipo || 'Pessoal');
+        setIconeSelecionado(atividadeEmEdicao.icone || 'calendar');
         setFrequencia('unica');
         setShowIconMenu(false);
         setShowPickerInicio(false);
@@ -102,8 +103,8 @@ export default function ModalNovaAtividade({
       } else {
         setTitulo('');
         setDetalhes('');
-        setTipo('Estudos');
-        setIconeSelecionado('book');
+        setTipo('Pessoal');
+        setIconeSelecionado('calendar');
         setShowIconMenu(false);
         const now = new Date();
         setHoraInicio(now);
@@ -136,6 +137,12 @@ export default function ModalNovaAtividade({
           onPress: async () => {
             try {
               await excluirAtividade(atividadeEmEdicao.id);
+              try {
+                const dataRef = dataInicial || toLocalDateStr(new Date());
+                await gerarPlanoDiario(dataRef);
+              } catch (planErr) {
+                console.warn('[ModalNovaAtividade] Erro ao re-planejar após exclusão:', planErr);
+              }
               onSaveSuccess();
               onClose();
             } catch (err) {
@@ -186,9 +193,17 @@ export default function ModalNovaAtividade({
         });
       }
 
+      // Re-executa o agendador para adaptar os blocos de estudo em volta do novo evento
+      try {
+        await gerarPlanoDiario(data);
+      } catch (e) {
+        console.warn('[ModalNovaAtividade] Erro ao re-gerar plano diário:', e);
+      }
+
       setTitulo('');
       setDetalhes('');
-      setIconeSelecionado('book');
+      setTipo('Pessoal');
+      setIconeSelecionado('calendar');
       const now = new Date();
       setHoraInicio(now);
       setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
