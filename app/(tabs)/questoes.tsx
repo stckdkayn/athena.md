@@ -16,7 +16,7 @@ import {
   useWindowDimensions,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, ActiveThemeColors } from '@/constants/Colors';
@@ -115,6 +115,7 @@ export default function TreinoScreen() {
   const { colors: themeColors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
 
@@ -154,7 +155,10 @@ export default function TreinoScreen() {
 
   // Estados da Gaveta Inferior Limpa e Compacta
   const temTemasSelecionados = cartItems.length > 0 || isModoSimulado;
-  const ALTURA_PAINEL = isLandscape ? (temTemasSelecionados ? 116 : 74) : (temTemasSelecionados ? 138 : 88);
+  const tabSpace = isLandscape ? 60 : Math.max(insets.bottom, 16) + 64;
+  const ALTURA_PAINEL = isLandscape
+    ? (temTemasSelecionados ? 116 + tabSpace : 74 + tabSpace)
+    : (temTemasSelecionados ? 138 + tabSpace : 88 + tabSpace);
   const painelHeight = useRef(new Animated.Value(ALTURA_PAINEL)).current;
 
   React.useEffect(() => {
@@ -918,7 +922,7 @@ export default function TreinoScreen() {
           columnWrapperStyle={styles.columnWrapper}
           ListEmptyComponent={renderEmpty}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.listContent, { paddingBottom: temTemasSelecionados ? 245 : 185 }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: ALTURA_PAINEL + 20 }]}
           showsVerticalScrollIndicator={false}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
@@ -927,7 +931,7 @@ export default function TreinoScreen() {
         />
 
         {/* Gaveta Inferior Limpa e Compacta (Filtros avançados movidos para o menu de 3 pontos) */}
-        <Animated.View style={[styles.bottomDrawer, { height: painelHeight, bottom: isLandscape ? 64 : 82 }]}>
+        <Animated.View style={[styles.bottomDrawer, { height: painelHeight, paddingBottom: tabSpace }]}>
           {isModoSimulado ? (
             <View style={[styles.cartThemesWrapper, isLandscape && { maxWidth: 560, alignSelf: 'center', width: '100%' }]}>
               <View style={styles.simuladoBottomBanner}>
@@ -1745,21 +1749,22 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     columnWrapper: { justifyContent: 'space-between', marginBottom: 12 },
     bottomDrawer: {
       position: 'absolute',
-      bottom: 82,
-      left: 16,
-      right: 16,
+      bottom: 0,
+      left: 0,
+      right: 0,
       backgroundColor: theme.surface,
-      borderRadius: 20,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
       overflow: 'hidden',
-      paddingHorizontal: 16,
-      paddingTop: 10,
-      borderWidth: 1,
-      borderColor: theme.border,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.35 : 0.08,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowOffset: { width: 0, height: -3 },
+      shadowOpacity: isDark ? 0.35 : 0.06,
+      shadowRadius: 8,
+      elevation: 8,
       zIndex: 999,
     },
     cartActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
