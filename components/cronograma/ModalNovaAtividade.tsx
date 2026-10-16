@@ -56,8 +56,11 @@ export default function ModalNovaAtividade({
   atividadeEmEdicao,
 }: Props) {
   const [titulo, setTitulo] = useState('');
-  const [tipo, setTipo] = useState('Estudo');
+  const [detalhes, setDetalhes] = useState('');
+  const [tipo, setTipo] = useState('Estudos');
   const [iconeSelecionado, setIconeSelecionado] = useState('book');
+  const [showCategoriaDrop, setShowCategoriaDrop] = useState(false);
+  const [showDemandaDrop, setShowDemandaDrop] = useState(false);
   const [horaInicio, setHoraInicio] = useState(new Date());
   const [horaFim, setHoraFim] = useState(new Date(new Date().getTime() + 60 * 60 * 1000)); // +1 hora padrão
   const [showPickerInicio, setShowPickerInicio] = useState(false);
@@ -78,13 +81,16 @@ export default function ModalNovaAtividade({
     if (visible) {
       if (atividadeEmEdicao) {
         setTitulo(atividadeEmEdicao.titulo || '');
-        setTipo(atividadeEmEdicao.tipo || 'Estudo');
+        setDetalhes(atividadeEmEdicao.detalhes || '');
+        setTipo(atividadeEmEdicao.tipo || 'Estudos');
         setIconeSelecionado(atividadeEmEdicao.icone || 'book');
         setDemanda(typeof atividadeEmEdicao.feedback_cansaco === 'number' ? atividadeEmEdicao.feedback_cansaco : 3);
         setFrequencia('unica');
         setShowIconMenu(false);
         setShowPickerInicio(false);
         setShowPickerFim(false);
+        setShowCategoriaDrop(false);
+        setShowDemandaDrop(false);
         setIsChecking(false);
 
         // Converte as strings de hora de volta para Date objects para o Picker
@@ -99,7 +105,8 @@ export default function ModalNovaAtividade({
         setHoraFim(dF);
       } else {
         setTitulo('');
-        setTipo('Estudo');
+        setDetalhes('');
+        setTipo('Estudos');
         setIconeSelecionado('book');
         setShowIconMenu(false);
         const now = new Date();
@@ -107,6 +114,8 @@ export default function ModalNovaAtividade({
         setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
         setShowPickerInicio(false);
         setShowPickerFim(false);
+        setShowCategoriaDrop(false);
+        setShowDemandaDrop(false);
         setFrequencia('unica');
         setDemanda(3);
         setIsChecking(false);
@@ -204,6 +213,7 @@ export default function ModalNovaAtividade({
           titulo: titulo.trim(),
           tipo,
           icone: iconeSelecionado,
+          detalhes: detalhes.trim(),
           hora_inicio: formatTimeStr(horaInicio),
           hora_fim: formatTimeStr(horaFim),
           feedback_cansaco: demanda,
@@ -213,6 +223,7 @@ export default function ModalNovaAtividade({
           titulo: titulo.trim(),
           tipo,
           icone: iconeSelecionado,
+          detalhes: detalhes.trim(),
           frequencia,
           data_inicio: data,
           hora_inicio: formatTimeStr(horaInicio),
@@ -223,12 +234,15 @@ export default function ModalNovaAtividade({
       }
 
       setTitulo('');
+      setDetalhes('');
       setIconeSelecionado('book');
       const now = new Date();
       setHoraInicio(now);
       setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
       setDemanda(3); // reseta para o padrão
       setFrequencia('unica'); // reseta
+      setShowCategoriaDrop(false);
+      setShowDemandaDrop(false);
       onSaveSuccess();
       onClose();
     } catch (error) {
@@ -250,11 +264,11 @@ export default function ModalNovaAtividade({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
-              <Ionicons name="calendar" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
+              <Ionicons name="calendar" size={20} color="#000000" style={{ marginRight: 8 }} />
               <Text style={styles.modalTitle}>{atividadeEmEdicao ? 'Editar Evento' : 'Novo Evento'}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+              <Ionicons name="close" size={22} color="#666666" />
             </TouchableOpacity>
           </View>
 
@@ -264,9 +278,8 @@ export default function ModalNovaAtividade({
               <TouchableOpacity 
                 style={styles.iconBox} 
                 onPress={() => setShowIconMenu(!showIconMenu)}
-                activeOpacity={0.7}
               >
-                <Feather name={iconeSelecionado as any} size={24} color={Colors.text} />
+                <Feather name={iconeSelecionado as any} size={24} color="#000" />
               </TouchableOpacity>
               
               <TextInput
@@ -274,10 +287,21 @@ export default function ModalNovaAtividade({
                 placeholder="Nome do evento..."
                 value={titulo}
                 onChangeText={setTitulo}
-                placeholderTextColor="#71767B"
-                autoFocus
+                placeholderTextColor="#999"
               />
             </View>
+
+            {/* NOVO CAMPO: Detalhes */}
+            <TextInput
+              style={styles.detailsInputBox}
+              placeholder="Detalhes..."
+              value={detalhes}
+              onChangeText={setDetalhes}
+              placeholderTextColor="#999"
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
 
             {/* Pop-up em Grelha para Seleção de Ícones */}
             {showIconMenu && (
@@ -292,7 +316,7 @@ export default function ModalNovaAtividade({
                           onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
                           activeOpacity={0.7}
                         >
-                          <Feather name={ic as any} size={24} color={iconeSelecionado === ic ? '#000000' : Colors.textSecondary} />
+                          <Feather name={ic as any} size={24} color={iconeSelecionado === ic ? '#FFFFFF' : '#4B5563'} />
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -335,7 +359,7 @@ export default function ModalNovaAtividade({
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.freqPillText, frequencia === freq && styles.freqPillTextActive]}>
-                          {freq === 'unica' ? 'Não se repete' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
+                          {freq === 'unica' ? 'Hoje' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -401,55 +425,70 @@ export default function ModalNovaAtividade({
               )}
             </View>
 
-            {/* Seleção de Categoria / Tipo */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Categoria</Text>
-              <View style={styles.pillContainer}>
-                {TIPOS_DISPONIVEIS.map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.pill, tipo === t && styles.pillActive]}
-                    onPress={() => setTipo(t)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.pillText, tipo === t && styles.pillTextActive]}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Dropdowns Lado a Lado (Categoria e Carga Cognitiva) */}
+            <View style={styles.dropdownsRow}>
+              {/* Coluna 1: Categoria */}
+              <View style={styles.dropdownColumn}>
+                <Text style={styles.subLabel}>Categoria</Text>
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => {
+                    setShowCategoriaDrop(!showCategoriaDrop);
+                    setShowDemandaDrop(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dropdownButtonText}>{tipo}</Text>
+                  <Feather name="chevron-down" size={16} color="#888" />
+                </TouchableOpacity>
+                {showCategoriaDrop && (
+                  <View style={styles.dropdownList}>
+                    {['Estudos', 'Faculdade', 'Saúde', 'Lazer', 'Outros'].map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={styles.dropdownListItem}
+                        onPress={() => {
+                          setTipo(cat);
+                          setShowCategoriaDrop(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownListItemText}>{cat}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
-            </View>
 
-            {/* Demanda Cognitiva / Carga Mental */}
-            <View style={styles.section}>
-              <View style={styles.sectionTitleWithSub}>
-                <Text style={styles.sectionLabel}>Demanda Cognitiva</Text>
-                <Text style={styles.sectionSublabel}>
-                  {demanda <= 2 ? 'Leve' : demanda === 3 ? 'Moderada' : 'Intensa'}
-                </Text>
-              </View>
-              <View style={styles.pillContainer}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <TouchableOpacity
-                    key={n}
-                    style={[styles.pillNumber, demanda === n && styles.pillNumberActive]}
-                    onPress={() => setDemanda(n)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="flash"
-                      size={13}
-                      color={demanda === n ? '#000000' : Colors.textSecondary}
-                      style={{ marginRight: 3 }}
-                    />
-                    <Text
-                      style={[
-                        styles.pillNumberText,
-                        demanda === n && styles.pillNumberTextActive,
-                      ]}
-                    >
-                      {n}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              {/* Coluna 2: Carga Cognitiva */}
+              <View style={styles.dropdownColumn}>
+                <Text style={styles.subLabel}>Carga Cognitiva</Text>
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => {
+                    setShowDemandaDrop(!showDemandaDrop);
+                    setShowCategoriaDrop(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dropdownButtonText}>{demanda}</Text>
+                  <Feather name="chevron-down" size={16} color="#888" />
+                </TouchableOpacity>
+                {showDemandaDrop && (
+                  <View style={styles.dropdownList}>
+                    {[1, 2, 3, 4, 5].map((peso) => (
+                      <TouchableOpacity
+                        key={peso}
+                        style={styles.dropdownListItem}
+                        onPress={() => {
+                          setDemanda(peso);
+                          setShowDemandaDrop(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownListItemText}>{peso}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
 
@@ -501,7 +540,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalContent: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingHorizontal: 20,
@@ -510,14 +549,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: '#E5E7EB',
     maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   titleRow: {
     flexDirection: 'row',
@@ -526,41 +565,90 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#000000',
     letterSpacing: -0.3,
   },
   title: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#000000',
     letterSpacing: -0.3,
   },
   mainInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: 12,
+    gap: 8,
   },
   iconBox: {
-    width: 56,
-    height: 56,
-    backgroundColor: '#1b1d1f',
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    borderRadius: 16,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   textInputBox: {
     flex: 1,
-    height: 56,
-    backgroundColor: '#1b1d1f',
+    fontSize: 18,
+    color: '#000000',
+    fontWeight: '500',
+    paddingVertical: 8,
+  },
+  detailsInputBox: {
+    minHeight: 80,
+    fontSize: 15,
+    color: '#444444',
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+  },
+  dropdownsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 20,
+    zIndex: 10,
+  },
+  dropdownColumn: {
+    flex: 1,
+    position: 'relative',
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 10,
+  },
+  dropdownButtonText: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  dropdownList: {
+    position: 'absolute',
+    top: 65,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2e3235',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    fontSize: 17,
-    color: Colors.text,
+    borderColor: '#EEEEEE',
+    zIndex: 20,
+    elevation: 5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdownListItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F9F9F9',
+  },
+  dropdownListItemText: {
+    fontSize: 14,
+    color: '#333333',
   },
   gridOverlay: {
     flex: 1,
@@ -569,13 +657,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gridContainer: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     width: '85%',
     maxHeight: '70%',
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: '#E5E7EB',
   },
   gridGrid: {
     flexDirection: 'row',
@@ -586,16 +674,16 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '22%',
     aspectRatio: 1,
-    backgroundColor: '#1b1d1f',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: '#E5E7EB',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   gridItemActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   timeRow: {
     flexDirection: 'row',
@@ -604,7 +692,7 @@ const styles = StyleSheet.create({
   },
   subLabel: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: '#6B7280',
     marginBottom: 6,
     fontWeight: '600',
   },
@@ -619,21 +707,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: '#1b1d1f',
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: '#E5E7EB',
   },
   freqPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   freqPillText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: '#4B5563',
     fontWeight: '600',
   },
   freqPillTextActive: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   nativeTimeButton: {
@@ -644,86 +732,17 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#1b1d1f',
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: '#E5E7EB',
   },
   nativeTimeText: {
     fontSize: 16,
-    color: Colors.text,
+    color: '#000000',
     fontWeight: '600',
   },
   section: {
     marginBottom: 18,
-  },
-  sectionTitleWithSub: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  sectionSublabel: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  pillContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pill: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: '#1b1d1f',
-    borderWidth: 1,
-    borderColor: '#2e3235',
-  },
-  pillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  pillText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  pillTextActive: {
-    color: '#000000',
-    fontWeight: '800',
-  },
-  pillNumber: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: '#1b1d1f',
-    borderWidth: 1,
-    borderColor: '#2e3235',
-  },
-  pillNumberActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  pillNumberText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-  },
-  pillNumberTextActive: {
-    color: '#000000',
-    fontWeight: '800',
   },
   weekDaysContainer: {
     flexDirection: 'row',
@@ -734,27 +753,27 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1b1d1f',
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayCircleSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   weekDayText: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: '#4B5563',
   },
   weekDayTextSelected: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   saveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#000000',
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -766,7 +785,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
   },
