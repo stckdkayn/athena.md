@@ -151,8 +151,9 @@ export default function DashboardScreen() {
     const mondayDay = monday.getDate();
     const sundayDay = sunday.getDate();
 
-    const mondayMonth = monday.toLocaleDateString('pt-BR', { month: 'long' });
-    const sundayMonth = sunday.toLocaleDateString('pt-BR', { month: 'long' });
+    const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
+    const mondayMonth = capitalize(monday.toLocaleDateString('pt-BR', { month: 'long' }));
+    const sundayMonth = capitalize(sunday.toLocaleDateString('pt-BR', { month: 'long' }));
 
     const semanaNum = getSemanaDoCronogramaPorData(dateString);
 
@@ -773,30 +774,55 @@ export default function DashboardScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Feature de Streak Alinhada à Direita no Nível do Nome */}
+          <TouchableOpacity
+            style={[
+              styles.streakBadge,
+              streakInfo?.activeToday ? styles.streakBadgeActive : styles.streakBadgeInactive,
+            ]}
+            onPress={() => setModalStreakVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={streakInfo?.activeToday ? 'flame' : 'flame-outline'}
+              size={18}
+              color={streakInfo?.activeToday ? '#FF8800' : '#8E959E'}
+            />
+            <Text
+              style={[
+                styles.streakBadgeText,
+                streakInfo?.activeToday ? styles.streakBadgeTextActive : styles.streakBadgeTextInactive,
+              ]}
+            >
+              {streakInfo?.streak || 0}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Segunda linha: "Semana 1 • 12 à 18 de outubro" (à esquerda) e Ações (à direita) */}
+        {/* Segunda linha: Lupa à esquerda, Semana centralizada e Calendário à direita */}
         <View style={styles.headerSubRow}>
-          <Text style={styles.weekLabel}>{getWeekLabel(dataSelecionada)}</Text>
+          <TouchableOpacity
+            style={styles.calendarIconButton}
+            onPress={() => setSearchModalVisible(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="search" size={23} color={Colors.text} />
+          </TouchableOpacity>
 
-          <View style={styles.headerActionsRight}>
-            <TouchableOpacity
-              style={styles.calendarIconButton}
-              onPress={() => setSearchModalVisible(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            >
-              <Ionicons name="search" size={19} color={Colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.calendarIconButton}
-              onPress={() => setCalendarVisible(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            >
-              <Ionicons name="calendar-number-outline" size={20} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.weekLabel} numberOfLines={1}>
+            {getWeekLabel(dataSelecionada)}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.calendarIconButton}
+            onPress={() => setCalendarVisible(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="calendar-number-outline" size={23} color={Colors.text} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -844,7 +870,7 @@ export default function DashboardScreen() {
       {/* 3. Container Board das Atividades */}
       <View style={styles.boardContainer}>
         <View style={styles.boardHeaderRow}>
-          <View style={{ flex: 1, marginRight: 10 }}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
             <Text style={styles.boardSubtitle}>
               Você completou <Text style={styles.boardSubtitleBold}>{concluidas}</Text> de{' '}
@@ -852,30 +878,6 @@ export default function DashboardScreen() {
               {total === 1 ? 'atividade agendada' : 'atividades agendadas'}!
             </Text>
           </View>
-
-          {/* Feature de Streak Alinhada à Direita no Canto do Card de Calendário */}
-          <TouchableOpacity
-            style={[
-              styles.streakBadge,
-              streakInfo?.activeToday ? styles.streakBadgeActive : styles.streakBadgeInactive,
-            ]}
-            onPress={() => setModalStreakVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={streakInfo?.activeToday ? 'flame' : 'flame-outline'}
-              size={18}
-              color={streakInfo?.activeToday ? '#FF8800' : '#8E959E'}
-            />
-            <Text
-              style={[
-                styles.streakBadgeText,
-                streakInfo?.activeToday ? styles.streakBadgeTextActive : styles.streakBadgeTextInactive,
-              ]}
-            >
-              {streakInfo?.streak || 0}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <FlatList
@@ -1022,8 +1024,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E2226',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#33383F',
     overflow: 'hidden',
   },
   avatarImage: {
@@ -1072,21 +1074,19 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   weekLabel: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
     color: '#8E959E',
     letterSpacing: -0.2,
-  },
-  headerActionsRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   calendarIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: '#2e3235',
