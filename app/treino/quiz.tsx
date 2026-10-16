@@ -1,4 +1,5 @@
-import { Colors } from '@/constants/Colors';
+import { Colors, ActiveThemeColors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   preloadQuestionImages,
   resolveQuestionImageUri,
@@ -117,6 +118,71 @@ interface ZoomableImageModalProps {
   imageUri: string | null;
   onClose: () => void;
 }
+
+const zoomStyles = StyleSheet.create({
+  zoomModalSafeArea: {
+    flex: 1,
+    backgroundColor: '#0a0b0c',
+  },
+  zoomModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+  },
+  zoomModalCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(38, 41, 45, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomModalBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0a0b0c',
+    overflow: 'hidden',
+  },
+  zoomGestureArea: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomModalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  zoomFloatingResetContainer: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+  },
+  zoomFloatingResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(24, 27, 30, 0.92)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#373c42',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  zoomFloatingResetText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+});
 
 const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageUri, onClose }) => {
   const containerWidth = useSharedValue(360);
@@ -402,11 +468,11 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
       onRequestClose={onClose}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaView style={styles.zoomModalSafeArea}>
+        <SafeAreaView style={zoomStyles.zoomModalSafeArea}>
           <StatusBar hidden={true} barStyle="light-content" backgroundColor="#0a0b0c" />
-          <Pressable style={styles.zoomModalHeader} onPress={onClose}>
+          <Pressable style={zoomStyles.zoomModalHeader} onPress={onClose}>
             <TouchableOpacity
-              style={styles.zoomModalCloseBtn}
+              style={zoomStyles.zoomModalCloseBtn}
               onPress={onClose}
               activeOpacity={0.7}
             >
@@ -415,7 +481,7 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
           </Pressable>
 
           <View
-            style={styles.zoomModalBody}
+            style={zoomStyles.zoomModalBody}
             onLayout={(e) => {
               const { width, height } = e.nativeEvent.layout;
               if (width > 0 && height > 0) {
@@ -425,11 +491,11 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
             }}
           >
             <GestureDetector gesture={composedGestures}>
-              <Reanimated.View style={styles.zoomGestureArea}>
+              <Reanimated.View style={zoomStyles.zoomGestureArea}>
                 {imageUri ? (
                   <Reanimated.Image
                     source={{ uri: imageUri }}
-                    style={[styles.zoomModalImage, animatedImageStyle]}
+                    style={[zoomStyles.zoomModalImage, animatedImageStyle]}
                     resizeMode="contain"
                     onLoad={(e) => {
                       const { width, height } = e.nativeEvent.source;
@@ -445,11 +511,11 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
 
             {/* Botão Flutuante Redefinir (surge apenas se houver zoom) */}
             <Reanimated.View
-              style={[styles.zoomFloatingResetContainer, resetBtnAnimatedStyle]}
+              style={[zoomStyles.zoomFloatingResetContainer, resetBtnAnimatedStyle]}
               pointerEvents="box-none"
             >
               <TouchableOpacity
-                style={styles.zoomFloatingResetBtn}
+                style={zoomStyles.zoomFloatingResetBtn}
                 onPress={handleResetPress}
                 activeOpacity={0.8}
               >
@@ -459,7 +525,7 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
                   color="#FFFFFF"
                   style={{ marginRight: 6 }}
                 />
-                <Text style={styles.zoomFloatingResetText}>Redefinir zoom</Text>
+                <Text style={zoomStyles.zoomFloatingResetText}>Redefinir zoom</Text>
               </TouchableOpacity>
             </Reanimated.View>
           </View>
@@ -470,6 +536,9 @@ const ZoomableImageModal: React.FC<ZoomableImageModalProps> = ({ visible, imageU
 };
 
 export default function QuizScreen() {
+  const { colors: theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const { especialidade, tema, limite, retomar, simulado, blocoId } = useLocalSearchParams<{
     especialidade?: string;
     tema?: string;
@@ -1669,24 +1738,24 @@ export default function QuizScreen() {
     const wrong = wrongCount;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     let badgeText = 'Desempenho Excelente 🚀';
-    let badgeColor = Colors.primary;
+    let badgeColor = isDark ? '#34D399' : '#10B981';
     let message = 'Domínio sólido do conteúdo! Seus acertos demonstram excelente retenção diagnóstica e terapêutica.';
     let iconName = 'trophy';
 
     if (pct < 50) {
       badgeText = 'Foco na Revisão 💡';
-      badgeColor = '#FFA726';
+      badgeColor = isDark ? '#FBBF24' : '#D97706';
       message = 'O treino é o melhor momento para errar e aprender. Releia os comentários das questões com atenção para consolidar a conduta médica.';
       iconName = 'lightbulb-outline';
     } else if (pct < 75) {
       badgeText = 'Bom Aproveitamento 👏';
-      badgeColor = Colors.success;
+      badgeColor = isDark ? '#60A5FA' : '#2563EB';
       message = 'Muito bom! Você está consolidando o raciocínio clínico. Fique atento aos detalhes para alcançar os 100% de acerto.';
       iconName = 'checkbox-marked-circle-outline';
     }
 
     return { total, correct, wrong, pct, badgeText, badgeColor, message, iconName };
-  }, [questions.length, correctCount, wrongCount]);
+  }, [questions.length, correctCount, wrongCount, isDark]);
 
   const handleNextQuestion = async () => {
     if (currentIndex < questions.length - 1) {
@@ -1745,9 +1814,9 @@ export default function QuizScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar hidden={true} barStyle="light-content" />
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>
             Carregando questões da Arena...
           </Text>
@@ -1759,9 +1828,9 @@ export default function QuizScreen() {
   if (questions.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar hidden={true} barStyle="light-content" />
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
         <View style={styles.emptyContainer}>
-          <Ionicons name="cart-outline" size={54} color={Colors.primary} />
+          <Ionicons name="cart-outline" size={54} color={theme.primary} />
           <Text style={styles.emptyTitle}>
             Nenhuma questão encontrada
           </Text>
@@ -1858,7 +1927,7 @@ export default function QuizScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar hidden={true} barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Topo / Barra de Progresso e Saída */}
       <View style={styles.header}>
@@ -1870,8 +1939,8 @@ export default function QuizScreen() {
         >
           <Ionicons
             name="close"
-            size={22}
-            color={Colors.text}
+            size={20}
+            color={theme.text}
           />
         </TouchableOpacity>
 
@@ -1882,12 +1951,12 @@ export default function QuizScreen() {
         >
           {isReviewMode ? (
             <View style={styles.reviewBadgeHeader}>
-              <Ionicons name="eye" size={13} color={Colors.primary} style={{ marginRight: 4 }} />
+              <Ionicons name="eye" size={13} color={theme.primary} style={{ marginRight: 4 }} />
               <Text style={styles.reviewBadgeHeaderText}>REVISÃO</Text>
               <Text style={styles.counterText}>
                 {' '}• <Text style={styles.counterHighlight}>{currentIndex + 1}</Text>/{questions.length}
               </Text>
-              <Ionicons name="chevron-down" size={14} color={Colors.primary} style={{ marginLeft: 2 }} />
+              <Ionicons name="chevron-down" size={14} color={theme.primary} style={{ marginLeft: 2 }} />
             </View>
           ) : (
             <Text style={styles.counterText}>
@@ -1898,7 +1967,7 @@ export default function QuizScreen() {
 
         {isSimulado && !isReviewMode ? (
           <View style={styles.simuladoHeaderBadge}>
-            <MaterialCommunityIcons name="clipboard-text-clock-outline" size={13} color={Colors.primary} style={{ marginRight: 4 }} />
+            <MaterialCommunityIcons name="clipboard-text-clock-outline" size={13} color={theme.primary} style={{ marginRight: 4 }} />
             <Text style={styles.simuladoHeaderBadgeText}>SIMULADO</Text>
           </View>
         ) : (
@@ -1908,11 +1977,11 @@ export default function QuizScreen() {
             onPress={isReviewMode ? () => setShowFinishModal(true) : undefined}
           >
             <View style={styles.scorePillCorrect}>
-              <Ionicons name="checkmark" size={13} color={Colors.success} />
+              <Ionicons name="checkmark" size={13} color={isDark ? '#34D399' : '#059669'} />
               <Text style={styles.scorePillTextCorrect}>{correctCount}</Text>
             </View>
             <View style={styles.scorePillWrong}>
-              <Ionicons name="close" size={13} color={Colors.error} />
+              <Ionicons name="close" size={13} color={isDark ? '#F87171' : '#DC2626'} />
               <Text style={styles.scorePillTextWrong}>{wrongCount}</Text>
             </View>
           </TouchableOpacity>
@@ -1963,7 +2032,7 @@ export default function QuizScreen() {
                   <MaterialCommunityIcons
                     name="undo-variant"
                     size={24}
-                    color={isAnswered ? Colors.primary : '#475569'}
+                    color={isAnswered ? theme.primary : theme.textMuted}
                   />
                 </TouchableOpacity>
               )}
@@ -1977,7 +2046,7 @@ export default function QuizScreen() {
                 <MaterialCommunityIcons
                   name={isFavorito ? 'star' : 'star-outline'}
                   size={25}
-                  color={isFavorito ? Colors.primary : Colors.textSecondary}
+                  color={isFavorito ? (isDark ? '#FACC15' : '#EAB308') : theme.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -2023,9 +2092,9 @@ export default function QuizScreen() {
             // Determina a estilização de feedback após resposta ou descarte
             let altStyle: any[] = [styles.altButton];
             let letterBoxStyle: any[] = [styles.altLetterBox];
-            let letterTextColor = Colors.text;
+            let letterTextColor = theme.text;
             let altTextStyle: any[] = [styles.altText];
-            let altTextColor = Colors.text;
+            let altTextColor = theme.text;
             let iconElement = null;
 
             if (isAnswered || isReviewMode) {
@@ -2034,51 +2103,51 @@ export default function QuizScreen() {
                 if (isThisSelected) {
                   altStyle = [styles.altButton, styles.altSelectedSimulado];
                   letterBoxStyle = [styles.altLetterBox, styles.letterBoxSelectedSimulado];
-                  letterTextColor = '#000000';
-                  altTextColor = '#ffffff';
+                  letterTextColor = isDark ? '#000000' : '#FFFFFF';
+                  altTextColor = theme.text;
                   iconElement = (
-                    <Ionicons name="radio-button-on" size={20} color={Colors.primary} style={styles.altStatusIcon} />
+                    <Ionicons name="radio-button-on" size={20} color={theme.primary} style={styles.altStatusIcon} />
                   );
                 } else if (isDiscarded) {
                   altStyle = [styles.altButton, styles.altDiscarded];
                   letterBoxStyle = [styles.altLetterBox, styles.letterBoxDiscarded];
-                  letterTextColor = '#606469';
+                  letterTextColor = theme.textMuted;
                   altTextStyle = [styles.altText, styles.altTextDiscarded];
-                  altTextColor = '#71767b';
+                  altTextColor = theme.textMuted;
                 }
               } else {
                 if (isThisCorrect) {
-                  // Alternativa correta (Verde)
+                  // Alternativa correta (Verde vibrante com alto contraste)
                   altStyle = [styles.altButton, styles.altCorrect];
                   letterBoxStyle = [styles.altLetterBox, styles.letterBoxCorrect];
-                  letterTextColor = '#ffffff';
-                  altTextColor = '#ffffff';
+                  letterTextColor = '#FFFFFF';
+                  altTextColor = '#FFFFFF';
                   iconElement = (
-                    <Ionicons name="checkmark-circle" size={22} color="#ffffff" style={styles.altStatusIcon} />
+                    <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" style={styles.altStatusIcon} />
                   );
                 } else if (isThisSelected) {
-                  // Alternativa errada selecionada (Vermelha)
+                  // Alternativa errada selecionada (Vermelha vibrante com alto contraste)
                   altStyle = [styles.altButton, styles.altWrong];
                   letterBoxStyle = [styles.altLetterBox, styles.letterBoxWrong];
-                  letterTextColor = '#ffffff';
-                  altTextColor = '#ffffff';
+                  letterTextColor = '#FFFFFF';
+                  altTextColor = '#FFFFFF';
                   iconElement = (
-                    <Ionicons name="close-circle" size={22} color="#ffffff" style={styles.altStatusIcon} />
+                    <Ionicons name="close-circle" size={22} color="#FFFFFF" style={styles.altStatusIcon} />
                   );
                 } else {
                   // Outras alternativas neutras (desabilitadas)
                   altStyle = [styles.altButton, styles.altDisabled];
-                  altTextColor = Colors.textSecondary;
-                  letterTextColor = Colors.textSecondary;
+                  altTextColor = theme.textSecondary;
+                  letterTextColor = theme.textSecondary;
                 }
               }
             } else if (isDiscarded) {
               // Alternativa descartada: mais escura e texto rasurado
               altStyle = [styles.altButton, styles.altDiscarded];
               letterBoxStyle = [styles.altLetterBox, styles.letterBoxDiscarded];
-              letterTextColor = '#606469';
+              letterTextColor = theme.textMuted;
               altTextStyle = [styles.altText, styles.altTextDiscarded];
-              altTextColor = '#71767b';
+              altTextColor = theme.textMuted;
             }
 
             return (
@@ -2114,7 +2183,7 @@ export default function QuizScreen() {
                     <Ionicons
                       name="close"
                       size={15}
-                      color={isDiscarded ? Colors.error : Colors.textSecondary}
+                      color={isDiscarded ? theme.error : theme.textMuted}
                     />
                   </TouchableOpacity>
                 )}
@@ -2127,7 +2196,7 @@ export default function QuizScreen() {
         {alternatives.length === 0 && (
           <View style={styles.discursivaCard}>
             <View style={styles.discursivaHeaderRow}>
-              <MaterialCommunityIcons name="file-document-edit-outline" size={22} color={Colors.primary} style={{ marginRight: 8 }} />
+              <MaterialCommunityIcons name="file-document-edit-outline" size={22} color={theme.primary} style={{ marginRight: 8 }} />
               <Text style={styles.discursivaTitle}>Questão Discursiva</Text>
             </View>
             <Text style={styles.discursivaDesc}>
@@ -2154,7 +2223,7 @@ export default function QuizScreen() {
                   }));
                 }}
               >
-                <Ionicons name={isSimulado ? 'checkmark-circle-outline' : 'eye-outline'} size={18} color="#000000" style={{ marginRight: 8 }} />
+                <Ionicons name={isSimulado ? 'checkmark-circle-outline' : 'eye-outline'} size={18} color={isDark ? "#000000" : "#FFFFFF"} style={{ marginRight: 8 }} />
                 <Text style={styles.discursivaActionButtonText}>
                   {isSimulado ? 'Registrar Resposta' : 'Ver Gabarito Oficial e Comentário'}
                 </Text>
@@ -2192,11 +2261,11 @@ export default function QuizScreen() {
                 size={15}
                 color={
                   alternatives.length === 0
-                    ? Colors.primary
+                    ? theme.primary
                     : selectedAlt
                     ? isCorrect
-                      ? Colors.success
-                      : Colors.error
+                      ? (isDark ? '#34D399' : '#059669')
+                      : (isDark ? '#F87171' : '#DC2626')
                     : '#F59E0B'
                 }
               />
@@ -2206,11 +2275,11 @@ export default function QuizScreen() {
                   {
                     color:
                       alternatives.length === 0
-                        ? Colors.primary
+                        ? theme.primary
                         : selectedAlt
                         ? isCorrect
-                          ? Colors.success
-                          : Colors.error
+                          ? (isDark ? '#34D399' : '#059669')
+                          : (isDark ? '#F87171' : '#DC2626')
                         : '#F59E0B',
                   },
                 ]}
@@ -2269,7 +2338,7 @@ export default function QuizScreen() {
               <Ionicons
                 name="arrow-back"
                 size={18}
-                color={currentIndex === 0 ? '#555A60' : Colors.text}
+                color={currentIndex === 0 ? theme.textMuted : theme.text}
               />
               <Text
                 style={[
@@ -2287,7 +2356,7 @@ export default function QuizScreen() {
               onPress={() => setShowReviewGridModal(true)}
               activeOpacity={0.7}
             >
-              <Ionicons name="grid-outline" size={15} color={Colors.primary} style={{ marginRight: 6 }} />
+              <Ionicons name="grid-outline" size={15} color={theme.primary} style={{ marginRight: 6 }} />
               <Text style={styles.reviewGridTriggerBtnText}>
                 {currentIndex + 1} / {questions.length}
               </Text>
@@ -2301,7 +2370,7 @@ export default function QuizScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.reviewNavBtnText}>Próxima</Text>
-                <Ionicons name="arrow-forward" size={18} color={Colors.text} />
+                <Ionicons name="arrow-forward" size={18} color={theme.text} />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -2310,7 +2379,7 @@ export default function QuizScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={styles.reviewFinishBtnText}>Resultado</Text>
-                <Ionicons name="trophy" size={16} color="#000000" style={{ marginLeft: 6 }} />
+                <Ionicons name="trophy" size={16} color={isDark ? "#000000" : "#FFFFFF"} style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             )}
           </View>
@@ -2330,7 +2399,7 @@ export default function QuizScreen() {
             <Ionicons
               name={currentIndex < questions.length - 1 ? 'play-skip-forward-outline' : 'checkmark-done'}
               size={19}
-              color="#CBD5E1"
+              color={theme.textSecondary}
               style={{ marginLeft: 8 }}
             />
           </TouchableOpacity>
@@ -2350,7 +2419,7 @@ export default function QuizScreen() {
             <Ionicons
               name={currentIndex < questions.length - 1 ? 'arrow-forward' : 'checkmark-done'}
               size={20}
-              color="#000000"
+              color={isDark ? "#000000" : "#FFFFFF"}
               style={{ marginLeft: 8 }}
             />
           </TouchableOpacity>
@@ -2377,7 +2446,7 @@ export default function QuizScreen() {
               style={{ width: '100%' }}
             >
               <View style={styles.exitModalIconContainer}>
-                <Ionicons name="help-circle-outline" size={30} color={Colors.primary} />
+                <Ionicons name="help-circle-outline" size={30} color={theme.primary} />
               </View>
 
               <Text style={styles.exitModalTitle}>Deseja realmente sair?</Text>
@@ -2396,14 +2465,14 @@ export default function QuizScreen() {
                 <View style={styles.exitModalDivider} />
                 <View style={styles.exitModalProgressItem}>
                   <Text style={styles.exitModalProgressLabel}>ACERTOS</Text>
-                  <Text style={[styles.exitModalProgressValue, { color: Colors.success }]}>
+                  <Text style={[styles.exitModalProgressValue, { color: isDark ? '#34D399' : '#059669' }]}>
                     {correctCount}
                   </Text>
                 </View>
                 <View style={styles.exitModalDivider} />
                 <View style={styles.exitModalProgressItem}>
                   <Text style={styles.exitModalProgressLabel}>ERROS</Text>
-                  <Text style={[styles.exitModalProgressValue, { color: Colors.error }]}>
+                  <Text style={[styles.exitModalProgressValue, { color: isDark ? '#F87171' : '#DC2626' }]}>
                     {wrongCount}
                   </Text>
                 </View>
@@ -2416,7 +2485,7 @@ export default function QuizScreen() {
                   activeOpacity={0.85}
                   onPress={handleSairSalvar}
                 >
-                  <Ionicons name="pause" size={18} color="#000000" style={{ marginRight: 8 }} />
+                  <Ionicons name="pause" size={18} color={isDark ? "#000000" : "#FFFFFF"} style={{ marginRight: 8 }} />
                   <Text style={styles.exitModalPrimaryButtonText}>Sair</Text>
                 </TouchableOpacity>
 
@@ -2426,7 +2495,7 @@ export default function QuizScreen() {
                   activeOpacity={0.85}
                   onPress={handleEncerrarQuestoes}
                 >
-                  <Ionicons name="close-circle-outline" size={18} color={Colors.error} style={{ marginRight: 8 }} />
+                  <Ionicons name="close-circle-outline" size={18} color={theme.error} style={{ marginRight: 8 }} />
                   <Text style={styles.exitModalDangerButtonText}>Encerrar Questões</Text>
                 </TouchableOpacity>
 
@@ -2519,8 +2588,8 @@ export default function QuizScreen() {
                   <View style={styles.finishStatBox}>
                     <Text style={styles.finishStatLabel}>ACERTOS</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="checkmark-circle" size={15} color={Colors.success} />
-                      <Text style={[styles.finishStatValue, { color: Colors.success }]}>
+                      <Ionicons name="checkmark-circle" size={15} color={isDark ? "#34D399" : "#059669"} />
+                      <Text style={[styles.finishStatValue, { color: isDark ? '#34D399' : '#059669' }]}>
                         {finishStats.correct}
                       </Text>
                     </View>
@@ -2529,8 +2598,8 @@ export default function QuizScreen() {
                   <View style={styles.finishStatBox}>
                     <Text style={styles.finishStatLabel}>ERROS</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="close-circle" size={15} color={Colors.error} />
-                      <Text style={[styles.finishStatValue, { color: Colors.error }]}>
+                      <Ionicons name="close-circle" size={15} color={isDark ? "#F87171" : "#DC2626"} />
+                      <Text style={[styles.finishStatValue, { color: isDark ? '#F87171' : '#DC2626' }]}>
                         {finishStats.wrong}
                       </Text>
                     </View>
@@ -2540,7 +2609,7 @@ export default function QuizScreen() {
 
               {/* Mensagem de Feedback e Orientação Médica */}
               <View style={styles.finishFeedbackBox}>
-                <Ionicons name="medical-outline" size={18} color={Colors.primary} style={{ marginRight: 8, marginTop: 1 }} />
+                <Ionicons name="medical-outline" size={18} color={theme.primary} style={{ marginRight: 8, marginTop: 1 }} />
                 <Text style={styles.finishFeedbackText}>
                   {finishStats.message}
                 </Text>
@@ -2559,7 +2628,7 @@ export default function QuizScreen() {
                     }
                   }}
                 >
-                  <Ionicons name="eye-outline" size={20} color="#000000" style={{ marginRight: 8 }} />
+                  <Ionicons name="eye-outline" size={20} color={isDark ? "#000000" : "#FFFFFF"} style={{ marginRight: 8 }} />
                   <Text style={styles.finishReviewButtonText}>
                     {isReviewMode ? 'Continuar Revisão' : `Revisar Questões (${finishStats.total})`}
                   </Text>
@@ -2576,7 +2645,7 @@ export default function QuizScreen() {
                     router.back();
                   }}
                 >
-                  <Ionicons name="checkmark-done" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Ionicons name="checkmark-done" size={18} color={theme.text} style={{ marginRight: 8 }} />
                   <Text style={styles.finishExitButtonText}>Concluir e Voltar</Text>
                 </TouchableOpacity>
               </View>
@@ -2601,29 +2670,29 @@ export default function QuizScreen() {
           <View style={styles.reviewGridModalCard}>
             <View style={styles.reviewGridModalHeader}>
               <View style={styles.reviewGridTitleRow}>
-                <Ionicons name="grid-outline" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Ionicons name="grid-outline" size={18} color={theme.primary} style={{ marginRight: 8 }} />
                 <Text style={styles.reviewGridModalTitle}>Navegar pelas Questões</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowReviewGridModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {/* Legenda de cores */}
             <View style={styles.reviewGridLegendRow}>
               <View style={styles.reviewGridLegendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.success }]} />
+                <View style={[styles.legendDot, { backgroundColor: isDark ? '#34D399' : '#10B981' }]} />
                 <Text style={styles.legendText}>Acertos ({correctCount})</Text>
               </View>
               <View style={styles.reviewGridLegendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.error }]} />
+                <View style={[styles.legendDot, { backgroundColor: isDark ? '#F87171' : '#EF4444' }]} />
                 <Text style={styles.legendText}>Erros ({wrongCount})</Text>
               </View>
               <View style={styles.reviewGridLegendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#64748B' }]} />
+                <View style={[styles.legendDot, { backgroundColor: theme.textMuted }]} />
                 <Text style={styles.legendText}>
                   Puladas ({Math.max(0, questions.length - correctCount - wrongCount)})
                 </Text>
@@ -2644,28 +2713,28 @@ export default function QuizScreen() {
                   const isQWrong = isQAnswered && !ans.isCorrect;
                   const isQSkipped = !isQAnswered;
 
-                  let borderColor = '#2F3337';
-                  let bgColor = '#181A1D';
-                  let textColor = '#CBD5E1';
+                  let borderColor = theme.border;
+                  let bgColor = theme.surfaceCard;
+                  let textColor = theme.textSecondary;
 
                   if (isQCorrect) {
-                    borderColor = 'rgba(74, 222, 128, 0.45)';
-                    bgColor = 'rgba(74, 222, 128, 0.12)';
-                    textColor = '#4ADE80';
+                    borderColor = isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)';
+                    bgColor = isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.10)';
+                    textColor = isDark ? '#34D399' : '#059669';
                   } else if (isQWrong) {
-                    borderColor = 'rgba(239, 68, 68, 0.45)';
-                    bgColor = 'rgba(239, 68, 68, 0.12)';
-                    textColor = '#EF4444';
+                    borderColor = isDark ? 'rgba(239, 68, 68, 0.45)' : 'rgba(239, 68, 68, 0.35)';
+                    bgColor = isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.10)';
+                    textColor = isDark ? '#F87171' : '#DC2626';
                   } else if (isQSkipped) {
-                    borderColor = '#374151';
-                    bgColor = '#1F2429';
-                    textColor = '#9CA3AF';
+                    borderColor = theme.borderSubtle;
+                    bgColor = isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)';
+                    textColor = theme.textMuted;
                   }
 
                   if (isCurrent) {
-                    borderColor = Colors.primary;
-                    bgColor = 'rgba(234, 225, 21, 0.22)';
-                    textColor = '#FFFFFF';
+                    borderColor = theme.primary;
+                    bgColor = theme.primarySubtle;
+                    textColor = theme.primary;
                   }
 
                   return (
@@ -2686,10 +2755,10 @@ export default function QuizScreen() {
                         {qIdx + 1}
                       </Text>
                       {isQCorrect && (
-                        <Ionicons name="checkmark" size={10} color="#4ADE80" style={styles.reviewGridItemIcon} />
+                        <Ionicons name="checkmark" size={10} color={isDark ? "#34D399" : "#059669"} style={styles.reviewGridItemIcon} />
                       )}
                       {isQWrong && (
-                        <Ionicons name="close" size={10} color="#EF4444" style={styles.reviewGridItemIcon} />
+                        <Ionicons name="close" size={10} color={isDark ? "#F87171" : "#DC2626"} style={styles.reviewGridItemIcon} />
                       )}
                     </TouchableOpacity>
                   );
@@ -2724,7 +2793,7 @@ export default function QuizScreen() {
             ]}
           >
             <View style={styles.streakToastIconBox}>
-              <Ionicons name="flame" size={18} color="#000000" />
+              <Ionicons name="flame" size={18} color={isDark ? "#000000" : "#FFFFFF"} />
             </View>
             <View style={styles.streakToastContent}>
               <View style={styles.streakToastHeaderRow}>
@@ -2740,1226 +2809,1172 @@ export default function QuizScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    position: 'relative',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.surface,
-  },
-  closeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  headerInfo: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 8,
-    bottom: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  counterText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  counterHighlight: {
-    color: Colors.primary,
-  },
-  themeHeaderTag: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  scoresRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    zIndex: 2,
-  },
-  scorePillCorrect: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2d3135',
-  },
-  scorePillTextCorrect: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.success,
-  },
-  scorePillWrong: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2d3135',
-  },
-  scorePillTextWrong: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.error,
-  },
-  progressBarTrack: {
-    height: 4,
-    backgroundColor: Colors.surface,
-    width: '100%',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 40,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  rightActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  undoButton: {
-    padding: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  undoButtonDisabled: {
-    opacity: 0.35,
-  },
-  favoriteButton: {
-    padding: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  specialtyBadge: {
-    backgroundColor: '#27291a',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  specialtyBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.5,
-  },
-  badgesLeftRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    flex: 1,
-    marginRight: 10,
-    gap: 8,
-  },
-  questionIdBadge: {
-    backgroundColor: '#16181b',
-    paddingHorizontal: 7,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#26292d',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questionIdBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#6b7280',
-    letterSpacing: 0.3,
-  },
-  microFocoBadge: {
-    backgroundColor: '#1c2024',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#373b40',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  microFocoBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D1D5DB',
-    letterSpacing: 0.4,
-  },
-  comentarioTagsWrapper: {
-    marginBottom: 14,
-  },
-  comentarioTagsScrollContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 2,
-  },
-  comentarioTagBadge: {
-    backgroundColor: '#24272a',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#373b40',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  comentarioTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
-    letterSpacing: 0.4,
-  },
-  textContainer: {
-    width: '100%',
-  },
-  enunciadoCard: {
-    width: '100%',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1.5,
-    borderColor: '#2d3135',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  enunciadoText: {
-    width: '100%',
-    flexShrink: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    lineHeight: 25,
-    textAlign: 'left',
-  },
-  alternativesContainer: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  altButton: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#2d3135',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  altLetterBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  altLetterText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  altText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '500',
-    color: Colors.text,
-  },
-  altStatusIcon: {
-    marginLeft: 10,
-  },
-  altCorrect: {
-    backgroundColor: Colors.success,
-    borderColor: Colors.success,
-  },
-  letterBoxCorrect: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  altWrong: {
-    backgroundColor: Colors.error,
-    borderColor: Colors.error,
-  },
-  letterBoxWrong: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  altDisabled: {
-    opacity: 0.45,
-    backgroundColor: Colors.surface,
-    borderColor: '#2d3135',
-  },
-  altDiscarded: {
-    backgroundColor: '#111214',
-    borderColor: '#1d1f22',
-    opacity: 0.6,
-  },
-  letterBoxDiscarded: {
-    backgroundColor: '#161719',
-    borderColor: '#1d1f22',
-  },
-  altTextDiscarded: {
-    textDecorationLine: 'line-through',
-    textDecorationColor: '#8a9096',
-    color: '#71767b',
-  },
-  discardButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
-    backgroundColor: '#222528',
-    borderWidth: 1,
-    borderColor: '#2f3337',
-  },
-  discardButtonActive: {
-    backgroundColor: 'rgba(255, 76, 76, 0.16)',
-    borderColor: Colors.error,
-  },
-  explanationCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#2d3135',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  feedbackPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  feedbackPillCorrect: {
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
-    borderWidth: 1,
-    borderColor: Colors.success,
-  },
-  feedbackPillWrong: {
-    backgroundColor: 'rgba(255, 76, 76, 0.15)',
-    borderWidth: 1,
-    borderColor: Colors.error,
-  },
-  feedbackPillDiscursiva: {
-    backgroundColor: 'rgba(234, 225, 21, 0.15)',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  discursivaCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
-    borderWidth: 1.5,
-    borderColor: '#2e3235',
-  },
-  discursivaHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  discursivaTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  discursivaDesc: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  discursivaActionButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  discursivaActionButtonText: {
-    color: '#000000',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  feedbackPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  explanationText: {
-    width: '100%',
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#e2e8f0',
-    textAlign: 'left',
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.background,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 22,
-    borderTopWidth: 1,
-    borderTopColor: Colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  nextButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    width: '100%',
-    maxWidth: 500,
-    alignSelf: 'center',
-  },
-  nextButtonText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  skipButton: {
-    backgroundColor: '#2A2E33',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#3E444B',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-    width: '100%',
-    maxWidth: 500,
-    alignSelf: 'center',
-  },
-  skipButtonText: {
-    color: '#E2E8F0',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
-  },
-  loadingText: {
-    marginTop: 14,
-    fontSize: 15,
-    color: Colors.textSecondary,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
-  },
-  emptyTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: Colors.text,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  primaryActionButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-  },
-  primaryActionButtonText: {
-    color: '#000000',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalBackdropDismiss: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  exitModalCard: {
-    width: '100%',
-    maxWidth: 380,
-    maxHeight: '92%',
-    backgroundColor: '#1a1d20',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    paddingHorizontal: 22,
-    paddingVertical: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  modalScrollInner: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  exitModalIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(241, 184, 23, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(241, 184, 23, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  exitModalTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#f3f4f6',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  exitModalSubtitle: {
-    fontSize: 13,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 18,
-  },
-  exitModalProgressBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121416',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#26292c',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    width: '100%',
-    marginBottom: 20,
-  },
-  exitModalProgressItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  exitModalProgressLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#6b7280',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  exitModalProgressValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#f3f4f6',
-  },
-  exitModalDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: '#26292c',
-  },
-  exitModalButtonsCol: {
-    width: '100%',
-    gap: 10,
-  },
-  exitModalPrimaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 13,
-    width: '100%',
-  },
-  exitModalPrimaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  exitModalDangerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    paddingVertical: 12,
-    width: '100%',
-  },
-  exitModalDangerButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.error,
-  },
-  exitModalCancelButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    width: '100%',
-  },
-  exitModalCancelButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  finishModalCard: {
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '92%',
-    backgroundColor: Colors.surface,
-    borderRadius: 24,
-    padding: 22,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#34383d',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  finishIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1.5,
-  },
-  finishModalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  finishModalSubtitle: {
-    fontSize: 13,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 18,
-  },
-  finishScoreCard: {
-    width: '100%',
-    backgroundColor: '#121416',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#26292c',
-    padding: 16,
-    marginBottom: 14,
-  },
-  finishScoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#202326',
-  },
-  finishScorePercent: {
-    fontSize: 32,
-    fontWeight: '900',
-  },
-  finishBadgePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  finishBadgePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  finishStatsGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  finishStatBox: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  finishStatLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#6b7280',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  finishStatValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  finishStatDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#26292c',
-  },
-  finishFeedbackBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.2)',
-    padding: 12,
-    marginBottom: 20,
-    width: '100%',
-  },
-  finishFeedbackText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#d1d5db',
-    lineHeight: 17,
-  },
-  finishButtonsCol: {
-    width: '100%',
-    gap: 10,
-  },
-  finishPrimaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    width: '100%',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  finishPrimaryButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#000000',
-  },
-  finishSecondaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    width: '100%',
-  },
-  finishSecondaryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  imageCardContainer: {
-    width: '100%',
-    marginTop: 14,
-    marginBottom: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageTouchWrapper: {
-    width: '100%',
-    minHeight: 220,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  questionImage: {
-    width: '100%',
-    height: 240,
-    borderRadius: 12,
-  },
-  zoomBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  zoomBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  zoomModalSafeArea: {
-    flex: 1,
-    backgroundColor: '#0a0b0c',
-  },
-  zoomModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  zoomModalCloseBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(38, 41, 45, 0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  zoomModalBody: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0a0b0c',
-    overflow: 'hidden',
-  },
-  zoomGestureArea: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  zoomModalImage: {
-    width: '100%',
-    height: '100%',
-  },
-  zoomFloatingResetContainer: {
-    position: 'absolute',
-    bottom: 24,
-    alignSelf: 'center',
-  },
-  zoomFloatingResetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(24, 27, 30, 0.92)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#373c42',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  zoomFloatingResetText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  streakToastOverlay: {
-    position: 'absolute',
-    top: 54,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    zIndex: 9999,
-  },
-  streakToastCard: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#1E2124',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  streakToastIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  streakToastContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  streakToastHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  streakToastAppName: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: 0.6,
-  },
-  streakToastTime: {
-    fontSize: 10.5,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  streakToastText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 18,
-  },
-  reviewBadgeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.35)',
-  },
-  reviewBadgeHeaderText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.8,
-  },
-  feedbackPillSkipped: {
-    backgroundColor: 'rgba(148, 163, 184, 0.15)',
-    borderWidth: 1,
-    borderColor: '#64748B',
-  },
-  reviewBottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    maxWidth: 500,
-    alignSelf: 'center',
-    gap: 10,
-  },
-  reviewNavBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#1F2226',
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2F3337',
-  },
-  reviewNavBtnDisabled: {
-    opacity: 0.4,
-    borderColor: '#22252A',
-  },
-  reviewNavBtnText: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  reviewNavBtnTextDisabled: {
-    color: '#555A60',
-  },
-  reviewGridTriggerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.35)',
-  },
-  reviewGridTriggerBtnText: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  reviewFinishBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  reviewFinishBtnText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  finishReviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    width: '100%',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  finishReviewButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#000000',
-  },
-  finishExitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1E2125',
-    borderWidth: 1,
-    borderColor: '#2F3337',
-    borderRadius: 12,
-    paddingVertical: 13,
-    width: '100%',
-  },
-  finishExitButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#CBD5E1',
-  },
-  reviewGridModalCard: {
-    width: '90%',
-    maxWidth: 420,
-    maxHeight: '80%',
-    backgroundColor: '#181A1D',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#2A2E33',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  reviewGridModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#26292C',
-  },
-  reviewGridTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  reviewGridModalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  reviewGridLegendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#26292C',
-    marginBottom: 12,
-  },
-  reviewGridLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  reviewGridScrollContent: {
-    paddingVertical: 6,
-  },
-  reviewGridItemsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'flex-start',
-  },
-  reviewGridItemBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  reviewGridItemCurrent: {
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  reviewGridItemText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  reviewGridItemIcon: {
-    position: 'absolute',
-    top: 3,
-    right: 3,
-  },
-  reviewGridDoneButton: {
-    marginTop: 16,
-    backgroundColor: '#1F2226',
-    borderWidth: 1,
-    borderColor: '#2F3337',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  reviewGridDoneButtonText: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  altSelectedSimulado: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    borderWidth: 1.5,
-  },
-  letterBoxSelectedSimulado: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  simuladoHeaderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.35)',
-  },
-  simuladoHeaderBadgeText: {
-    color: Colors.primary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-});
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      position: 'relative',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 12,
+      backgroundColor: theme.background,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    closeButton: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      backgroundColor: theme.surfaceCard,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2,
+    },
+    headerInfo: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 8,
+      bottom: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1,
+    },
+    counterText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.text,
+      textAlign: 'center',
+    },
+    counterHighlight: {
+      color: theme.primary,
+    },
+    themeHeaderTag: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
+      fontWeight: '500',
+    },
+    scoresRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      zIndex: 2,
+    },
+    scorePillCorrect: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.10)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.25)',
+    },
+    scorePillTextCorrect: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: isDark ? '#34D399' : '#059669',
+    },
+    scorePillWrong: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.14)' : 'rgba(239, 68, 68, 0.10)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.25)',
+    },
+    scorePillTextWrong: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: isDark ? '#F87171' : '#DC2626',
+    },
+    progressBarTrack: {
+      height: 4,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+      width: '100%',
+    },
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: theme.primary,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 40,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 15,
+    },
+    rightActionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    undoButton: {
+      padding: 4,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    undoButtonDisabled: {
+      opacity: 0.35,
+    },
+    favoriteButton: {
+      padding: 4,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    specialtyBadge: {
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    specialtyBadgeText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: theme.primary,
+      letterSpacing: 0.5,
+    },
+    badgesLeftRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      flex: 1,
+      marginRight: 10,
+      gap: 8,
+    },
+    questionIdBadge: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+      paddingHorizontal: 7,
+      paddingVertical: 3.5,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    questionIdBadgeText: {
+      fontSize: 10.5,
+      fontWeight: '600',
+      color: theme.textMuted,
+      letterSpacing: 0.3,
+    },
+    microFocoBadge: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    microFocoBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textSecondary,
+      letterSpacing: 0.4,
+    },
+    comentarioTagsWrapper: {
+      marginBottom: 14,
+    },
+    comentarioTagsScrollContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 2,
+    },
+    comentarioTagBadge: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    comentarioTagText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.primary,
+      letterSpacing: 0.4,
+    },
+    textContainer: {
+      width: '100%',
+    },
+    enunciadoCard: {
+      width: '100%',
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.25 : 0.04,
+      shadowRadius: 4,
+      elevation: isDark ? 2 : 1,
+    },
+    enunciadoText: {
+      width: '100%',
+      flexShrink: 1,
+      fontSize: 16,
+      fontWeight: '500',
+      color: theme.text,
+      lineHeight: 25,
+      textAlign: 'left',
+    },
+    imageCardContainer: {
+      width: '100%',
+      marginTop: 14,
+      marginBottom: 4,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    imageTouchWrapper: {
+      width: '100%',
+      minHeight: 220,
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    questionImage: {
+      width: '100%',
+      height: 240,
+      borderRadius: 12,
+    },
+    zoomBadge: {
+      position: 'absolute',
+      bottom: 8,
+      right: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    zoomBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    alternativesContainer: {
+      gap: 12,
+      marginBottom: 20,
+    },
+    altButton: {
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 14,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.2 : 0.04,
+      shadowRadius: 4,
+      elevation: isDark ? 2 : 1,
+    },
+    altLetterBox: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    altLetterText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    altText: {
+      flex: 1,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '500',
+      color: theme.text,
+    },
+    altStatusIcon: {
+      marginLeft: 10,
+    },
+    altCorrect: {
+      backgroundColor: isDark ? '#059669' : '#10B981',
+      borderColor: isDark ? '#10B981' : '#059669',
+      borderWidth: 1.5,
+    },
+    letterBoxCorrect: {
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    altWrong: {
+      backgroundColor: isDark ? '#DC2626' : '#EF4444',
+      borderColor: isDark ? '#EF4444' : '#DC2626',
+      borderWidth: 1.5,
+    },
+    letterBoxWrong: {
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    altDisabled: {
+      opacity: 0.5,
+      backgroundColor: theme.surfaceCard,
+      borderColor: theme.borderSubtle,
+      borderWidth: 1,
+    },
+    altDiscarded: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F2F2F0',
+      borderColor: theme.borderSubtle,
+      borderWidth: 1,
+      opacity: 0.65,
+    },
+    letterBoxDiscarded: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#E8E8E6',
+      borderColor: 'transparent',
+    },
+    altTextDiscarded: {
+      textDecorationLine: 'line-through',
+      textDecorationColor: theme.textMuted,
+      color: theme.textMuted,
+    },
+    discardButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 10,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    discardButtonActive: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.10)',
+      borderColor: theme.error,
+    },
+    explanationCard: {
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 16,
+      padding: 18,
+      marginTop: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.05,
+      shadowRadius: 6,
+      elevation: isDark ? 2 : 1,
+    },
+    feedbackPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      marginBottom: 10,
+    },
+    feedbackPillCorrect: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.12)',
+      borderWidth: 1,
+      borderColor: isDark ? '#10B981' : '#059669',
+    },
+    feedbackPillWrong: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.12)',
+      borderWidth: 1,
+      borderColor: isDark ? '#EF4444' : '#DC2626',
+    },
+    feedbackPillDiscursiva: {
+      backgroundColor: theme.primarySubtle,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    feedbackPillSkipped: {
+      backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.12)',
+      borderWidth: 1,
+      borderColor: theme.textMuted,
+    },
+    discursivaCard: {
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 16,
+      padding: 18,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    discursivaHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    discursivaTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    discursivaDesc: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      lineHeight: 20,
+      marginBottom: 16,
+    },
+    discursivaActionButton: {
+      backgroundColor: theme.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 12,
+    },
+    discursivaActionButtonText: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    feedbackPillText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    explanationText: {
+      width: '100%',
+      flexShrink: 1,
+      fontSize: 14.5,
+      lineHeight: 23,
+      color: theme.text,
+      textAlign: 'left',
+    },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.surfaceCard,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 22,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: isDark ? 0.25 : 0.05,
+      shadowRadius: 4,
+      elevation: isDark ? 6 : 2,
+    },
+    nextButton: {
+      backgroundColor: theme.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      borderRadius: 14,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.15,
+      shadowRadius: 6,
+      elevation: 3,
+      width: '100%',
+      maxWidth: 500,
+      alignSelf: 'center',
+    },
+    nextButtonText: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    skipButton: {
+      backgroundColor: theme.surfaceCard,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.2 : 0.04,
+      shadowRadius: 4,
+      elevation: 2,
+      width: '100%',
+      maxWidth: 500,
+      alignSelf: 'center',
+    },
+    skipButtonText: {
+      color: theme.textSecondary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 30,
+    },
+    loadingText: {
+      marginTop: 14,
+      fontSize: 15,
+      color: theme.textSecondary,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 30,
+    },
+    emptyTitle: {
+      fontSize: 19,
+      fontWeight: '700',
+      color: theme.text,
+      marginTop: 16,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      marginTop: 8,
+      lineHeight: 20,
+      marginBottom: 24,
+    },
+    primaryActionButton: {
+      backgroundColor: theme.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 10,
+    },
+    primaryActionButtonText: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+    },
+    modalBackdropDismiss: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    exitModalCard: {
+      width: '100%',
+      maxWidth: 380,
+      maxHeight: '92%',
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 22,
+      paddingVertical: 20,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: isDark ? 0.5 : 0.12,
+      shadowRadius: 16,
+      elevation: 10,
+    },
+    modalScrollInner: {
+      alignItems: 'center',
+      width: '100%',
+    },
+    exitModalIconContainer: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: theme.primarySubtle,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    exitModalTitle: {
+      fontSize: 19,
+      fontWeight: '700',
+      color: theme.text,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    exitModalSubtitle: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: 18,
+    },
+    exitModalProgressBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      width: '100%',
+      marginBottom: 20,
+    },
+    exitModalProgressItem: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    exitModalProgressLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.textMuted,
+      letterSpacing: 0.5,
+      marginBottom: 2,
+    },
+    exitModalProgressValue: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    exitModalDivider: {
+      width: 1,
+      height: 22,
+      backgroundColor: theme.border,
+    },
+    exitModalButtonsCol: {
+      width: '100%',
+      gap: 10,
+    },
+    exitModalPrimaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 13,
+      width: '100%',
+    },
+    exitModalPrimaryButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: isDark ? '#000000' : '#FFFFFF',
+    },
+    exitModalDangerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.10)',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.25)',
+      paddingVertical: 12,
+      width: '100%',
+    },
+    exitModalDangerButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.error,
+    },
+    exitModalCancelButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      width: '100%',
+    },
+    exitModalCancelButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    finishModalCard: {
+      width: '100%',
+      maxWidth: 400,
+      maxHeight: '92%',
+      backgroundColor: theme.surface,
+      borderRadius: 24,
+      padding: 22,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: isDark ? 0.5 : 0.12,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    finishIconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      borderWidth: 1.5,
+    },
+    finishModalTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: theme.text,
+      textAlign: 'center',
+      marginBottom: 4,
+    },
+    finishModalSubtitle: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: 18,
+    },
+    finishScoreCard: {
+      width: '100%',
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 16,
+      marginBottom: 14,
+    },
+    finishScoreRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    finishScorePercent: {
+      fontSize: 32,
+      fontWeight: '900',
+    },
+    finishBadgePill: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    finishBadgePillText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    finishStatsGrid: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    finishStatBox: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    finishStatLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.textMuted,
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
+    finishStatValue: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    finishStatDivider: {
+      width: 1,
+      height: 24,
+      backgroundColor: theme.border,
+    },
+    finishFeedbackBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: theme.primarySubtle,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      padding: 12,
+      marginBottom: 20,
+      width: '100%',
+    },
+    finishFeedbackText: {
+      flex: 1,
+      fontSize: 12,
+      color: theme.text,
+      lineHeight: 17,
+    },
+    finishButtonsCol: {
+      width: '100%',
+      gap: 10,
+    },
+    finishPrimaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      width: '100%',
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.25 : 0.12,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    finishPrimaryButtonText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: isDark ? '#000000' : '#FFFFFF',
+    },
+    finishSecondaryButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      width: '100%',
+    },
+    finishSecondaryButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    finishReviewButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      width: '100%',
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.25 : 0.12,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    finishReviewButtonText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: isDark ? '#000000' : '#FFFFFF',
+    },
+    finishExitButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.surfaceCard,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingVertical: 13,
+      width: '100%',
+    },
+    finishExitButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    streakToastOverlay: {
+      position: 'absolute',
+      top: 54,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      zIndex: 9999,
+    },
+    streakToastCard: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: theme.surface,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: isDark ? 0.45 : 0.12,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    streakToastIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 9,
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    streakToastContent: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    streakToastHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 2,
+    },
+    streakToastAppName: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: theme.textMuted,
+      letterSpacing: 0.6,
+    },
+    streakToastTime: {
+      fontSize: 10.5,
+      color: theme.textMuted,
+      fontWeight: '500',
+    },
+    streakToastText: {
+      fontSize: 13.5,
+      fontWeight: '700',
+      color: theme.text,
+      lineHeight: 18,
+    },
+    reviewBadgeHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    reviewBadgeHeaderText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: theme.primary,
+      letterSpacing: 0.8,
+    },
+    reviewBottomBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      maxWidth: 500,
+      alignSelf: 'center',
+      gap: 10,
+    },
+    reviewNavBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: theme.surfaceCard,
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    reviewNavBtnDisabled: {
+      opacity: 0.4,
+      borderColor: theme.borderSubtle,
+    },
+    reviewNavBtnText: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    reviewNavBtnTextDisabled: {
+      color: theme.textMuted,
+    },
+    reviewGridTriggerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primarySubtle,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    reviewGridTriggerBtnText: {
+      color: theme.primary,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    reviewFinishBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      paddingVertical: 14,
+      borderRadius: 14,
+    },
+    reviewFinishBtnText: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    reviewGridModalCard: {
+      width: '90%',
+      maxWidth: 420,
+      maxHeight: '80%',
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: isDark ? 0.5 : 0.12,
+      shadowRadius: 20,
+      elevation: 12,
+    },
+    reviewGridModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    reviewGridTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    reviewGridModalTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    reviewGridLegendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      marginBottom: 12,
+    },
+    reviewGridLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    legendText: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    reviewGridScrollContent: {
+      paddingVertical: 6,
+    },
+    reviewGridItemsWrapper: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      justifyContent: 'flex-start',
+    },
+    reviewGridItemBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    reviewGridItemCurrent: {
+      borderWidth: 2,
+      borderColor: theme.primary,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    reviewGridItemText: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    reviewGridItemIcon: {
+      position: 'absolute',
+      top: 3,
+      right: 3,
+    },
+    reviewGridDoneButton: {
+      marginTop: 16,
+      backgroundColor: theme.surfaceCard,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+    },
+    reviewGridDoneButtonText: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    altSelectedSimulado: {
+      borderColor: theme.primary,
+      backgroundColor: theme.primarySubtle,
+      borderWidth: 1.5,
+    },
+    letterBoxSelectedSimulado: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    simuladoHeaderBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    simuladoHeaderBadgeText: {
+      color: theme.primary,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+  });
+}
