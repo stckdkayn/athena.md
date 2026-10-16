@@ -1471,7 +1471,11 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       marginHorizontal: 6,
       borderWidth: 1,
       borderColor: theme.border,
-      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.25 : 0.04,
+      shadowRadius: 3,
+      elevation: 1,
     },
     dayPillToday: {
       borderColor: isDark ? '#383D42' : '#DCDCD8',
@@ -1489,6 +1493,8 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       paddingVertical: 4,
       borderBottomWidth: 1,
       borderBottomColor: theme.borderSubtle,
+      borderTopLeftRadius: 9,
+      borderTopRightRadius: 9,
     },
     dayWeekContainerToday: {
       backgroundColor: isDark ? '#282C30' : '#E8E8E4',
@@ -1503,6 +1509,8 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingBottom: 2,
+      borderBottomLeftRadius: 9,
+      borderBottomRightRadius: 9,
     },
     dayWeekText: {
       fontSize: 10,
@@ -1546,7 +1554,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     /* 3. Board Container */
     boardContainer: {
       flex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: theme.surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       paddingHorizontal: 16,
@@ -1555,6 +1563,11 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       borderLeftWidth: 1,
       borderRightWidth: 1,
       borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -3 },
+      shadowOpacity: isDark ? 0.3 : 0.04,
+      shadowRadius: 6,
+      elevation: isDark ? 5 : 2,
     },
     boardTitle: {
       fontSize: 22,

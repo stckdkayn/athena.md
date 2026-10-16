@@ -287,6 +287,11 @@ const styles = StyleSheet.create({
   animatedCardContainer: {
     flex: 1,
     borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   activityCard: {
     flex: 1,
