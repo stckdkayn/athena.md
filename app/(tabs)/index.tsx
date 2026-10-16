@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors, CATEGORIA_CORES, getTopicColor } from '@/constants/Colors';
@@ -103,9 +103,9 @@ export default function DashboardScreen() {
   // Lógica de Saudação (sem o nome embutido, pois agora fica ao lado do avatar)
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'sunrise' as const };
-    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'sun' as const };
-    return { text: 'Boa noite', icon: 'moon' as const };
+    if (hour >= 5 && hour < 12) return 'Bom dia';
+    if (hour >= 12 && hour < 18) return 'Boa tarde';
+    return 'Boa noite';
   };
   const greeting = getGreeting();
 
@@ -767,16 +767,10 @@ export default function DashboardScreen() {
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               style={styles.greetingContainer}
             >
-              <View style={styles.greetingRow}>
-                <Text style={styles.greetingSubtitleText}>{greeting.text}</Text>
-                <Feather name={greeting.icon} size={13} color="#8E959E" />
-              </View>
-              <View style={styles.userNameRow}>
-                <Text style={styles.bigGreetingText} numberOfLines={1}>
-                  {userName && userName.trim() ? userName.trim() : 'Gabriel'}
-                </Text>
-                <MaterialCommunityIcons name="heart-pulse" size={20} color="#EF4444" style={styles.specialtyIcon} />
-              </View>
+              <Text style={styles.greetingSubtitleText}>{greeting},</Text>
+              <Text style={styles.bigGreetingText} numberOfLines={1}>
+                {userName && userName.trim() ? userName.trim() : 'Gabriel'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1055,12 +1049,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 0,
-  },
   greetingSubtitleText: {
     fontSize: 13,
     fontFamily: Fonts.semiBold,
@@ -1068,23 +1056,14 @@ const styles = StyleSheet.create({
     color: '#8E959E',
     lineHeight: 16,
   },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: -1,
-  },
   bigGreetingText: {
     fontSize: 22,
     fontFamily: Fonts.extraBold,
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -0.4,
-    flexShrink: 1,
     lineHeight: 26,
-  },
-  specialtyIcon: {
-    marginTop: 1,
+    marginTop: -1,
   },
   headerSubRow: {
     flexDirection: 'row',
