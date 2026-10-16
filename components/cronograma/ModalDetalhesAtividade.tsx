@@ -199,18 +199,50 @@ export default function ModalDetalhesAtividade({
 
               {/* Status */}
               <View style={[styles.infoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
-                <View style={styles.infoIconBox}>
-                  <Ionicons
-                    name={item.concluida ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={16}
-                    color={item.concluida ? Colors.success : Colors.textSecondary}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.infoLabel}>Status</Text>
-                  <Text style={[styles.infoValue, { color: item.concluida ? Colors.success : Colors.textSecondary }]}>
-                    {item.concluida ? 'Concluída' : 'Pendente'}
-                  </Text>
+                {item.concluida ? (
+                  <TouchableOpacity
+                    style={[styles.infoIconBox, styles.statusIconBtnCompleted]}
+                    onPress={() => onToggleStatus?.(item)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={Colors.success}
+                    />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.infoIconBox}>
+                    <Ionicons
+                      name="ellipse-outline"
+                      size={16}
+                      color={Colors.textSecondary}
+                    />
+                  </View>
+                )}
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity
+                    activeOpacity={item.concluida ? 0.7 : 1}
+                    disabled={!item.concluida}
+                    onPress={() => onToggleStatus?.(item)}
+                  >
+                    <Text style={styles.infoLabel}>Status</Text>
+                    <Text style={[styles.infoValue, { color: item.concluida ? Colors.success : Colors.textSecondary }]}>
+                      {item.concluida ? 'Concluída' : 'Pendente'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {item.concluida && (
+                    <TouchableOpacity
+                      style={styles.reabrirBadge}
+                      onPress={() => onToggleStatus?.(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="rotate-ccw" size={11} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                      <Text style={styles.reabrirBadgeText}>Desmarcar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -475,6 +507,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
     lineHeight: 20,
+  },
+  statusIconBtnCompleted: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  reabrirBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#202428',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#30353A',
+  },
+  reabrirBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
   },
   toggleBtn: {
     flexDirection: 'row',
