@@ -1114,14 +1114,30 @@ export default function DashboardScreen() {
       {/* 3. Container Board das Atividades */}
       <View style={styles.boardContainer}>
         <View style={styles.boardHeaderRow}>
-          <View style={{ flex: 1 }}>
+          <View style={styles.boardTitleRow}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
-            <Text style={styles.boardSubtitle}>
-              Você completou <Text style={styles.boardSubtitleBold}>{concluidas}</Text> de{' '}
-              <Text style={styles.boardSubtitleBold}>{total}</Text>{' '}
-              {total === 1 ? 'atividade agendada' : 'atividades agendadas'}!
-            </Text>
+            <TouchableOpacity
+              style={styles.addActivityButton}
+              activeOpacity={0.8}
+              onPress={() => {
+                setAtividadeParaEditar(null);
+                setModalNovaVisible(true);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Adicionar nova atividade"
+            >
+              <Ionicons
+                name="add"
+                size={22}
+                color={themeColors.primary === '#EAE115' ? '#000000' : '#FFFFFF'}
+              />
+            </TouchableOpacity>
           </View>
+          <Text style={styles.boardSubtitle}>
+            Você completou <Text style={styles.boardSubtitleBold}>{concluidas}</Text> de{' '}
+            <Text style={styles.boardSubtitleBold}>{total}</Text>{' '}
+            {total === 1 ? 'atividade agendada' : 'atividades agendadas'}!
+          </Text>
         </View>
 
         <FlatList
@@ -1150,25 +1166,13 @@ export default function DashboardScreen() {
                 <Ionicons name="calendar-outline" size={38} color="#383D42" style={{ marginBottom: 10 }} />
                 <Text style={styles.emptyTitle}>Nenhuma atividade programada</Text>
                 <Text style={styles.emptySubtitle}>
-                  Toque no botão + abaixo para adicionar uma tarefa pessoal, plantão ou aula.
+                  Toque no botão + acima para adicionar uma tarefa pessoal, plantão ou aula.
                 </Text>
               </View>
             ) : null
           }
         />
       </View>
-
-      {/* 4. Floating Action Button (FAB) para Adicionar Nova Tarefa */}
-      <TouchableOpacity
-        style={styles.fab}
-        activeOpacity={0.85}
-        onPress={() => {
-          setAtividadeParaEditar(null);
-          setModalNovaVisible(true);
-        }}
-      >
-        <Ionicons name="add" size={28} color={themeColors.primary === '#EAE115' ? '#000000' : '#FFFFFF'} />
-      </TouchableOpacity>
 
       {/* Modal para Adicionar ou Editar Atividade */}
       <ModalNovaAtividade
@@ -1617,18 +1621,38 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       shadowRadius: 16,
       elevation: isDark ? 8 : 4,
     },
+    boardHeaderRow: {
+      marginBottom: 10,
+    },
+    boardTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
     boardTitle: {
       fontSize: 22,
       fontWeight: '800',
       fontFamily: Fonts.extraBold,
       color: theme.text,
-      marginBottom: 4,
+    },
+    addActivityButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.08,
+      shadowRadius: 3,
+      elevation: 2,
     },
     boardSubtitle: {
       fontSize: 13,
       fontFamily: Fonts.regular,
       color: theme.textSecondary,
-      marginBottom: 8,
     },
     boardSubtitleBold: {
       fontFamily: Fonts.bold,
@@ -1807,33 +1831,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       lineHeight: 18,
     },
 
-    /* 5. FAB */
-    fab: {
-      position: 'absolute',
-      bottom: 92,
-      right: 20,
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: theme.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.3 : 0.06,
-      shadowRadius: 4,
-      elevation: isDark ? 4 : 1,
-      borderWidth: isDark ? 0 : 1,
-      borderColor: theme.border,
-    },
-
     /* AI Planner & Replan Styles */
-    boardHeaderRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 8,
-    },
     praticarBtn: {
       flexDirection: 'row',
       alignItems: 'center',
