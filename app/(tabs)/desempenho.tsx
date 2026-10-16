@@ -14,7 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 
-import { Colors } from '@/constants/Colors';
+import { Colors, ActiveThemeColors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   getDatabase,
   getMemoryHealthSummary,
@@ -93,6 +94,8 @@ function getQuestionId(q: any, idx: number): string {
 }
 
 export default function DesempenhoScreen() {
+  const { colors: themeColors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -530,22 +533,22 @@ export default function DesempenhoScreen() {
   const ritmoBadge = useMemo(() => {
     const sec = timeStats.tempoMedioSegundos;
     if (!sec || timeStats.totalQuestoesComTempo === 0) {
-      return { text: 'Aguardando coletas', cor: '#94A3B8', icone: 'timer-outline' };
+      return { text: 'Aguardando coletas', cor: themeColors.textMuted, icone: 'timer-outline' };
     }
     if (sec <= 45) {
       return { text: 'Ritmo Rápido / Ágil', cor: '#10B981', icone: 'flash-outline' };
     }
     if (sec <= 140) {
-      return { text: 'Ritmo Ideal de Prova', cor: Colors.primary, icone: 'checkmark-circle-outline' };
+      return { text: 'Ritmo Ideal de Prova', cor: themeColors.primary, icone: 'checkmark-circle-outline' };
     }
     return { text: 'Atenção ao Tempo (>2m20s)', cor: '#EF4444', icone: 'alert-circle-outline' };
-  }, [timeStats]);
+  }, [timeStats, themeColors]);
 
   const corAproveitamento = getAproveitamentoCor(aproveitamento);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       <ScrollView
         style={styles.scrollView}
@@ -584,7 +587,7 @@ export default function DesempenhoScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
+            <ActivityIndicator size="large" color={themeColors.primary} />
             <Text style={styles.loadingText}>Processando métricas clínicas...</Text>
           </View>
         ) : (
@@ -612,7 +615,7 @@ export default function DesempenhoScreen() {
               <View style={styles.heroCard}>
                 <View style={styles.heroCardHeader}>
                   <Text style={styles.heroCardLabel}>TEMPO MÉDIO</Text>
-                  <Ionicons name="stopwatch-outline" size={16} color={Colors.primary} />
+                  <Ionicons name="stopwatch-outline" size={16} color={themeColors.primary} />
                 </View>
                 <Text style={styles.heroCardValue}>
                   {timeStats.totalQuestoesComTempo > 0
@@ -635,7 +638,7 @@ export default function DesempenhoScreen() {
             <View style={styles.sectionCard}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.titleWithIcon}>
-                  <Ionicons name="sparkles" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+                  <Ionicons name="sparkles" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
                   <Text style={styles.sectionTitle}>Saúde da Memória (SM-2)</Text>
                 </View>
                 <View style={styles.memoryTotalBadge}>
@@ -738,7 +741,7 @@ export default function DesempenhoScreen() {
             <View style={styles.sectionCard}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.titleWithIcon}>
-                  <MaterialCommunityIcons name="view-grid-outline" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+                  <MaterialCommunityIcons name="view-grid-outline" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
                   <Text style={styles.sectionTitle}>Raio-X das 5 Grandes Áreas</Text>
                 </View>
                 <Text style={styles.cardBadge}>Provas de R1</Text>
@@ -837,7 +840,7 @@ export default function DesempenhoScreen() {
                           </Text>
                           <View style={styles.gargaloActionBtn}>
                             <Text style={styles.gargaloActionBtnText}>Raio-X & Treino</Text>
-                            <Ionicons name="chevron-forward" size={13} color={Colors.primary} />
+                            <Ionicons name="chevron-forward" size={13} color={themeColors.primary} />
                           </View>
                         </View>
                       </TouchableOpacity>
@@ -874,7 +877,7 @@ export default function DesempenhoScreen() {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+              <Ionicons name="chevron-forward" size={18} color={themeColors.textSecondary} />
             </TouchableOpacity>
           </>
         )}
@@ -915,413 +918,415 @@ export default function DesempenhoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
-  header: {
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 40,
+    },
+    header: {
+      marginBottom: 14,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.4,
+    },
+    subtitle: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
 
-  /* Filtro Temporal */
-  timeFilterRow: {
-    flexDirection: 'row',
-    backgroundColor: '#181A1D',
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#26292C',
-  },
-  filterChip: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    borderRadius: 9,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: '#34383C',
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+    /* Filtro Temporal */
+    timeFilterRow: {
+      flexDirection: 'row',
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: 12,
+      padding: 3,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    filterChip: {
+      flex: 1,
+      paddingVertical: 7,
+      alignItems: 'center',
+      borderRadius: 9,
+    },
+    filterChipActive: {
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.borderSubtle,
+    },
+    filterChipText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    filterChipTextActive: {
+      color: theme.primary,
+      fontWeight: '700',
+    },
 
-  loadingContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    marginTop: 12,
-  },
+    loadingContainer: {
+      paddingVertical: 60,
+      alignItems: 'center',
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      marginTop: 12,
+    },
 
-  /* Hero Metrics Grid */
-  heroGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  heroCard: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#232628',
-  },
-  heroCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  heroCardLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  heroCardValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 6,
-  },
-  heroCardSub: {
-    fontSize: 10.5,
-    color: '#8E959E',
-    marginTop: 6,
-    lineHeight: 14,
-  },
-  progressBarTrack: {
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  ritmoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  ritmoBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
+    /* Hero Metrics Grid */
+    heroGrid: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 16,
+    },
+    heroCard: {
+      flex: 1,
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    heroCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+    },
+    heroCardLabel: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: theme.textSecondary,
+      letterSpacing: 0.5,
+    },
+    heroCardValue: {
+      fontSize: 24,
+      fontWeight: '900',
+      color: theme.text,
+      marginBottom: 6,
+    },
+    heroCardSub: {
+      fontSize: 10.5,
+      color: theme.textMuted,
+      marginTop: 6,
+      lineHeight: 14,
+    },
+    progressBarTrack: {
+      height: 4,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+      borderRadius: 2,
+      overflow: 'hidden',
+    },
+    progressBarFill: {
+      height: '100%',
+      borderRadius: 2,
+    },
+    ritmoBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      alignSelf: 'flex-start',
+    },
+    ritmoBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
 
-  /* Seção Padrão de Card */
-  sectionCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#232628',
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  titleWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  sectionDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 14,
-    lineHeight: 16,
-  },
-  cardBadge: {
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
-  },
-  cardBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
+    /* Seção Padrão de Card */
+    sectionCard: {
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    titleWithIcon: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    sectionDesc: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 14,
+      lineHeight: 16,
+    },
+    cardBadge: {
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    cardBadgeText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: theme.primary,
+    },
 
-  /* Saúde da Memória (SM-2) */
-  memoryTotalBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.25)',
-  },
-  memoryTotalBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#3B82F6',
-  },
-  memoryBarContainer: {
-    flexDirection: 'row',
-    height: 8,
-    marginBottom: 10,
-  },
-  memoryBarSegment: {
-    height: '100%',
-  },
-  memoryLegendRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  memoryLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    marginRight: 5,
-  },
-  memoryLegendText: {
-    fontSize: 11,
-    color: '#CBD5E1',
-    fontWeight: '600',
-  },
-  reviewSm2Banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E232A',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.3)',
-    marginTop: 4,
-  },
-  reviewSm2Title: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  reviewSm2Subtitle: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  reviewSm2Button: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    /* Saúde da Memória (SM-2) */
+    memoryTotalBadge: {
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(59, 130, 246, 0.25)',
+    },
+    memoryTotalBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#3B82F6',
+    },
+    memoryBarContainer: {
+      flexDirection: 'row',
+      height: 8,
+      marginBottom: 10,
+    },
+    memoryBarSegment: {
+      height: '100%',
+    },
+    memoryLegendRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    memoryLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    legendDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      marginRight: 5,
+    },
+    memoryLegendText: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    reviewSm2Banner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      marginTop: 4,
+    },
+    reviewSm2Title: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    reviewSm2Subtitle: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    reviewSm2Button: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  /* As 5 Grandes Áreas */
-  areasContainer: {
-    gap: 12,
-  },
-  areaRow: {
-    marginBottom: 4,
-  },
-  areaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  areaTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  areaIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  areaName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  areaStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  areaCountText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  areaTaxaText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  areaProgressTrack: {
-    height: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  areaProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
+    /* As 5 Grandes Áreas */
+    areasContainer: {
+      gap: 12,
+    },
+    areaRow: {
+      marginBottom: 4,
+    },
+    areaHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    areaTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    areaIconBox: {
+      width: 26,
+      height: 26,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8,
+    },
+    areaName: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    areaStatsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    areaCountText: {
+      fontSize: 11,
+      color: theme.textMuted,
+    },
+    areaTaxaText: {
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    areaProgressTrack: {
+      height: 5,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+      borderRadius: 3,
+      overflow: 'hidden',
+    },
+    areaProgressFill: {
+      height: '100%',
+      borderRadius: 3,
+    },
 
-  /* Gargalos Clínicos */
-  gargalosList: {
-    gap: 10,
-  },
-  gargaloItemCard: {
-    backgroundColor: '#181A1D',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#26292C',
-  },
-  gargaloItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  gargaloItemTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  gargaloItemSub: {
-    fontSize: 11,
-    color: '#8E959E',
-    marginTop: 2,
-  },
-  gargaloTaxaBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  gargaloTaxaText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  gargaloFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#24272B',
-  },
-  gargaloAcertosText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  gargaloActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  gargaloActionBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  emptyGargaloBox: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-  emptyGargaloTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#10B981',
-    marginTop: 10,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  emptyGargaloSub: {
-    fontSize: 12,
-    color: '#8E959E',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
+    /* Gargalos Clínicos */
+    gargalosList: {
+      gap: 10,
+    },
+    gargaloItemCard: {
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    gargaloItemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    gargaloItemTitle: {
+      fontSize: 13.5,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    gargaloItemSub: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    gargaloTaxaBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    gargaloTaxaText: {
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    gargaloFooterRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.borderSubtle,
+    },
+    gargaloAcertosText: {
+      fontSize: 11,
+      color: theme.textMuted,
+    },
+    gargaloActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    gargaloActionBtnText: {
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    emptyGargaloBox: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      paddingHorizontal: 16,
+    },
+    emptyGargaloTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#10B981',
+      marginTop: 10,
+      marginBottom: 4,
+      textAlign: 'center',
+    },
+    emptyGargaloSub: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
 
-  /* Streak Footer Card */
-  streakFooterCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#232628',
-    marginBottom: 8,
-  },
-  streakFooterLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  flameEmoji: {
-    fontSize: 24,
-  },
-  streakFooterTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  streakFooterSub: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-});
+    /* Streak Footer Card */
+    streakFooterCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.surface,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginBottom: 8,
+    },
+    streakFooterLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    flameEmoji: {
+      fontSize: 24,
+    },
+    streakFooterTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    streakFooterSub: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+  });
+}

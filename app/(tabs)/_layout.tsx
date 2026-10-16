@@ -5,6 +5,7 @@ import { useWindowDimensions, View, StyleSheet, AppState } from 'react-native';
 
 import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   subscribeToUpdateStatus,
   checkSilentUpdates,
@@ -13,6 +14,7 @@ import {
 import { checkSilentICalSync } from '@/services/icsService';
 
 export default function TabLayout() {
+  const { colors: themeColors } = useAppTheme();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const [hasUpdate, setHasUpdate] = useState(false);
@@ -45,9 +47,9 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: themeColors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#25292c',
+          borderTopColor: themeColors.border,
           height: isLandscape ? 58 : 72,
           paddingBottom: isLandscape ? 8 : 16,
           paddingTop: isLandscape ? 6 : 10,
@@ -57,8 +59,8 @@ export default function TabLayout() {
           shadowOpacity: 0.25,
           shadowRadius: 6,
         },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textSecondary,
+        tabBarActiveTintColor: themeColors.primary,
+        tabBarInactiveTintColor: themeColors.textSecondary,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -66,9 +68,9 @@ export default function TabLayout() {
           marginTop: 2,
         },
         headerStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: themeColors.background,
         },
-        headerTintColor: Colors.text,
+        headerTintColor: themeColors.text,
         headerShadowVisible: false,
         headerShown: false,
       }}>
@@ -116,7 +118,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
               <Ionicons name={focused ? 'settings' : 'settings-outline'} size={26} color={color} />
-              {hasUpdate && <View style={styles.notificationDot} />}
+              {hasUpdate && <View style={[styles.notificationDot, { borderColor: themeColors.surface }]} />}
             </View>
           ),
         }}
