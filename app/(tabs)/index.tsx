@@ -560,7 +560,7 @@ export default function DashboardScreen() {
   // Referência para o auto-scroll
   const flatListRef = useRef<FlatList>(null);
 
-  // Processamento da Timeline (Injetando âncoras e unificando o gancho de início)
+  // Processamento da Timeline (Injetando âncoras de 07:00 e 22:00)
   const timelineItems = useMemo(() => {
     let items: any[] = [...atividades];
 
@@ -571,18 +571,36 @@ export default function DashboardScreen() {
       return horaA.localeCompare(horaB);
     });
 
-    if (items.length > 0) {
-      // Unifica o gancho de início (sunrise): a primeira atividade do dia sempre ganha o ícone
-      // Isso elimina o espaço vazio artificial que existia caso não houvesse atividade exatamente às 07:00
-      items[0] = { ...items[0], hasAnchorStart: true };
+    // Unifica a âncora de início: se já existe atividade começando às 07:00,
+    // marca ela com hasAnchorStart em vez de injetar uma linha extra de 07:00 com pontilhado duplicado
+    const has07hActivity = items.some((a) => (a.hora_inicio || a.time) === '07:00');
 
-      // Injeta âncora de fim às 22:00 apenas se o último item do dia terminar antes desse horário
-      const lastItem = items[items.length - 1];
-      const lastHora = lastItem.hora_fim || lastItem.hora_inicio || '22:00';
-      if (lastHora < '22:00') {
-        items.push({ id: 'ancora_22h', type: 'anchor_end', time: '22:00' });
-      }
+    if (has07hActivity) {
+      let marked = false;
+      items = items.map((a) => {
+        if (!marked && (a.hora_inicio || a.time) === '07:00') {
+          marked = true;
+          return { ...a, hasAnchorStart: true };
+        }
+        return a;
+      });
+    } else {
+      // Se não há atividade às 07:00, insere a âncora de início de forma independente
+      items.unshift({ id: 'ancora_7h', type: 'anchor_start', time: '07:00' });
     }
+
+    // Injeta âncora de fim às 22:00
+    items.push({ id: 'ancora_22h', type: 'anchor_end', time: '22:00' });
+
+    // Ordena tudo pelo horário com âncoras nas posições exatas
+    items.sort((a, b) => {
+      const getHora = (item: any) => {
+        if (item.type === 'anchor_start') return '06:59:59';
+        if (item.type === 'anchor_end') return '22:00:01';
+        return item.hora_inicio || item.time || '22:00';
+      };
+      return getHora(a).localeCompare(getHora(b));
+    });
 
     return items;
   }, [atividades]);
@@ -598,6 +616,12 @@ export default function DashboardScreen() {
         const currentMin = now.getMinutes();
         const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
         const currentTotalMinutes = currentHour * 60 + currentMin;
+
+        // Se ainda for antes das 07:00, foca no início da manhã (07:00)
+        if (currentHour < 7) {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          return;
+        }
 
         // 1. Procura se há uma atividade em andamento no exato momento
         let targetIndex = timelineItems.findIndex((it) => {
@@ -691,7 +715,21 @@ export default function DashboardScreen() {
       </View>
     );
 
-    // 1. Renderiza âncora de fim (22:00)
+    // 1. Renderiza âncoras fixas (07:00 e 22:00)
+    if (item.type === 'anchor_start') {
+      const timePassed = calcTimePassed(7, 0);
+      const isPastOrCurrent = isDayPast || (isToday && currentHour >= 7);
+      return (
+        <View style={styles.anchorRow}>
+          <View style={styles.timeColumn}>
+            <Feather name="sunrise" size={20} color={isPastOrCurrent ? themeColors.text : themeColors.textMuted} style={{ marginBottom: 4 }} />
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: themeColors.text } : styles.timeTextPast]}>07:00</Text>
+            {renderDottedProgress(timePassed)}
+          </View>
+        </View>
+      );
+    }
+
     if (item.type === 'anchor_end') {
       const isPastOrCurrent = isDayPast || (isToday && currentHour >= 22);
       return (
