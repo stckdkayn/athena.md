@@ -150,6 +150,8 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         id TEXT PRIMARY KEY,
         tipo TEXT NOT NULL, -- 'questoes', 'flashcards', 'videoaula', 'leitura'
         tema_id TEXT NOT NULL, -- Ex: 'Pediatria - Neonatologia'
+        titulo TEXT,
+        passo_id INTEGER,
         data_agendada TEXT NOT NULL, -- formato 'YYYY-MM-DD'
         hora_inicio TEXT, -- Preenchido se o algoritmo travar num horário específico
         hora_fim TEXT,
@@ -168,6 +170,12 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
     } catch {}
     try {
       database.execSync(`ALTER TABLE AtividadesAgenda ADD COLUMN icone TEXT;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE blocos_estudo ADD COLUMN titulo TEXT;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE blocos_estudo ADD COLUMN passo_id INTEGER;`);
     } catch {}
     try {
       database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN icone TEXT;`);
@@ -1335,6 +1343,8 @@ export interface DbBlocoEstudo {
   id: string;
   tipo: BlocoEstudoType;
   tema_id: string;
+  titulo?: string | null;
+  passo_id?: number | null;
   data_agendada: string; // 'YYYY-MM-DD'
   hora_inicio?: string | null;
   hora_fim?: string | null;
@@ -1383,6 +1393,7 @@ export async function getBlocosEstudoPorData(dataYYYYMMDD: string): Promise<DbBl
 
 /**
  * Atualiza o status de um bloco de estudo (ex: quando você termina de resolver as questões).
+ * Também sincroniza a conclusão com o passo do cronograma de residência caso o bloco tenha vínculo.
  */
 export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStatus): Promise<void> {
   try {
@@ -1391,6 +1402,15 @@ export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStat
       `UPDATE blocos_estudo SET status = ? WHERE id = ?;`,
       [status, blocoId]
     );
+
+    // Se o bloco tiver passo_id vinculado, sincroniza com a tabela Passos
+    const bloco = await database.getFirstAsync<{ passo_id: number | null }>(
+      `SELECT passo_id FROM blocos_estudo WHERE id = ?;`,
+      [blocoId]
+    );
+    if (bloco && bloco.passo_id) {
+      await togglePassoConcluido(bloco.passo_id, status === 'concluido');
+    }
   } catch (err) {
     console.error('[database] Erro ao atualizar status do bloco:', err);
   }

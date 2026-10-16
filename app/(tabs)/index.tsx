@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   StatusBar,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { storage } from '@/services/storage';
 import {
@@ -19,8 +20,12 @@ import {
   AtividadeAgenda,
   getPassosPorDiaSemana,
   togglePassoConcluido,
+  getBlocosEstudoPorData,
+  updateStatusBlocoEstudo,
+  DbBlocoEstudo,
 } from '@/services/database';
 import { getAdjustedDailyBudget } from '@/services/scheduleService';
+import { gerarPlanoDiario } from '@/services/schedulerService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -60,10 +65,13 @@ const gerarDiasVisiveis = () => {
 };
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const [atividades, setAtividades] = useState<AtividadeAgenda[]>([]);
+  const [blocosEstudo, setBlocosEstudo] = useState<DbBlocoEstudo[]>([]);
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => toLocalDateStr(new Date()));
   const [limiteDiario, setLimiteDiario] = useState<number>(15);
   const [loading, setLoading] = useState<boolean>(true);
+  const [gerandoPlano, setGerandoPlano] = useState<boolean>(false);
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
   const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
@@ -130,56 +138,95 @@ export default function DashboardScreen() {
       // 1. Busca as atividades normais/cadastradas do dia selecionado
       const dadosAgenda = await getAtividadesPorData(dataSelecionada);
 
-      // 2. Determina o dia da semana para buscar passos do cronograma da residência
-      const [ano, mes, dia] = dataSelecionada.split('-').map(Number);
-      const dateObj = new Date(ano, mes - 1, dia);
-      const dayIdx = dateObj.getDay();
-      const DIAS_SEMANA_MAP: Record<number, string> = {
-        0: 'domingo',
-        1: 'segunda',
-        2: 'terca',
-        3: 'quarta',
-        4: 'quinta',
-        5: 'sexta',
-        6: 'sabado',
-      };
-      const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
+      // 2. Busca blocos inteligentes gerados pelo agendador para este dia
+      const blocos = await getBlocosEstudoPorData(dataSelecionada);
+      setBlocosEstudo(blocos);
 
-      const semStr = storage.getString('@athena_semana_ativa');
-      const semanaAtiva = semStr ? parseInt(semStr, 10) : 1;
+      let itensEstudo: AtividadeAgenda[] = [];
 
-      // Busca os passos do cronograma da residência médica do banco SQLite
-      const passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaAtiva);
+      if (blocos && blocos.length > 0) {
+        // Se o agendador inteligente já gerou blocos com horários calculados
+        itensEstudo = blocos.map((b) => {
+          let icone = 'book-open';
+          if (b.tipo === 'questoes') icone = 'check-square';
+          else if (b.tipo === 'flashcards') icone = 'layers';
+          else if (b.tipo === 'videoaula') icone = 'play-circle';
+          else if (b.tipo === 'leitura') icone = 'book-open';
 
-      // Mapeia os passos para AtividadeAgenda
-      const passosMapeados: AtividadeAgenda[] = (passosResidencia || []).map((p) => {
-        let icone = 'book-open';
-        if (p.tipo === 'aulas' || p.tipo === 'aulas_bonus') icone = 'play-circle';
-        else if (p.tipo === 'questoes') icone = 'check-square';
-        else if (p.tipo === 'flashcards') icone = 'layers';
+          let detalhesTexto = '';
+          if (b.tipo === 'questoes') {
+            detalhesTexto = `Treino de Questões (${b.duracao_minutos} min) • Prioridade ${b.prioridade.toFixed(1)}`;
+          } else if (b.tipo === 'flashcards') {
+            detalhesTexto = `Revisão Flashcards (${b.duracao_minutos} min)`;
+          } else if (b.tipo === 'videoaula') {
+            detalhesTexto = `Videoaula Teórica (${b.duracao_minutos} min)`;
+          } else {
+            detalhesTexto = `Leitura Teórica (${b.duracao_minutos} min)`;
+          }
 
-        let detalhesTexto = '';
-        if (p.tipo === 'questoes') {
-          const meta = p.meta_questoes ? `Meta: ${p.meta_questoes} questões` : '';
-          const tema = p.tema_questoes || p.detalhe || '';
-          detalhesTexto = [meta, tema].filter(Boolean).join(' • ');
-        } else {
-          detalhesTexto = p.detalhe || p.tema_questoes || '';
-        }
-
-        return {
-          id: `passo_${p.id}`,
-          data_agendada: dataSelecionada,
-          titulo: `${p.topico_titulo}${p.label ? ' • ' + p.label : ''}`,
-          tipo: 'Estudos',
-          icone,
-          concluida: p.concluido === 1,
-          detalhes: detalhesTexto || undefined,
-          feedback_cansaco: p.tipo === 'questoes' ? 3 : p.tipo === 'aulas' ? 2 : 1,
+          return {
+            id: `bloco_${b.id}`,
+            data_agendada: b.data_agendada,
+            titulo: b.titulo || b.tema_id,
+            tipo: 'Estudos',
+            icone,
+            concluida: b.status === 'concluido',
+            hora_inicio: b.hora_inicio || undefined,
+            hora_fim: b.hora_fim || undefined,
+            detalhes: detalhesTexto,
+            feedback_cansaco: b.tipo === 'questoes' ? 3 : b.tipo === 'videoaula' ? 2 : 1,
+          };
+        });
+      } else {
+        // Se ainda não gerou blocos, busca a grade teórica do cronograma para pré-visualização
+        const [ano, mes, dia] = dataSelecionada.split('-').map(Number);
+        const dateObj = new Date(ano, mes - 1, dia);
+        const dayIdx = dateObj.getDay();
+        const DIAS_SEMANA_MAP: Record<number, string> = {
+          0: 'domingo',
+          1: 'segunda',
+          2: 'terca',
+          3: 'quarta',
+          4: 'quinta',
+          5: 'sexta',
+          6: 'sabado',
         };
-      });
+        const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
 
-      setAtividades([...dadosAgenda, ...passosMapeados]);
+        const semStr = storage.getString('@athena_semana_ativa');
+        const semanaAtiva = semStr ? parseInt(semStr, 10) : 1;
+
+        const passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaAtiva);
+
+        itensEstudo = (passosResidencia || []).map((p) => {
+          let icone = 'book-open';
+          if (p.tipo === 'aulas' || p.tipo === 'aulas_bonus') icone = 'play-circle';
+          else if (p.tipo === 'questoes') icone = 'check-square';
+          else if (p.tipo === 'flashcards') icone = 'layers';
+
+          let detalhesTexto = '';
+          if (p.tipo === 'questoes') {
+            const meta = p.meta_questoes ? `Meta: ${p.meta_questoes} questões` : '';
+            const tema = p.tema_questoes || p.detalhe || '';
+            detalhesTexto = [meta, tema].filter(Boolean).join(' • ');
+          } else {
+            detalhesTexto = p.detalhe || p.tema_questoes || '';
+          }
+
+          return {
+            id: `passo_${p.id}`,
+            data_agendada: dataSelecionada,
+            titulo: `${p.topico_titulo}${p.label ? ' • ' + p.label : ''}`,
+            tipo: 'Estudos',
+            icone,
+            concluida: p.concluido === 1,
+            detalhes: detalhesTexto || undefined,
+            feedback_cansaco: p.tipo === 'questoes' ? 3 : p.tipo === 'aulas' ? 2 : 1,
+          };
+        });
+      }
+
+      setAtividades([...dadosAgenda, ...itensEstudo]);
 
       // 3. Calcula a data do dia anterior (para verificar eventual "dívida de cansaço")
       const dataAtual = new Date(dataSelecionada + 'T12:00:00Z');
@@ -203,26 +250,50 @@ export default function DashboardScreen() {
     }, [carregarAgenda])
   );
 
-  // Alterna o status de concluída (materializando tarefas virtuais ou atualizando SQLite nos passos)
+  // Alterna o status de concluída (materializando tarefas virtuais ou atualizando SQLite nos passos ou blocos)
   const handleToggle = async (atividade: AtividadeAgenda) => {
-    // Atualização otimista imediata para feedback instantâneo na UI
     const novoStatus = !atividade.concluida;
     setAtividades((prev) =>
       prev.map((a) => (a.id === atividade.id ? { ...a, concluida: novoStatus } : a))
     );
 
     try {
-      if (atividade.id.startsWith('passo_')) {
+      if (atividade.id.startsWith('bloco_')) {
+        const blocoId = atividade.id.replace('bloco_', '');
+        await updateStatusBlocoEstudo(blocoId, novoStatus ? 'concluido' : 'pendente');
+      } else if (atividade.id.startsWith('passo_')) {
         const passoId = parseInt(atividade.id.replace('passo_', ''), 10);
         await togglePassoConcluido(passoId, novoStatus);
       } else {
         await toggleAtividadeStatus(atividade);
       }
-      await carregarAgenda(); // Recarrega para refletir persistência
+      await carregarAgenda();
     } catch (err) {
       console.error('[Dashboard] Erro ao alternar status da atividade:', err);
       carregarAgenda();
     }
+  };
+
+  const handleGerarPlanoInteligente = async () => {
+    try {
+      setGerandoPlano(true);
+      await gerarPlanoDiario(dataSelecionada);
+      await carregarAgenda();
+    } catch (err) {
+      console.error('[Dashboard] Erro ao gerar plano inteligente:', err);
+    } finally {
+      setGerandoPlano(false);
+    }
+  };
+
+  const handleIniciarTreinoBloco = (item: AtividadeAgenda) => {
+    const blocoId = item.id.replace('bloco_', '');
+    const bloco = blocosEstudo.find((b) => b.id === blocoId);
+    const tema = bloco?.tema_id || item.titulo.split(' • ')[0];
+
+    storage.set('@athena_cart', JSON.stringify([{ tema }]));
+    storage.set('@athena_quiz_limit', '20');
+    router.push({ pathname: '/treino/quiz', params: { tema: encodeURIComponent(tema), limite: '20' } });
   };
 
   // Variáveis para o contador de atividades
@@ -394,7 +465,7 @@ export default function DashboardScreen() {
         <TouchableOpacity
           onPress={() => handleToggle(item)}
           onLongPress={() => {
-            if (item.id?.startsWith('passo_')) return;
+            if (item.id?.startsWith('passo_') || item.id?.startsWith('bloco_')) return;
             setAtividadeParaEditar(item);
             setModalNovaVisible(true);
           }}
@@ -423,6 +494,14 @@ export default function DashboardScreen() {
               </View>
 
               <View style={styles.badgesRow}>
+                {/* Badge Athena AI para blocos gerados */}
+                {item.id?.startsWith('bloco_') && (
+                  <View style={styles.aiBadge}>
+                    <Feather name="zap" size={10} color={Colors.primary} />
+                    <Text style={styles.aiBadgeText}>ATHENA AI</Text>
+                  </View>
+                )}
+
                 {/* Badge de Demanda Cognitiva */}
                 {typeof item.feedback_cansaco === 'number' && item.feedback_cansaco > 0 && (
                   <View style={styles.energyBadge}>
@@ -447,7 +526,7 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            {/* Linha Meta: Horários e Indicador de Rotina */}
+            {/* Linha Meta: Horários, Indicador de Rotina e Botão Praticar */}
             <View style={styles.metaRow}>
               {item.hora_fim ? (
                 <View style={styles.timeRangeBox}>
@@ -463,6 +542,20 @@ export default function DashboardScreen() {
                   <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
                   <Text style={styles.routineText}>Rotina</Text>
                 </View>
+              )}
+
+              {item.icone === 'check-square' && !item.concluida && (
+                <TouchableOpacity
+                  style={styles.praticarBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleIniciarTreinoBloco(item);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="play" size={10} color="#000" />
+                  <Text style={styles.praticarBtnText}>Praticar</Text>
+                </TouchableOpacity>
               )}
             </View>
           </LinearGradient>
@@ -530,10 +623,67 @@ export default function DashboardScreen() {
 
       {/* 3. Container Board das Atividades */}
       <View style={styles.boardContainer}>
-        <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
-        <Text style={styles.boardSubtitle}>
-          Você completou {concluidas}/{total} {total === 1 ? 'atividade programada' : 'atividades programadas'} para {getRelativeDateTitle(dataSelecionada).toLowerCase()}!
-        </Text>
+        <View style={styles.boardHeaderRow}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
+            <Text style={styles.boardSubtitle}>
+              Você completou {concluidas}/{total} {total === 1 ? 'atividade programada' : 'atividades programadas'} para {getRelativeDateTitle(dataSelecionada).toLowerCase()}!
+            </Text>
+          </View>
+          {blocosEstudo.length > 0 && (
+            <TouchableOpacity
+              style={styles.replanBtn}
+              onPress={handleGerarPlanoInteligente}
+              disabled={gerandoPlano}
+              activeOpacity={0.7}
+            >
+              {gerandoPlano ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <>
+                  <Feather name="refresh-cw" size={12} color={Colors.primary} style={{ marginRight: 4 }} />
+                  <Text style={styles.replanBtnText}>Replanejar</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {blocosEstudo.length === 0 && (
+          <TouchableOpacity
+            style={styles.aiBanner}
+            onPress={handleGerarPlanoInteligente}
+            disabled={gerandoPlano}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['rgba(234, 225, 21, 0.15)', '#25292c', '#1b1d1f']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.aiBannerGradient}
+            >
+              <View style={styles.aiBannerIconBox}>
+                <Feather name="cpu" size={20} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={styles.aiBannerTitle}>✨ Otimizar Dia com IA</Text>
+                <Text style={styles.aiBannerDesc}>
+                  {gerandoPlano
+                    ? 'Calculando janelas livres e alocando estudos...'
+                    : 'Distribuir passos do cronograma e revisões nos seus horários livres.'}
+                </Text>
+              </View>
+              {gerandoPlano ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <View style={styles.aiBannerCta}>
+                  <Text style={styles.aiBannerCtaText}>Gerar</Text>
+                  <Feather name="zap" size={12} color="#000" />
+                </View>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         <FlatList
           ref={flatListRef}
@@ -919,5 +1069,106 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 6,
+  },
+
+  /* AI Planner & Replan Styles */
+  boardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  replanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E2124',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 225, 21, 0.3)',
+    marginTop: 2,
+  },
+  replanBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  aiBanner: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(234, 225, 21, 0.25)',
+  },
+  aiBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  aiBannerIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(234, 225, 21, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFF',
+    marginBottom: 2,
+  },
+  aiBannerDesc: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 15,
+  },
+  aiBannerCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  aiBannerCtaText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000',
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(234, 225, 21, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 225, 21, 0.3)',
+    gap: 3,
+  },
+  aiBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.3,
+  },
+  praticarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+    marginLeft: 'auto',
+  },
+  praticarBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#000',
   },
 });
