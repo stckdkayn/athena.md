@@ -60,6 +60,7 @@ export default function ModalNovaAtividade({
   const [horaFim, setHoraFim] = useState(new Date(new Date().getTime() + 60 * 60 * 1000)); // +1 hora padrão
   const [showPickerInicio, setShowPickerInicio] = useState(false);
   const [showPickerFim, setShowPickerFim] = useState(false);
+  const [showIconMenu, setShowIconMenu] = useState(false);
   const [frequencia, setFrequencia] = useState<'unica' | 'diaria' | 'dias_uteis' | 'semanal'>('unica');
   const [demanda, setDemanda] = useState(3);
   const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<number[]>([1, 3, 5]);
@@ -76,6 +77,7 @@ export default function ModalNovaAtividade({
       setTitulo('');
       setTipo('Estudo');
       setIconeSelecionado('book');
+      setShowIconMenu(false);
       const now = new Date();
       setHoraInicio(now);
       setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
@@ -188,7 +190,7 @@ export default function ModalNovaAtividade({
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <Ionicons name="calendar" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.title}>Nova Atividade</Text>
+              <Text style={styles.modalTitle}>Novo Evento</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
@@ -196,63 +198,108 @@ export default function ModalNovaAtividade({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Input do Título */}
-            <TextInput
-              style={styles.input}
-              placeholder="Nome da atividade..."
-              placeholderTextColor="#71767B"
-              value={titulo}
-              onChangeText={setTitulo}
-              autoFocus
-            />
-
-            {/* Seletor de Ícone */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Ícone da Atividade</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollPillContainer}>
-                {ICONES_DISPONIVEIS.map((ic) => (
-                  <TouchableOpacity
-                    key={ic}
-                    style={[styles.iconPill, iconeSelecionado === ic && styles.iconPillActive]}
-                    onPress={() => setIconeSelecionado(ic)}
-                    activeOpacity={0.7}
-                  >
-                    <Feather
-                      name={ic as any}
-                      size={20}
-                      color={iconeSelecionado === ic ? '#000000' : Colors.textSecondary}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+            {/* Input Agrupado com Ícone */}
+            <View style={styles.inputRow}>
+              <TouchableOpacity 
+                style={styles.iconSelectorButton} 
+                onPress={() => setShowIconMenu(!showIconMenu)}
+                activeOpacity={0.7}
+              >
+                <Feather name={iconeSelecionado as any} size={22} color={Colors.text} />
+                <Feather name="chevron-down" size={14} color="#888" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+              <TextInput
+                style={styles.titleInputGrouped}
+                placeholder="Nome do evento..."
+                value={titulo}
+                onChangeText={setTitulo}
+                placeholderTextColor="#999"
+                autoFocus
+              />
             </View>
 
-            {/* Seletor de Horário (Início e Fim) */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Horário (Início e Fim)</Text>
-              <View style={{ flexDirection: 'row', gap: 16 }}>
-                <TouchableOpacity
-                  style={styles.nativeTimeButton}
-                  onPress={() => setShowPickerInicio(true)}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="clock" size={16} color={Colors.textSecondary} />
-                  <Text style={styles.nativeTimeText}>
-                    {horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.nativeTimeButton}
-                  onPress={() => setShowPickerFim(true)}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="clock" size={16} color={Colors.textSecondary} />
-                  <Text style={styles.nativeTimeText}>
-                    {horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </TouchableOpacity>
+            {/* Mini menu de ícones flutuante/condicional */}
+            {showIconMenu && (
+              <View style={styles.iconDropdown}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {ICONES_DISPONIVEIS.map((ic) => (
+                    <TouchableOpacity 
+                      key={ic} 
+                      style={styles.iconDropdownItem} 
+                      onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name={ic as any} size={20} color={iconeSelecionado === ic ? Colors.primary : '#888'} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
+            )}
+
+            {/* Seletor de Horário e Repetição */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Horário</Text>
+              <View style={styles.timeRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.subLabel}>Início</Text>
+                  <TouchableOpacity style={styles.nativeTimeButton} onPress={() => setShowPickerInicio(true)} activeOpacity={0.7}>
+                    <Text style={styles.nativeTimeText}>
+                      {horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.subLabel}>Fim</Text>
+                  <TouchableOpacity style={styles.nativeTimeButton} onPress={() => setShowPickerFim(true)} activeOpacity={0.7}>
+                    <Text style={styles.nativeTimeText}>
+                      {horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Pílulas de Repetição diretamente abaixo, centralizadas, sem título */}
+              <View style={styles.repetitionContainer}>
+                {(['unica', 'diaria', 'semanal'] as const).map((freq) => (
+                  <TouchableOpacity 
+                    key={freq} 
+                    style={[styles.freqPill, frequencia === freq && styles.freqPillActive]} 
+                    onPress={() => setFrequencia(freq)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.freqPillText, frequencia === freq && styles.freqPillTextActive]}>
+                      {freq === 'unica' ? 'Não se repete' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Seletor de dias para frequência Semanal */}
+              {frequencia === 'semanal' && (
+                <View style={styles.weekDaysContainer}>
+                  {DIAS_SEMANA_NOMES.map((d) => {
+                    const isSelected = diasSemanaSelecionados.includes(d.id);
+                    return (
+                      <TouchableOpacity
+                        key={d.id}
+                        style={[styles.weekDayCircle, isSelected && styles.weekDayCircleSelected]}
+                        onPress={() => toggleDiaSemana(d.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.weekDayText,
+                            isSelected && styles.weekDayTextSelected,
+                          ]}
+                        >
+                          {d.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
 
               {/* Picker de Início */}
               {showPickerInicio && (
@@ -264,7 +311,6 @@ export default function ModalNovaAtividade({
                     if (Platform.OS === 'android') setShowPickerInicio(false);
                     if (selectedDate) {
                       setHoraInicio(selectedDate);
-                      // Atualiza automaticamente o fim para 1 hora depois
                       setHoraFim(new Date(selectedDate.getTime() + 60 * 60 * 1000));
                     }
                   }}
@@ -339,75 +385,6 @@ export default function ModalNovaAtividade({
               </View>
             </View>
 
-            {/* Frequência / Repetição */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Repetição</Text>
-              <View style={styles.pillContainer}>
-                <TouchableOpacity
-                  style={[styles.pill, frequencia === 'unica' && styles.pillActive]}
-                  onPress={() => setFrequencia('unica')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, frequencia === 'unica' && styles.pillTextActive]}>
-                    Única
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.pill, frequencia === 'diaria' && styles.pillActive]}
-                  onPress={() => setFrequencia('diaria')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, frequencia === 'diaria' && styles.pillTextActive]}>
-                    Diária
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.pill, frequencia === 'dias_uteis' && styles.pillActive]}
-                  onPress={() => setFrequencia('dias_uteis')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, frequencia === 'dias_uteis' && styles.pillTextActive]}>
-                    Dias Úteis
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.pill, frequencia === 'semanal' && styles.pillActive]}
-                  onPress={() => setFrequencia('semanal')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, frequencia === 'semanal' && styles.pillTextActive]}>
-                    Semanal
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Seletor de dias para frequência Semanal */}
-              {frequencia === 'semanal' && (
-                <View style={styles.weekDaysContainer}>
-                  {DIAS_SEMANA_NOMES.map((d) => {
-                    const isSelected = diasSemanaSelecionados.includes(d.id);
-                    return (
-                      <TouchableOpacity
-                        key={d.id}
-                        style={[styles.weekDayCircle, isSelected && styles.weekDayCircleSelected]}
-                        onPress={() => toggleDiaSemana(d.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.weekDayText,
-                            isSelected && styles.weekDayTextSelected,
-                          ]}
-                        >
-                          {d.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
             {/* Botão Salvar */}
             <TouchableOpacity
               style={[
@@ -462,39 +439,93 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
   title: {
     fontSize: 18,
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -0.3,
   },
-  input: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.text,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2e3235',
-    paddingVertical: 12,
-    marginBottom: 18,
-  },
-  scrollPillContainer: {
+  inputRow: {
     flexDirection: 'row',
-    gap: 8,
-    paddingRight: 20,
-  },
-  iconPill: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    alignItems: 'center',
     backgroundColor: '#1b1d1f',
     borderWidth: 1,
     borderColor: '#2e3235',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 12,
+    marginBottom: 16,
+    paddingHorizontal: 12,
   },
-  iconPillActive: {
+  iconSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#2e3235',
+    paddingVertical: 12,
+  },
+  titleInputGrouped: {
+    flex: 1,
+    fontSize: 17,
+    color: Colors.text,
+    paddingVertical: 14,
+    paddingLeft: 12,
+  },
+  iconDropdown: {
+    backgroundColor: '#1b1d1f',
+    borderWidth: 1,
+    borderColor: '#2e3235',
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 16,
+  },
+  iconDropdownItem: {
+    padding: 8,
+    marginRight: 8,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  subLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  repetitionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+    flexWrap: 'wrap',
+  },
+  freqPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: '#1b1d1f',
+    borderWidth: 1,
+    borderColor: '#2e3235',
+  },
+  freqPillActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+  },
+  freqPillText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  freqPillTextActive: {
+    color: '#000000',
+    fontWeight: '800',
   },
   nativeTimeButton: {
     flex: 1,

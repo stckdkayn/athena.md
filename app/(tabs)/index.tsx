@@ -20,6 +20,17 @@ import {
 } from '@/services/database';
 import { getAdjustedDailyBudget } from '@/services/scheduleService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
+import { LinearGradient } from 'expo-linear-gradient';
+
+export const CATEGORIA_CORES: Record<string, string> = {
+  'Estudos': '#3B82F6',   // Azul
+  'Estudo': '#3B82F6',    // Azul
+  'Faculdade': '#8B5CF6', // Roxo
+  'Saúde': '#10B981',     // Verde
+  'Pessoal': '#10B981',   // Verde
+  'Lazer': '#F59E0B',     // Amarelo
+  'default': '#9CA3AF'    // Cinza
+};
 
 function toLocalDateStr(date: Date): string {
   const year = date.getFullYear();
@@ -297,6 +308,7 @@ export default function DashboardScreen() {
 
     const isPast = timePassed >= 60;
     const isCurrentHour = isToday && timePassed >= 0 && timePassed < 60;
+    const corBase = CATEGORIA_CORES[item.tipo] || CATEGORIA_CORES['default'];
 
     return (
       <View style={styles.timelineRow}>
@@ -310,57 +322,65 @@ export default function DashboardScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
           onPress={() => handleToggle(item)}
           activeOpacity={0.75}
+          style={{ flex: 1 }}
         >
-          <View style={styles.cardHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-              <Feather name={(item.icone as any) || 'circle'} size={18} color="#888" style={{ marginRight: 8 }} />
-              <Text
-                style={[
-                  styles.activityTitle,
-                  item.concluida && styles.textStrikethrough,
-                ]}
-                numberOfLines={2}
-              >
-                {item.titulo}
-              </Text>
-            </View>
-
-            <View style={styles.badgesRow}>
-              {/* Badge de Demanda Cognitiva */}
-              {typeof item.feedback_cansaco === 'number' && item.feedback_cansaco > 0 && (
-                <View style={styles.energyBadge}>
-                  <Text style={styles.energyBadgeText}>⚡ {item.feedback_cansaco}</Text>
-                </View>
-              )}
-
-              {/* Badge de Categoria */}
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{item.tipo.toUpperCase()}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Linha Meta: Horários e Indicador de Rotina */}
-          <View style={styles.metaRow}>
-            {item.hora_fim ? (
-              <View style={styles.timeRangeBox}>
-                <Ionicons name="time-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={styles.timeRangeText}>
-                  {item.hora_inicio} - {item.hora_fim}
+          <LinearGradient
+            colors={item.concluida ? [`${corBase}10`, '#1b1d1f', '#1b1d1f'] : [`${corBase}20`, Colors.surface, Colors.surface]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
+          >
+            <View style={styles.cardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                {/* Ícone com a cor da categoria */}
+                <Feather name={(item.icone as any) || 'circle'} size={18} color={corBase} style={{ marginRight: 8 }} />
+                <Text
+                  style={[
+                    styles.activityTitle,
+                    item.concluida && styles.textStrikethrough,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {item.titulo}
                 </Text>
               </View>
-            ) : null}
 
-            {item.isVirtual && (
-              <View style={styles.routineBox}>
-                <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
-                <Text style={styles.routineText}>Rotina</Text>
+              <View style={styles.badgesRow}>
+                {/* Badge de Demanda Cognitiva */}
+                {typeof item.feedback_cansaco === 'number' && item.feedback_cansaco > 0 && (
+                  <View style={styles.energyBadge}>
+                    <Text style={styles.energyBadgeText}>⚡ {item.feedback_cansaco}</Text>
+                  </View>
+                )}
+
+                {/* Badge de Categoria */}
+                <View style={[styles.typeBadge, { borderColor: `${corBase}40` }]}>
+                  <Text style={[styles.typeBadgeText, { color: corBase }]}>{item.tipo.toUpperCase()}</Text>
+                </View>
               </View>
-            )}
-          </View>
+            </View>
+
+            {/* Linha Meta: Horários e Indicador de Rotina */}
+            <View style={styles.metaRow}>
+              {item.hora_fim ? (
+                <View style={styles.timeRangeBox}>
+                  <Ionicons name="time-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                  <Text style={styles.timeRangeText}>
+                    {item.hora_inicio} - {item.hora_fim}
+                  </Text>
+                </View>
+              ) : null}
+
+              {item.isVirtual && (
+                <View style={styles.routineBox}>
+                  <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
+                  <Text style={styles.routineText}>Rotina</Text>
+                </View>
+              )}
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     );
@@ -713,16 +733,15 @@ const styles = StyleSheet.create({
   },
   activityCard: {
     flex: 1,
-    backgroundColor: Colors.surface,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#2e3235',
+    overflow: 'hidden',
   },
   activityCardCompleted: {
     opacity: 0.5,
     borderColor: '#202325',
-    backgroundColor: '#1b1d1f',
   },
   cardHeader: {
     flexDirection: 'row',
