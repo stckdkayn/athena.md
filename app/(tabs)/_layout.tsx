@@ -22,10 +22,10 @@ export default function TabLayout() {
   const isLandscape = width > height;
   const [hasUpdate, setHasUpdate] = useState(false);
 
-  const pillHeight = isLandscape ? 48 : 52;
+  const pillHeight = isLandscape ? 52 : 60;
   const capsuleWidth = isLandscape
-    ? Math.min(width * 0.45, 280)
-    : Math.min(width - 48, 250);
+    ? Math.min(width * 0.5, 320)
+    : Math.min(width - 40, 280);
   const horizontalMargin = Math.max(Math.round((width - capsuleWidth) / 2), 16);
   const bottomMargin = isLandscape ? 12 : Math.max(insets.bottom, 16);
 
@@ -76,8 +76,8 @@ export default function TabLayout() {
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: isDark ? 0.35 : 0.08,
-          shadowRadius: 16,
-          elevation: 10,
+          shadowRadius: 18,
+          elevation: 12,
           paddingTop: 0,
           paddingBottom: 0,
           paddingHorizontal: 0,
@@ -130,7 +130,7 @@ export default function TabLayout() {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={28} color={color} />
           ),
         }}
       />
@@ -141,7 +141,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'document-text' : 'document-text-outline'}
-              size={24}
+              size={28}
               color={color}
             />
           ),
@@ -152,7 +152,7 @@ export default function TabLayout() {
         options={{
           title: 'Desempenho',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={28} color={color} />
           ),
         }}
       />
@@ -168,7 +168,7 @@ export default function TabLayout() {
           title: 'Configurações',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.tabIconWrapper}>
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
+              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={28} color={color} />
               {hasUpdate && (
                 <View
                   style={[
@@ -188,18 +188,18 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabIconWrapper: {
     position: 'relative',
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   notificationDot: {
     position: 'absolute',
     top: 0,
-    right: -1,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     backgroundColor: '#FF3B30',
     borderWidth: 1.5,
     borderColor: Colors.surface,
