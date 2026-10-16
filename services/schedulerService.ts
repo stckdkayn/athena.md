@@ -420,119 +420,147 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
     return null;
   };
 
-  await database.withExclusiveTransactionAsync(async (txn) => {
-    for (const janela of janelasLivres) {
-      const isManha = janela.inicio < 720;
-      let tempoAtual = janela.inicio;
+  const blocosParaInserir: {
+    id: string;
+    tipo: string;
+    tema_id: string;
+    titulo: string;
+    passo_id: number | null;
+    data_agendada: string;
+    hora_inicio: string;
+    hora_fim: string;
+    duracao_minutos: number;
+    prioridade: number;
+    status: string;
+    timestamp_geracao: number;
+  }[] = [];
 
-      // Se a janela da manhã começar às 07:00 (420) e tiver ampla folga (>= 4h),
-      // inicia confortavelmente às 08:00 (480) em vez de forçar às 07:00
-      if (isManha && janela.inicio === 420 && janela.fim - janela.inicio >= 240) {
-        tempoAtual = 480;
+  const janelasEstado: { inicio: number; fim: number; tempoAtual: number }[] = [];
+
+  for (const janela of janelasLivres) {
+    const isManha = janela.inicio < 720;
+    let tempoAtual = janela.inicio;
+
+    // Se a janela da manhã começar às 07:00 (420) e tiver ampla folga (>= 4h),
+    // inicia confortavelmente às 08:00 (480) em vez de forçar às 07:00
+    if (isManha && janela.inicio === 420 && janela.fim - janela.inicio >= 240) {
+      tempoAtual = 480;
+    }
+    // Se a janela da tarde começar logo após o almoço (13:00) e tiver folga,
+    // inicia confortavelmente às 14:00 (840) para permitir digestão e descanso
+    if (!isManha && janela.inicio >= 720 && janela.inicio <= 780 && janela.fim - janela.inicio >= 240) {
+      tempoAtual = 840;
+    }
+
+    let minutosDisponiveis = janela.fim - tempoAtual;
+
+    while (minutosDisponiveis >= 15) {
+      const tarefa = obterProximaTarefa(minutosDisponiveis, isManha);
+      if (!tarefa) {
+        break;
       }
-      // Se a janela da tarde começar logo após o almoço (13:00) e tiver folga,
-      // inicia confortavelmente às 14:00 (840) para permitir digestão e descanso
-      if (!isManha && janela.inicio >= 720 && janela.inicio <= 780 && janela.fim - janela.inicio >= 240) {
-        tempoAtual = 840;
+
+      let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
+      const sobra = minutosDisponiveis - duracaoBloco;
+      if (sobra > 0 && sobra < 15) {
+        duracaoBloco += sobra;
       }
 
-      let minutosDisponiveis = janela.fim - tempoAtual;
+      const novoId = Math.random().toString(36).substring(2, 15);
 
-      while (minutosDisponiveis >= 15) {
-        const tarefa = obterProximaTarefa(minutosDisponiveis, isManha);
-        if (!tarefa) {
-          break;
-        }
+      blocosParaInserir.push({
+        id: novoId,
+        tipo: tarefa.tipo,
+        tema_id: tarefa.tema_id,
+        titulo: tarefa.titulo,
+        passo_id: tarefa.passo_id ?? null,
+        data_agendada: dataYYYYMMDD,
+        hora_inicio: minutesToTime(tempoAtual),
+        hora_fim: minutesToTime(tempoAtual + duracaoBloco),
+        duracao_minutos: duracaoBloco,
+        prioridade: tarefa.prioridade,
+        status: 'pendente',
+        timestamp_geracao: ts,
+      });
 
+      totalGerados++;
+      // Avança o horário com o bloco + intervalo de descanso de 15 minutos
+      const tempoAvanco = duracaoBloco + PAUSA_ENTRE_BLOCOS_MIN;
+      tempoAtual += tempoAvanco;
+      minutosDisponiveis = janela.fim - tempoAtual;
+    }
+
+    janelasEstado.push({ inicio: janela.inicio, fim: janela.fim, tempoAtual });
+  }
+
+  // Se sobrou alguma tarefa não alocada por falta de turno específico,
+  // faz uma segunda passada nas janelas restantes
+  const tarefasRestantes = [...tarefasTeoria, ...tarefasPratica];
+  if (tarefasRestantes.length > 0) {
+    for (const jState of janelasEstado) {
+      let tempoAtual = jState.tempoAtual;
+      let minutosDisponiveis = jState.fim - tempoAtual;
+
+      while (minutosDisponiveis >= 15 && tarefasRestantes.length > 0) {
+        const tarefa = tarefasRestantes.shift()!;
         let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
-        const sobra = minutosDisponiveis - duracaoBloco;
-        if (sobra > 0 && sobra < 15) {
-          duracaoBloco += sobra;
-        }
-
         const novoId = Math.random().toString(36).substring(2, 15);
 
-        await txn.runAsync(
+        blocosParaInserir.push({
+          id: novoId,
+          tipo: tarefa.tipo,
+          tema_id: tarefa.tema_id,
+          titulo: tarefa.titulo,
+          passo_id: tarefa.passo_id ?? null,
+          data_agendada: dataYYYYMMDD,
+          hora_inicio: minutesToTime(tempoAtual),
+          hora_fim: minutesToTime(tempoAtual + duracaoBloco),
+          duracao_minutos: duracaoBloco,
+          prioridade: tarefa.prioridade,
+          status: 'pendente',
+          timestamp_geracao: ts,
+        });
+
+        totalGerados++;
+        const tempoAvanco = duracaoBloco + PAUSA_ENTRE_BLOCOS_MIN;
+        tempoAtual += tempoAvanco;
+        minutosDisponiveis = jState.fim - tempoAtual;
+      }
+    }
+  }
+
+  // Insere em lote dentro de uma transação normal compartilhada (sem conflitos de conexão exclusiva)
+  if (blocosParaInserir.length > 0) {
+    await database.withTransactionAsync(async () => {
+      for (const b of blocosParaInserir) {
+        await database.runAsync(
           `INSERT INTO blocos_estudo (
             id, tipo, tema_id, titulo, passo_id, data_agendada, hora_inicio, hora_fim, duracao_minutos, prioridade, status, timestamp_geracao
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
           [
-            novoId,
-            tarefa.tipo,
-            tarefa.tema_id,
-            tarefa.titulo,
-            tarefa.passo_id ?? null,
-            dataYYYYMMDD,
-            minutesToTime(tempoAtual),
-            minutesToTime(tempoAtual + duracaoBloco),
-            duracaoBloco,
-            tarefa.prioridade,
-            'pendente',
-            ts,
+            b.id,
+            b.tipo,
+            b.tema_id,
+            b.titulo,
+            b.passo_id,
+            b.data_agendada,
+            b.hora_inicio,
+            b.hora_fim,
+            b.duracao_minutos,
+            b.prioridade,
+            b.status,
+            b.timestamp_geracao,
           ]
         );
-
-        totalGerados++;
-        // Avança o horário com o bloco + intervalo de descanso de 15 minutos
-        const tempoAvanco = duracaoBloco + PAUSA_ENTRE_BLOCOS_MIN;
-        tempoAtual += tempoAvanco;
-        minutosDisponiveis = janela.fim - tempoAtual;
       }
-    }
-
-    // Se sobrou alguma tarefa não alocada por falta de turno específico,
-    // faz uma segunda passada nas janelas restantes
-    const tarefasRestantes = [...tarefasTeoria, ...tarefasPratica];
-    if (tarefasRestantes.length > 0) {
-      for (const janela of janelasLivres) {
-        let tempoAtual = janela.inicio;
-        const ultimoBloco = await txn.getFirstAsync<{ hora_fim: string }>(
-          `SELECT hora_fim FROM blocos_estudo 
-           WHERE data_agendada = ? AND hora_inicio >= ? AND hora_fim <= ?
-           ORDER BY hora_fim DESC LIMIT 1;`,
-          [dataYYYYMMDD, minutesToTime(janela.inicio), minutesToTime(janela.fim)]
-        );
-        if (ultimoBloco && ultimoBloco.hora_fim) {
-          tempoAtual = timeToMinutes(ultimoBloco.hora_fim) + PAUSA_ENTRE_BLOCOS_MIN;
-        }
-
-        let minutosDisponiveis = janela.fim - tempoAtual;
-        while (minutosDisponiveis >= 15 && tarefasRestantes.length > 0) {
-          const tarefa = tarefasRestantes.shift()!;
-          let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
-          const novoId = Math.random().toString(36).substring(2, 15);
-
-          await txn.runAsync(
-            `INSERT INTO blocos_estudo (
-              id, tipo, tema_id, titulo, passo_id, data_agendada, hora_inicio, hora_fim, duracao_minutos, prioridade, status, timestamp_geracao
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-            [
-              novoId,
-              tarefa.tipo,
-              tarefa.tema_id,
-              tarefa.titulo,
-              tarefa.passo_id ?? null,
-              dataYYYYMMDD,
-              minutesToTime(tempoAtual),
-              minutesToTime(tempoAtual + duracaoBloco),
-              duracaoBloco,
-              tarefa.prioridade,
-              'pendente',
-              ts,
-            ]
-          );
-
-          totalGerados++;
-          const tempoAvanco = duracaoBloco + PAUSA_ENTRE_BLOCOS_MIN;
-          tempoAtual += tempoAvanco;
-          minutosDisponiveis = janela.fim - tempoAtual;
-        }
-      }
-    }
-  });
+    });
+  }
 
   return totalGerados;
 }
+
+let isPlanningLock = false;
+let hasSyncedLimitesSession = false;
 
 /**
  * 4. AUTO-PLANEJAMENTO INVISÍVEL
@@ -559,6 +587,11 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       return false;
     }
   }
+
+  if (isPlanningLock) {
+    return false;
+  }
+  isPlanningLock = true;
 
   try {
     const semanaEsperada = getSemanaDoCronogramaPorData(dataYYYYMMDD);
@@ -668,6 +701,8 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
     }
   } catch (err) {
     console.warn('[scheduler] Erro no auto-planejamento:', err);
+  } finally {
+    isPlanningLock = false;
   }
 
   return false;
@@ -678,9 +713,18 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
  * Replaneja todas as datas que contenham blocos pendentes fora dos limites de 07:00 às 22:00,
  * que contenham blocos de semanas antigas/loopadas ou blocos de temas críticos resetados.
  */
-export async function sincronizarLimitesHorarioUtil(): Promise<void> {
+export async function sincronizarLimitesHorarioUtil(force: boolean = false): Promise<void> {
+  if (hasSyncedLimitesSession && !force) {
+    return;
+  }
+  if (isPlanningLock) {
+    return;
+  }
+  isPlanningLock = true;
+
   const database = getDatabase();
   try {
+    hasSyncedLimitesSession = true;
     // Migração transparente: renomeia qualquer bloco antigo que ainda tenha 'Revisão de Gargalo:' para 'Revisão de Tema Crítico:'
     await database.runAsync(
       `UPDATE blocos_estudo 
@@ -748,6 +792,8 @@ export async function sincronizarLimitesHorarioUtil(): Promise<void> {
     }
   } catch (err) {
     console.warn('[scheduler] Erro ao sincronizar limites de horário útil e semanas:', err);
+  } finally {
+    isPlanningLock = false;
   }
 }
 

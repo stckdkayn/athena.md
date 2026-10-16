@@ -154,7 +154,11 @@ export default function DashboardScreen() {
     return `Semana ${semanaNum} • ${dayStr} de ${monthStr}`;
   };
 
+  const isCarregandoAgendaRef = useRef<boolean>(false);
+
   const carregarAgenda = useCallback(async () => {
+    if (isCarregandoAgendaRef.current) return;
+    isCarregandoAgendaRef.current = true;
     setLoading(true);
     try {
       // 1. Sincroniza limites de horário útil e auto-planeja o dia selecionado
@@ -303,6 +307,7 @@ export default function DashboardScreen() {
       console.error('[Dashboard] Erro ao carregar agenda:', error);
     } finally {
       setLoading(false);
+      isCarregandoAgendaRef.current = false;
     }
   }, [dataSelecionada]);
 
