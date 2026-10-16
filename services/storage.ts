@@ -31,6 +31,7 @@ const KNOWN_STORAGE_KEYS = [
   '@athena_github_sync_status',
   '@athena_cronograma_data_inicio',
   '@athena_semana_ativa',
+  '@athena_user_photo',
 ];
 
 // Cache em memória para garantir leituras e escritas 100% síncronas no Expo Go e Web

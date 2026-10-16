@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   StatusBar,
   Modal,
+  Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors, CATEGORIA_CORES } from '@/constants/Colors';
 import { storage } from '@/services/storage';
 import {
@@ -30,10 +33,13 @@ import {
 } from '@/services/database';
 import { getSemanaDoCronogramaPorData } from '@/services/scheduleService';
 import { gerarPlanoDiario, verificarEPlanejarAutomaticamente, sincronizarLimitesHorarioUtil } from '@/services/schedulerService';
+import { getStreakInfo, StreakInfo } from '@/services/streakService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
 import ModalBuscaUniversal from '@/components/cronograma/ModalBuscaUniversal';
+import { StreakModal } from '@/components/modals/StreakModal';
+import { NomeUsuarioModal } from '@/components/modals/NomeUsuarioModal';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
@@ -77,15 +83,29 @@ export default function DashboardScreen() {
   const [atividadeDetalhes, setAtividadeDetalhes] = useState<any | null>(null);
   const [searchModalVisible, setSearchModalVisible] = useState<boolean>(false);
 
-  // Busca o nome do usuário salvo localmente ou fallback
-  const userName = storage.getString('@athena_user_name') || '';
+  // Perfil do usuário, foto e streak
+  const [userName, setUserName] = useState<string>(() => storage.getString('@athena_user_name') || '');
+  const [userPhoto, setUserPhoto] = useState<string | null>(() => storage.getString('@athena_user_photo') || null);
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
+  const [modalNomeVisible, setModalNomeVisible] = useState<boolean>(false);
 
-  // Lógica de Saudação (Sol/Lua com Ionicons Preenchidos)
+  // Carrega as informações determinísticas de Streak
+  const carregarStreak = useCallback(async () => {
+    try {
+      const info = await getStreakInfo();
+      setStreakInfo(info);
+    } catch (e) {
+      console.warn('[Dashboard] Erro ao carregar streak:', e);
+    }
+  }, []);
+
+  // Lógica de Saudação (sem o nome embutido, pois agora fica ao lado do avatar)
   const getGreeting = () => {
     const hour = new Date().getHours();
-    const nome = userName && userName.trim() ? userName.trim() : 'Dr.';
-    if (hour >= 5 && hour < 18) return { text: hour < 12 ? `Bom dia, ${nome}!` : `Boa tarde, ${nome}!`, icon: 'sunny' as const };
-    return { text: `Boa noite, ${nome}!`, icon: 'moon' as const };
+    if (hour >= 5 && hour < 12) return { text: 'Bom dia', icon: 'sunny' as const };
+    if (hour >= 12 && hour < 18) return { text: 'Boa tarde', icon: 'sunny' as const };
+    return { text: 'Boa noite', icon: 'moon' as const };
   };
   const greeting = getGreeting();
 
@@ -286,12 +306,92 @@ export default function DashboardScreen() {
     }
   }, [dataSelecionada]);
 
-  // Busca as atividades sempre que a tela ganha foco ou a data muda
+  // Busca as atividades e streak sempre que a tela ganha foco ou a data muda
   useFocusEffect(
     useCallback(() => {
+      const savedName = storage.getString('@athena_user_name') || '';
+      setUserName(savedName);
+      const savedPhoto = storage.getString('@athena_user_photo') || null;
+      setUserPhoto(savedPhoto);
+
+      carregarStreak();
       carregarAgenda();
-    }, [carregarAgenda])
+    }, [carregarAgenda, carregarStreak])
   );
+
+  // Manipulação de Foto de Perfil
+  const handlePickPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permissão necessária',
+          'Precisamos de acesso às suas fotos para atualizar sua imagem de perfil.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setUserPhoto(uri);
+        storage.set('@athena_user_photo', uri);
+      }
+    } catch (e) {
+      console.error('[Dashboard] Erro ao selecionar foto:', e);
+      Alert.alert('Erro', 'Não foi possível selecionar a foto.');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permissão necessária',
+          'Precisamos de acesso à câmera para tirar sua foto de perfil.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setUserPhoto(uri);
+        storage.set('@athena_user_photo', uri);
+      }
+    } catch (e) {
+      console.error('[Dashboard] Erro ao tirar foto:', e);
+      Alert.alert('Erro', 'Não foi possível tirar a foto.');
+    }
+  };
+
+  const handleAvatarPress = () => {
+    const buttons: any[] = [
+      { text: 'Escolher da Galeria', onPress: handlePickPhoto },
+      { text: 'Tirar Foto', onPress: handleTakePhoto },
+    ];
+    if (userPhoto) {
+      buttons.push({
+        text: 'Remover Foto',
+        style: 'destructive',
+        onPress: () => {
+          setUserPhoto(null);
+          storage.remove('@athena_user_photo');
+        },
+      });
+    }
+    buttons.push({ text: 'Cancelar', style: 'cancel' });
+
+    Alert.alert('Foto de Perfil', 'Escolha como deseja alterar sua foto:', buttons);
+  };
 
   // Recarrega automaticamente a timeline se a sincronização do iCal atualizar eventos
   useEffect(() => {
@@ -592,17 +692,60 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
-      {/* 1. Header Dinâmico (Sem barra cinza inferior) */}
+      {/* 1. Header Dinâmico com Foto de Perfil, Nome e Streak */}
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Text style={styles.greeting}>{greeting.text}</Text>
-          <Ionicons name={greeting.icon} size={24} color={Colors.primary} />
+        {/* Lado Esquerdo: Avatar em Círculo + Nome ao lado */}
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={handleAvatarPress}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View style={styles.avatarCircle}>
+              {userPhoto ? (
+                <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  {userName && userName.trim() ? (
+                    <Text style={styles.avatarInitials}>
+                      {userName.trim().charAt(0).toUpperCase()}
+                    </Text>
+                  ) : (
+                    <Ionicons name="person" size={20} color={Colors.textSecondary} />
+                  )}
+                </View>
+              )}
+            </View>
+            <View style={styles.avatarCameraBadge}>
+              <Ionicons name="camera" size={9} color="#000000" />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.userInfoContainer}>
+            <View style={styles.greetingRow}>
+              <Text style={styles.greetingText}>{greeting.text}</Text>
+              <Ionicons name={greeting.icon} size={12} color={Colors.primary} />
+            </View>
+            <TouchableOpacity
+              onPress={() => setModalNomeVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            >
+              <Text style={styles.userNameText} numberOfLines={1}>
+                {userName && userName.trim() ? userName.trim() : 'Dr. Usuário'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+
+        {/* Lado Direito: Ações + Streak com ícone no canto */}
+        <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.calendarIconButton}
             onPress={() => setSearchModalVisible(true)}
             activeOpacity={0.7}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
           >
             <Ionicons name="search" size={20} color={Colors.text} />
           </TouchableOpacity>
@@ -610,8 +753,33 @@ export default function DashboardScreen() {
             style={styles.calendarIconButton}
             onPress={() => setCalendarVisible(true)}
             activeOpacity={0.7}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
           >
             <Ionicons name="calendar-number-outline" size={21} color={Colors.text} />
+          </TouchableOpacity>
+
+          {/* Feature de Streak Alinhada à Direita no Canto */}
+          <TouchableOpacity
+            style={[
+              styles.streakBadge,
+              streakInfo?.activeToday ? styles.streakBadgeActive : styles.streakBadgeInactive,
+            ]}
+            onPress={() => setModalStreakVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={streakInfo?.activeToday ? 'flame' : 'flame-outline'}
+              size={18}
+              color={streakInfo?.activeToday ? '#FF8800' : '#8E959E'}
+            />
+            <Text
+              style={[
+                styles.streakBadgeText,
+                streakInfo?.activeToday ? styles.streakBadgeTextActive : styles.streakBadgeTextInactive,
+              ]}
+            >
+              {streakInfo?.streak || 0}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -759,6 +927,21 @@ export default function DashboardScreen() {
         onClose={() => setSearchModalVisible(false)}
         onSelectItem={handleSelectSearchItem}
       />
+
+      {/* Modal detalhado de Streak / Ofensiva */}
+      <StreakModal
+        visible={modalStreakVisible}
+        onClose={() => setModalStreakVisible(false)}
+        streakInfo={streakInfo}
+      />
+
+      {/* Modal para Editar Nome do Usuário */}
+      <NomeUsuarioModal
+        visible={modalNomeVisible}
+        onClose={() => setModalNomeVisible(false)}
+        initialName={userName}
+        onSave={(novoNome) => setUserName(novoNome)}
+      />
     </SafeAreaView>
   );
 }
@@ -786,22 +969,124 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     marginBottom: 12,
   },
-  greeting: {
-    fontSize: 22,
-    fontWeight: '800',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 10,
+  },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1E2226',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#33383F',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1C1F22',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 18,
     fontFamily: Fonts.extraBold,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.background,
+  },
+  userInfoContainer: {
+    justifyContent: 'center',
+    flex: 1,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 1,
+  },
+  greetingText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  userNameText: {
+    fontSize: 17,
+    fontFamily: Fonts.extraBold,
+    fontWeight: '800',
     color: Colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   calendarIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: '#2e3235',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 36,
+    paddingHorizontal: 9,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  streakBadgeActive: {
+    backgroundColor: 'rgba(255, 136, 0, 0.12)',
+    borderColor: 'rgba(255, 136, 0, 0.35)',
+  },
+  streakBadgeInactive: {
+    backgroundColor: Colors.surface,
+    borderColor: '#2e3235',
+  },
+  streakBadgeText: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    fontWeight: '800',
+  },
+  streakBadgeTextActive: {
+    color: '#FF8800',
+  },
+  streakBadgeTextInactive: {
+    color: '#8E959E',
   },
   calendarIconEmoji: {
     fontSize: 18,
