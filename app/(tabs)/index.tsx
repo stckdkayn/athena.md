@@ -18,6 +18,7 @@ import {
   toggleAtividadeStatus,
   AtividadeAgenda,
   getPassosPorDiaSemana,
+  getPassosAtrasadosPendentes,
   togglePassoConcluido,
   getBlocosEstudoPorData,
   updateStatusBlocoEstudo,
@@ -27,6 +28,7 @@ import {
   ItemBuscaCronograma,
   excluirAtividade,
 } from '@/services/database';
+import { getSemanaDoCronogramaPorData } from '@/services/scheduleService';
 import { gerarPlanoDiario, verificarEPlanejarAutomaticamente, sincronizarLimitesHorarioUtil } from '@/services/schedulerService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
@@ -118,7 +120,7 @@ export default function DashboardScreen() {
     return target.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
   };
 
-  // Lógica de Cálculo da Segunda-feira da Semana
+  // Lógica de Cálculo da Segunda-feira da Semana com o número contínuo do cronograma
   const getWeekLabel = (dateString: string) => {
     const target = new Date(dateString + 'T12:00:00Z');
     const day = target.getDay();
@@ -133,7 +135,9 @@ export default function DashboardScreen() {
     const dayStr = monday.getDate();
     const monthStr = monday.toLocaleDateString('pt-BR', { month: 'long' });
 
-    return `Semana de ${dayStr} de ${monthStr}`;
+    const semanaNum = getSemanaDoCronogramaPorData(dateString);
+
+    return `Semana ${semanaNum} • ${dayStr} de ${monthStr}`;
   };
 
   const carregarAgenda = useCallback(async () => {
@@ -222,10 +226,20 @@ export default function DashboardScreen() {
         };
         const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
 
-        const semStr = storage.getString('@athena_semana_ativa');
-        const semanaAtiva = semStr ? parseInt(semStr, 10) : 1;
+        const semanaDaData = getSemanaDoCronogramaPorData(dataSelecionada);
+        const hojeStr = toLocalDateStr(new Date());
 
-        const passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaAtiva);
+        let passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaDaData);
+
+        // Se for o dia de HOJE, inclui passos atrasados pendentes (rollover)
+        if (dataSelecionada === hojeStr) {
+          const atrasados = await getPassosAtrasadosPendentes(semanaDaData, diaSemanaStr);
+          const idsAtrasados = new Set(atrasados.map((a) => a.id));
+          passosResidencia = [
+            ...atrasados,
+            ...(passosResidencia || []).filter((p) => !idsAtrasados.has(p.id)),
+          ];
+        }
 
         itensEstudo = (passosResidencia || []).map((p) => {
           let icone = 'book-open';

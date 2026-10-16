@@ -935,3 +935,65 @@ export async function seedCronogramaResidencia(jsonData: any): Promise<boolean> 
   return true;
 }
 
+/**
+ * Retorna a data de início (segunda-feira da Semana 1) do cronograma.
+ * Se ainda não foi configurada, define com base na semana ativa atual ou na segunda-feira corrente.
+ */
+export function getDataInicioCronograma(): string {
+  const salva = storage.getString('@athena_cronograma_data_inicio');
+  if (salva) return salva;
+
+  // Se não estiver salva, calcula a segunda-feira da semana atual
+  const hoje = new Date();
+  const day = hoje.getDay(); // 0 = Dom, 1 = Seg, etc.
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(hoje);
+  monday.setDate(hoje.getDate() + diffToMonday);
+
+  // Se o usuário já tinha uma semanaAtiva definida (ex: semana 1), ajusta para trás se necessário
+  const semStr = storage.getString('@athena_semana_ativa');
+  const semanaAtiva = semStr ? Math.max(1, parseInt(semStr, 10)) : 1;
+  monday.setDate(monday.getDate() - (semanaAtiva - 1) * 7);
+
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const d = String(monday.getDate()).padStart(2, '0');
+  const dataInicioStr = `${y}-${m}-${d}`;
+
+  storage.set('@athena_cronograma_data_inicio', dataInicioStr);
+  return dataInicioStr;
+}
+
+/**
+ * Retorna o número da semana do cronograma (1 a 45) correspondente a uma data YYYY-MM-DD.
+ * Não loopa mais: cada semana cronológica no calendário avança de forma contínua conforme o cronograma.
+ */
+export function getSemanaDoCronogramaPorData(dataYYYYMMDD: string): number {
+  try {
+    const dataInicioStr = getDataInicioCronograma();
+    const [yI, mI, dI] = dataInicioStr.split('-').map(Number);
+    const [yA, mA, dA] = dataYYYYMMDD.split('-').map(Number);
+
+    const inicio = new Date(Date.UTC(yI, mI - 1, dI, 12, 0, 0));
+    const alvo = new Date(Date.UTC(yA, mA - 1, dA, 12, 0, 0));
+
+    // Acha a segunda-feira de cada data para comparar semanas cheias
+    const dayI = inicio.getUTCDay();
+    const diffToMondayI = dayI === 0 ? -6 : 1 - dayI;
+    const mondayI = new Date(inicio.getTime() + diffToMondayI * 86400000);
+
+    const dayA = alvo.getUTCDay();
+    const diffToMondayA = dayA === 0 ? -6 : 1 - dayA;
+    const mondayA = new Date(alvo.getTime() + diffToMondayA * 86400000);
+
+    const diffDays = Math.round((mondayA.getTime() - mondayI.getTime()) / 86400000);
+    const diffWeeks = Math.floor(diffDays / 7);
+
+    const semanaNum = 1 + diffWeeks;
+    return Math.max(1, Math.min(45, semanaNum));
+  } catch (err) {
+    console.warn('[scheduleService] Erro ao calcular semana por data:', err);
+    return 1;
+  }
+}
+

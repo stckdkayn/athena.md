@@ -1,5 +1,6 @@
-import { getDatabase, getAtividadesPorData, getPassosPorDiaSemana } from './database';
-import type { DbEventoFixo, DbBlocoEstudo, BlocoEstudoType } from './database';
+import { getDatabase, getAtividadesPorData, getPassosPorDiaSemana, getPassosAtrasadosPendentes } from './database';
+import type { DbEventoFixo, DbBlocoEstudo, BlocoEstudoType, PassoComTopicoDB } from './database';
+import { getSemanaDoCronogramaPorData } from './scheduleService';
 import { storage } from './storage';
 
 // Helpers de tempo para facilitar o cálculo do algoritmo
@@ -218,18 +219,34 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
   const DIAS_SEMANA_MAP = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
   const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
 
-  // Semana ativa do cronograma
-  const semStr = storage.getString('@athena_semana_ativa');
-  const semanaAtiva = semStr ? parseInt(semStr, 10) : 1;
+  // Semana do cronograma para esta data (baseada no calendário contínuo de 45 semanas, sem loops de segunda-feira)
+  const semanaDaData = getSemanaDoCronogramaPorData(dataYYYYMMDD);
 
-  // 1. Busca os passos oficiais da residência médica para o dia de hoje
-  const passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaAtiva);
-  const passosPendentes = (passosResidencia || []).filter((p) => p.concluido !== 1);
+  const hoje = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
 
-  // 2. Busca os gargalos de acertos
+  // 1. Busca os passos oficiais da residência médica para o dia desta data
+  const passosResidencia = await getPassosPorDiaSemana(diaSemanaStr, semanaDaData);
+  const passosDoDia = (passosResidencia || []).filter((p) => p.concluido !== 1);
+
+  // 2. Rollover: Se for o dia de HOJE, busca passos pendentes acumulados de dias/semanas anteriores
+  // Assim, se o usuário não fizer nada, o dia de hoje repetirá as pendências da Semana 1!
+  let passosAtrasados: PassoComTopicoDB[] = [];
+  if (dataYYYYMMDD === hojeStr) {
+    passosAtrasados = await getPassosAtrasadosPendentes(semanaDaData, diaSemanaStr);
+  }
+
+  // Combina passos atrasados (prioridade máxima) + passos regulares do dia
+  const idsAtrasados = new Set(passosAtrasados.map((p) => p.id));
+  const passosPendentes = [
+    ...passosAtrasados,
+    ...passosDoDia.filter((p) => !idsAtrasados.has(p.id)),
+  ];
+
+  // 3. Busca os gargalos de acertos
   const gargalos = await obterGargalos();
 
-  // 3. Monta a fila de tarefas priorizadas
+  // 4. Monta a fila de tarefas priorizadas
   const filaTarefas: TarefaPlanejada[] = passosPendentes.map((p) => {
     let tipoBloco: BlocoEstudoType = 'questoes';
     let duracao = 45;
@@ -248,13 +265,14 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
       duracao = 45;
     }
 
+    const isAtrasado = idsAtrasados.has(p.id);
     const labelCompleto = p.label ? ` • ${p.label}` : '';
     return {
       tipo: tipoBloco,
       tema_id: p.tema_questoes || p.topico_titulo,
       titulo: `${p.topico_titulo}${labelCompleto}`,
       passo_id: p.id,
-      prioridade: 8.5,
+      prioridade: isAtrasado ? 9.2 : 8.5,
       duracaoSugerida: duracao,
     };
   });
@@ -384,6 +402,8 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
   }
 
   try {
+    const semanaEsperada = getSemanaDoCronogramaPorData(dataYYYYMMDD);
+
     const countRow = await database.getFirstAsync<{ count: number }>(
       `SELECT COUNT(*) as count FROM blocos_estudo WHERE data_agendada = ?;`,
       [dataYYYYMMDD]
@@ -398,7 +418,44 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       [dataYYYYMMDD]
     );
 
-    if (!countRow || countRow.count === 0 || (foraDosLimitesRow && foraDosLimitesRow.count > 0)) {
+    // Verifica se os blocos pendentes existentes para esta data pertencem a uma semana errada (loop de herança antiga)
+    const blocosOutraSemanaRow = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count 
+       FROM blocos_estudo b
+       JOIN Passos p ON b.passo_id = p.id
+       JOIN Topicos t ON p.topico_id = t.id
+       WHERE b.data_agendada = ? 
+         AND b.status = 'pendente' 
+         AND t.semana_id != ?;`,
+      [dataYYYYMMDD, semanaEsperada]
+    );
+
+    // Se for o dia de hoje, verifica se há passos atrasados que ainda não foram integrados nos blocos de hoje
+    let temAtrasadoFaltando = false;
+    if (dataYYYYMMDD === hojeStr) {
+      const [ano, mes, dia] = dataYYYYMMDD.split('-').map(Number);
+      const dayIdx = new Date(ano, mes - 1, dia).getDay();
+      const DIAS_SEMANA_MAP = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+      const diaSemanaStr = DIAS_SEMANA_MAP[dayIdx] || 'segunda';
+
+      const atrasados = await getPassosAtrasadosPendentes(semanaEsperada, diaSemanaStr);
+      if (atrasados.length > 0) {
+        const blocosHoje = await database.getAllAsync<{ passo_id: number }>(
+          `SELECT passo_id FROM blocos_estudo WHERE data_agendada = ? AND passo_id IS NOT NULL;`,
+          [dataYYYYMMDD]
+        );
+        const idsHoje = new Set(blocosHoje.map((b) => b.passo_id));
+        temAtrasadoFaltando = atrasados.some((a) => !idsHoje.has(a.id));
+      }
+    }
+
+    if (
+      !countRow || 
+      countRow.count === 0 || 
+      (foraDosLimitesRow && foraDosLimitesRow.count > 0) ||
+      (blocosOutraSemanaRow && blocosOutraSemanaRow.count > 0) ||
+      temAtrasadoFaltando
+    ) {
       await gerarPlanoDiario(dataYYYYMMDD);
       return true;
     }
@@ -410,25 +467,50 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
 }
 
 /**
- * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES
+ * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES E SEMANAS
  * Replaneja todas as datas que contenham blocos pendentes fora dos limites de 07:00 às 22:00
+ * ou que contenham blocos de semanas antigas/loopadas.
  */
 export async function sincronizarLimitesHorarioUtil(): Promise<void> {
   const database = getDatabase();
   try {
-    const rows = await database.getAllAsync<{ data_agendada: string }>(
+    const rowsLimites = await database.getAllAsync<{ data_agendada: string }>(
       `SELECT DISTINCT data_agendada FROM blocos_estudo 
        WHERE status = 'pendente' 
          AND (hora_inicio < '07:00' OR hora_fim > '22:00');`
     );
 
-    for (const r of rows) {
+    for (const r of rowsLimites) {
       if (r.data_agendada) {
         await gerarPlanoDiario(r.data_agendada);
       }
     }
+
+    // Limpa e replaneja blocos pendentes em datas que pertençam à semana errada (loop legado)
+    const datasComBlocos = await database.getAllAsync<{ data_agendada: string }>(
+      `SELECT DISTINCT data_agendada FROM blocos_estudo WHERE status = 'pendente';`
+    );
+
+    for (const row of datasComBlocos) {
+      const dataStr = row.data_agendada;
+      if (!dataStr) continue;
+      const semanaEsperada = getSemanaDoCronogramaPorData(dataStr);
+      const blocoErrado = await database.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) as count 
+         FROM blocos_estudo b
+         JOIN Passos p ON b.passo_id = p.id
+         JOIN Topicos t ON p.topico_id = t.id
+         WHERE b.data_agendada = ? 
+           AND b.status = 'pendente' 
+           AND t.semana_id != ?;`,
+        [dataStr, semanaEsperada]
+      );
+      if (blocoErrado && blocoErrado.count > 0) {
+        await gerarPlanoDiario(dataStr);
+      }
+    }
   } catch (err) {
-    console.warn('[scheduler] Erro ao sincronizar limites de horário útil:', err);
+    console.warn('[scheduler] Erro ao sincronizar limites de horário útil e semanas:', err);
   }
 }
 

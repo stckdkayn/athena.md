@@ -60,6 +60,7 @@ import {
   removerTopicoCronograma,
   adicionarTopicoAoCronograma,
   atualizarTopicoNoCronograma,
+  getSemanaDoCronogramaPorData,
 } from '@/services/scheduleService';
 import {
   getQuestoesCache,
@@ -220,7 +221,10 @@ export default function CronogramaScreen() {
   const [daysMap, setDaysMap] = useState<CronogramaDaysMap>({});
   const [semanaAtiva, setSemanaAtiva] = useState<number>(() => {
     const semStr = storage.getString('@athena_semana_ativa');
-    return semStr ? parseInt(semStr, 10) : 1;
+    if (semStr) return parseInt(semStr, 10);
+    const hoje = new Date();
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    return getSemanaDoCronogramaPorData(hojeStr);
   });
   const [diaAtivo, setDiaAtivo] = useState<AbaDiaCronograma>(getDiaAtualDispositivo());
   const dayScrollViewRef = useRef<ScrollView>(null);

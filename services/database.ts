@@ -1228,6 +1228,62 @@ export async function getPassosPorDiaSemana(diaSemana: string, semanaId?: number
 }
 
 /**
+ * Busca passos do cronograma de semanas anteriores ou de dias anteriores da semana atual
+ * que ainda não foram concluídos (concluido = 0).
+ * Usado pelo agendador inteligente para realizar o rollover (repetir no próximo dia até ser concluído).
+ */
+export async function getPassosAtrasadosPendentes(
+  semanaLimite: number,
+  diaLimite: string
+): Promise<PassoComTopicoDB[]> {
+  try {
+    const database = getDatabase();
+    const DIAS_ORDEM = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+    const idxLimite = DIAS_ORDEM.indexOf(diaLimite);
+    const diasAnterioresNaSemana = idxLimite > 0 ? DIAS_ORDEM.slice(0, idxLimite) : [];
+
+    let query = `
+      SELECT 
+        p.id,
+        p.topico_id,
+        p.tipo,
+        p.label,
+        p.detalhe,
+        p.dia_semana,
+        p.meta_questoes,
+        p.tema_questoes,
+        p.concluido,
+        t.titulo as topico_titulo,
+        t.area as topico_area,
+        t.especialidade as topico_especialidade,
+        t.semana_id
+      FROM Passos p
+      JOIN Topicos t ON p.topico_id = t.id
+      WHERE p.concluido = 0
+        AND (
+          t.semana_id < ?
+    `;
+    const params: any[] = [semanaLimite];
+
+    if (diasAnterioresNaSemana.length > 0) {
+      const placeholders = diasAnterioresNaSemana.map(() => '?').join(', ');
+      query += ` OR (t.semana_id = ? AND p.dia_semana IN (${placeholders}))`;
+      params.push(semanaLimite, ...diasAnterioresNaSemana);
+    }
+
+    query += `
+        )
+      ORDER BY t.semana_id ASC, p.id ASC;
+    `;
+
+    return await database.getAllAsync<PassoComTopicoDB>(query, params);
+  } catch (err) {
+    console.error('[database] Erro ao buscar passos atrasados pendentes:', err);
+    return [];
+  }
+}
+
+/**
  * Alterna ou define o status de conclusão de um passo, e atualiza o status do tópico se todos os passos forem concluídos.
  */
 export async function togglePassoConcluido(passoId: number, status?: boolean): Promise<boolean> {
@@ -1431,13 +1487,17 @@ export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStat
       [status, blocoId]
     );
 
-    // Se o bloco tiver passo_id vinculado, sincroniza com a tabela Passos
+    // Se o bloco tiver passo_id vinculado, sincroniza com a tabela Passos e com outros blocos do mesmo passo
     const bloco = await database.getFirstAsync<{ passo_id: number | null }>(
       `SELECT passo_id FROM blocos_estudo WHERE id = ?;`,
       [blocoId]
     );
     if (bloco && bloco.passo_id) {
       await togglePassoConcluido(bloco.passo_id, status === 'concluido');
+      await database.runAsync(
+        `UPDATE blocos_estudo SET status = ? WHERE passo_id = ?;`,
+        [status, bloco.passo_id]
+      );
     }
   } catch (err) {
     console.error('[database] Erro ao atualizar status do bloco:', err);
@@ -1458,6 +1518,12 @@ export async function moverPassoOuTopicoDeDiaNoBanco(
     // Move todos os passos do tópico juntos para manter o conjunto íntegro
     await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE topico_id = ?;`, [novoDia, topicoId]);
     await database.runAsync(`UPDATE Topicos SET assigned_day = ? WHERE id = ?;`, [novoDia, topicoId]);
+
+    // Limpa blocos pendentes gerados no dia anterior para que sejam gerados no novo dia
+    await database.runAsync(
+      `DELETE FROM blocos_estudo WHERE status = 'pendente' AND passo_id IN (SELECT id FROM Passos WHERE topico_id = ?);`,
+      [topicoId]
+    );
 
     // Sincroniza também no cache MMKV
     try {
@@ -1482,6 +1548,12 @@ export async function moverTopicoDeSemanaNoBanco(
   try {
     const database = getDatabase();
     await database.runAsync(`UPDATE Topicos SET semana_id = ? WHERE id = ?;`, [novaSemanaNumero, topicoId]);
+
+    // Limpa blocos pendentes gerados na semana anterior para que sejam reagendados na nova semana
+    await database.runAsync(
+      `DELETE FROM blocos_estudo WHERE status = 'pendente' AND passo_id IN (SELECT id FROM Passos WHERE topico_id = ?);`,
+      [topicoId]
+    );
 
     // Sincroniza também no cache MMKV
     try {
