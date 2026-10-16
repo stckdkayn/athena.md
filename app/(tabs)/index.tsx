@@ -34,6 +34,7 @@ import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
 import ModalBuscaUniversal from '@/components/cronograma/ModalBuscaUniversal';
+import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
 
@@ -570,79 +571,15 @@ export default function DashboardScreen() {
           {renderDottedProgress(timePassed)}
         </View>
 
-        <TouchableOpacity
-          onPress={() => setAtividadeDetalhes(item)}
-          activeOpacity={0.75}
-          style={{ flex: 1, marginTop: item.hasAnchorStart ? 24 : 0 }}
-        >
-          <LinearGradient
-            colors={item.concluida ? [`${corBase}10`, '#1b1d1f', '#1b1d1f'] : [`${corBase}20`, Colors.surface, Colors.surface]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
-          >
-            <View style={styles.cardContentRow}>
-              <View style={styles.cardMainContent}>
-                <Text
-                  style={[
-                    styles.activityTitle,
-                    item.concluida && styles.textStrikethrough,
-                  ]}
-                  numberOfLines={2}
-                >
-                  {item.titulo}
-                </Text>
-
-                {/* Subtítulo: Label (Material / Tipo de Atividade) */}
-                {!!item.detalhes && (
-                  <View style={styles.detailsRow}>
-                    <Text style={styles.detailsText} numberOfLines={2}>
-                      {item.detalhes}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Linha Meta: Horários, Indicador de Rotina e Botão Praticar */}
-                <View style={styles.metaRow}>
-                  {item.hora_fim ? (
-                    <View style={styles.timeRangeBox}>
-                      <Ionicons name="time-outline" size={12} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                      <Text style={styles.timeRangeText}>
-                        {item.hora_inicio} - {item.hora_fim}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {item.isVirtual && (
-                    <View style={styles.routineBox}>
-                      <Ionicons name="repeat" size={11} color={Colors.primary} style={{ marginRight: 3 }} />
-                      <Text style={styles.routineText}>Rotina</Text>
-                    </View>
-                  )}
-
-                  {item.icone === 'check-square' && !item.concluida && (
-                    <TouchableOpacity
-                      style={styles.praticarBtn}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleIniciarTreinoBloco(item);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Feather name="play" size={10} color="#000" />
-                      <Text style={styles.praticarBtnText}>Praticar</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Ícone maior posicionado à direita e centralizado */}
-              <View style={styles.cardRightIconWrapper}>
-                <Feather name={(item.icone as any) || 'circle'} size={26} color={corBase} />
-              </View>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={{ flex: 1, marginTop: item.hasAnchorStart ? 24 : 0 }}>
+          <SwipeableActivityCard
+            item={item}
+            corBase={corBase}
+            onPress={() => setAtividadeDetalhes(item)}
+            onSwipeComplete={() => handleToggle(item)}
+            onStartQuiz={handleIniciarTreinoBloco}
+          />
+        </View>
       </View>
     );
   };

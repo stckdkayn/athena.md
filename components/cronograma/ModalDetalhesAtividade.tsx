@@ -17,7 +17,7 @@ interface Props {
   visible: boolean;
   item: any | null;
   onClose: () => void;
-  onToggleStatus: (item: any) => void;
+  onToggleStatus?: (item: any) => void;
   onStartQuiz: (item: any) => void;
   onMoveDay: (targetDay: string) => Promise<void>;
   onMoveWeek: (targetWeek: number) => Promise<void>;
@@ -206,28 +206,11 @@ export default function ModalDetalhesAtividade({
                     color={item.concluida ? Colors.success : Colors.textSecondary}
                   />
                 </View>
-                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View>
-                    <Text style={styles.infoLabel}>Status</Text>
-                    <Text style={[styles.infoValue, { color: item.concluida ? Colors.success : Colors.textSecondary }]}>
-                      {item.concluida ? 'Concluída' : 'Pendente'}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.toggleBtn, item.concluida && styles.toggleBtnCompleted]}
-                    onPress={() => onToggleStatus(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={item.concluida ? 'reload-outline' : 'checkmark-outline'}
-                      size={15}
-                      color={item.concluida ? Colors.text : '#000'}
-                    />
-                    <Text style={[styles.toggleBtnText, item.concluida && styles.toggleBtnTextCompleted]}>
-                      {item.concluida ? 'Reabrir' : 'Concluir'}
-                    </Text>
-                  </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.infoLabel}>Status</Text>
+                  <Text style={[styles.infoValue, { color: item.concluida ? Colors.success : Colors.textSecondary }]}>
+                    {item.concluida ? 'Concluída' : 'Pendente'}
+                  </Text>
                 </View>
               </View>
             </View>

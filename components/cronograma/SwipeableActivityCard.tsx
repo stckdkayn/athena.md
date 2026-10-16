@@ -1,0 +1,332 @@
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  PanResponder,
+  TouchableOpacity,
+} from 'react-native';
+import { Ionicons, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '@/constants/Colors';
+import { Fonts } from '@/constants/Typography';
+import { AtividadeAgenda } from '@/services/database';
+
+interface SwipeableActivityCardProps {
+  item: AtividadeAgenda;
+  corBase: string;
+  onPress: () => void;
+  onSwipeComplete: () => void;
+  onStartQuiz: (item: AtividadeAgenda) => void;
+}
+
+export default function SwipeableActivityCard({
+  item,
+  corBase,
+  onPress,
+  onSwipeComplete,
+  onStartQuiz,
+}: SwipeableActivityCardProps) {
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Apenas captura o gesto se o arrasto for da direita para a esquerda (dx < -10)
+        // e o movimento horizontal for predominante em relação ao vertical
+        return (
+          gestureState.dx < -10 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
+        );
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx < 0) {
+          // Permite arrastar até -120px para a esquerda
+          translateX.setValue(Math.max(-120, gestureState.dx));
+        } else {
+          translateX.setValue(0);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -65) {
+          // Limiar atingido: aciona a conclusão com feedback
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true,
+          }).start();
+          onSwipeComplete();
+        } else {
+          // Não atingiu o limiar: volta suavemente ao início
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          friction: 7,
+          tension: 40,
+          useNativeDriver: true,
+        }).start();
+      },
+    })
+  ).current;
+
+  // Animação de escala e opacidade do ícone de check verde conforme o card é arrastado
+  const iconOpacity = translateX.interpolate({
+    inputRange: [-80, -20, 0],
+    outputRange: [1, 0.4, 0],
+    extrapolate: 'clamp',
+  });
+
+  const iconScale = translateX.interpolate({
+    inputRange: [-80, -20, 0],
+    outputRange: [1.15, 0.7, 0.4],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View style={styles.cardWrapper}>
+      {/* Fundo verde escondido com ícone de check revelado ao arrastar */}
+      <View style={styles.swipeBackground}>
+        <Animated.View
+          style={[
+            styles.checkIconContainer,
+            {
+              opacity: iconOpacity,
+              transform: [{ scale: iconScale }],
+            },
+          ]}
+        >
+          <Ionicons name="checkmark" size={26} color="#FFFFFF" />
+        </Animated.View>
+      </View>
+
+      {/* Card da atividade com suporte ao gesto de arrasto da direita para a esquerda */}
+      <Animated.View
+        style={[
+          styles.animatedCardContainer,
+          { transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity
+          onPress={onPress}
+          activeOpacity={0.8}
+          style={{ flex: 1 }}
+        >
+          <LinearGradient
+            colors={
+              item.concluida
+                ? [`${corBase}10`, '#1b1d1f', '#1b1d1f']
+                : [`${corBase}20`, Colors.surface, Colors.surface]
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
+          >
+            <View style={styles.cardContentRow}>
+              <View style={styles.cardMainContent}>
+                <Text
+                  style={[
+                    styles.activityTitle,
+                    item.concluida && styles.textStrikethrough,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {item.titulo}
+                </Text>
+
+                {/* Subtítulo: Label (Material / Tipo de Atividade) */}
+                {!!item.detalhes && (
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsText} numberOfLines={2}>
+                      {item.detalhes}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Linha Meta: Horários, Indicador de Rotina e Botão Praticar */}
+                <View style={styles.metaRow}>
+                  {item.hora_fim ? (
+                    <View style={styles.timeRangeBox}>
+                      <Ionicons
+                        name="time-outline"
+                        size={12}
+                        color={Colors.textSecondary}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={styles.timeRangeText}>
+                        {item.hora_inicio} - {item.hora_fim}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {item.isVirtual && (
+                    <View style={styles.routineBox}>
+                      <Ionicons
+                        name="repeat"
+                        size={11}
+                        color={Colors.primary}
+                        style={{ marginRight: 3 }}
+                      />
+                      <Text style={styles.routineText}>Rotina</Text>
+                    </View>
+                  )}
+
+                  {item.icone === 'check-square' && !item.concluida && (
+                    <TouchableOpacity
+                      style={styles.praticarBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        onStartQuiz(item);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="play" size={10} color="#000" />
+                      <Text style={styles.praticarBtnText}>Praticar</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Ícone maior posicionado à direita e centralizado */}
+              <View style={styles.cardRightIconWrapper}>
+                <Feather
+                  name={(item.icone as any) || 'circle'}
+                  size={26}
+                  color={corBase}
+                />
+              </View>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  cardWrapper: {
+    flex: 1,
+    position: 'relative',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  swipeBackground: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#10B981', // Verde suave e vibrante de confirmação
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 22,
+  },
+  checkIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  animatedCardContainer: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+  },
+  activityCard: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2e3235',
+    overflow: 'hidden',
+  },
+  activityCardCompleted: {
+    opacity: 0.5,
+    borderColor: '#202325',
+  },
+  cardContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardMainContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  cardRightIconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 4,
+    paddingRight: 2,
+  },
+  activityTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  textStrikethrough: {
+    textDecorationLine: 'line-through',
+    color: Colors.textSecondary,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 10,
+  },
+  timeRangeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeRangeText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Colors.textSecondary,
+  },
+  routineBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(234, 225, 21, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  routineText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
+  },
+  detailsRow: {
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  detailsText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  praticarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  praticarBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
+    color: '#000',
+  },
+});
