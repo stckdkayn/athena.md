@@ -10,6 +10,12 @@ import {
   getDistinctProgressThemes as dbGetDistinctProgressThemes,
   deleteProgressByThemes as dbDeleteProgressByThemes,
   clearAllProgressRecords,
+  logQuestionAnswer,
+  getAllQuestionHistory,
+  getQuestionHistoryBySession,
+  QuestionHistoryRecord,
+  getDiagnosticSummary,
+  DiagnosticSummary,
 } from './database';
 
 export const PROGRESS_STORAGE_KEY = '@athena_progress';
@@ -271,3 +277,15 @@ export async function clearAllProgress(): Promise<void> {
     storage.remove(PROGRESS_STORAGE_KEY);
   } catch {}
 }
+
+export {
+  logQuestionAnswer,
+  getAllQuestionHistory,
+  getQuestionHistoryBySession,
+  QuestionHistoryRecord,
+  getDiagnosticSummary,
+  DiagnosticSummary,
+};
+
+export { getHeatmapData, HeatmapData } from './streakService';
+

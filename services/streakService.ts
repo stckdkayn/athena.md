@@ -109,3 +109,74 @@ export async function getStreakInfo(): Promise<StreakInfo> {
     };
   }
 }
+
+export interface HeatmapData {
+  date: string; // Formato YYYY-MM-DD
+  count: number;
+}
+
+/**
+ * Busca o volume de questões dos últimos X dias (padrão: 84 dias = 12 semanas)
+ * agrupado por dia (YYYY-MM-DD local).
+ */
+export const getHeatmapData = async (days: number = 84): Promise<Record<string, number>> => {
+  try {
+    const database = getDatabase();
+    const limitDate = new Date();
+    limitDate.setDate(limitDate.getDate() - days);
+    limitDate.setHours(0, 0, 0, 0);
+    const limitTimestamp = limitDate.getTime();
+
+    const heatmapDict: Record<string, number> = {};
+
+    // 1. Agrupa de QuestionHistory
+    try {
+      const histRows = await database.getAllAsync<{ day: string; count: number }>(
+        `SELECT 
+           date(answeredAt / 1000, 'unixepoch', 'localtime') as day, 
+           COUNT(*) as count 
+         FROM QuestionHistory 
+         WHERE answeredAt >= ?
+         GROUP BY day;`,
+        [limitTimestamp]
+      );
+      if (histRows) {
+        for (const r of histRows) {
+          if (r.day) {
+            heatmapDict[r.day] = r.count;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[streakService] QuestionHistory query warning:', e);
+    }
+
+    // 2. Mescla com tabela progresso (para dados históricos prévios sem duplicar)
+    try {
+      const progRows = await database.getAllAsync<{ day: string; count: number }>(
+        `SELECT 
+           date(timestamp / 1000, 'unixepoch', 'localtime') as day, 
+           COUNT(*) as count 
+         FROM progresso 
+         WHERE timestamp >= ?
+         GROUP BY day;`,
+        [limitTimestamp]
+      );
+      if (progRows) {
+        for (const r of progRows) {
+          if (r.day) {
+            heatmapDict[r.day] = Math.max(heatmapDict[r.day] || 0, r.count);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[streakService] progresso query warning:', e);
+    }
+
+    return heatmapDict;
+  } catch (err) {
+    console.error('Erro ao gerar dados do Heatmap:', err);
+    return {};
+  }
+};
+

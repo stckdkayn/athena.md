@@ -50,6 +50,8 @@ import {
 import {
   getDistinctProgressThemes,
   deleteProgressByThemes,
+  getDiagnosticSummary,
+  DiagnosticSummary,
 } from '@/services/progressService';
 import { limparGargalosEReplanejar } from '@/services/schedulerService';
 import { invalidateImageCache, clearAllAthenaImages } from '@/services/imageService';
@@ -241,6 +243,22 @@ export default function ConfiguracoesScreen() {
   const [pacoteOrigemInput, setPacoteOrigemInput] = useState<string>('');
 
   const [modalResetVisible, setModalResetVisible] = useState<boolean>(false);
+  const [modalDiagnosticoVisible, setModalDiagnosticoVisible] = useState<boolean>(false);
+  const [diagnosticoData, setDiagnosticoData] = useState<DiagnosticSummary | null>(null);
+  const [carregandoDiagnostico, setCarregandoDiagnostico] = useState<boolean>(false);
+
+  const abrirDiagnostico = async () => {
+    setCarregandoDiagnostico(true);
+    setModalDiagnosticoVisible(true);
+    try {
+      const data = await getDiagnosticSummary();
+      setDiagnosticoData(data);
+    } catch (err) {
+      console.error('Erro ao abrir diagnóstico:', err);
+    } finally {
+      setCarregandoDiagnostico(false);
+    }
+  };
   const [temasDisponiveis, setTemasDisponiveis] = useState<string[]>([]);
   const [searchTema, setSearchTema] = useState<string>('');
   const [temasSelecionados, setTemasSelecionados] = useState<string[]>([]);
@@ -1763,6 +1781,17 @@ export default function ConfiguracoesScreen() {
                 <View style={styles.menuOptionContent}>
                   <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Apagar Banco de Dados</Text>
                   <Text style={styles.menuOptionSubtitle}>Excluir todas as questões e imagens salvas do banco local</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={abrirDiagnostico}>
+                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                  <Ionicons name="analytics-outline" size={24} color="#3B82F6" />
+                </View>
+                <View style={styles.menuOptionContent}>
+                  <Text style={styles.menuOptionTitle}>Diagnóstico do Histórico & SM-2</Text>
+                  <Text style={styles.menuOptionSubtitle}>Ver registros de tempo, sessões e agendamentos de repetição espaçada</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
@@ -3981,6 +4010,105 @@ export default function ConfiguracoesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Diagnóstico do Histórico e SM-2 */}
+      <Modal
+        visible={modalDiagnosticoVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalDiagnosticoVisible(false)}
+      >
+        <View style={styles.diagModalOverlay}>
+          <View style={styles.diagModalContainer}>
+            <View style={styles.diagModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="analytics" size={22} color="#3B82F6" />
+                <Text style={styles.diagModalTitle}>Diagnóstico de Coleta</Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalDiagnosticoVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            {carregandoDiagnostico ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#3B82F6" />
+                <Text style={{ marginTop: 12, color: '#94A3B8', fontSize: 13 }}>Consultando SQLite...</Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
+                {/* Resumo em cards */}
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                  <View style={styles.diagStatCard}>
+                    <Text style={styles.diagStatLabel}>QuestionHistory</Text>
+                    <Text style={styles.diagStatValue}>{diagnosticoData?.totalHistory ?? 0}</Text>
+                    <Text style={styles.diagStatSub}>respostas gravadas</Text>
+                  </View>
+                  <View style={styles.diagStatCard}>
+                    <Text style={styles.diagStatLabel}>QuestionReviewState</Text>
+                    <Text style={styles.diagStatValue}>{diagnosticoData?.totalReviews ?? 0}</Text>
+                    <Text style={styles.diagStatSub}>questões no SM-2</Text>
+                  </View>
+                </View>
+
+                {/* Últimos registros de QuestionHistory */}
+                <Text style={styles.diagSectionHeader}>ÚLTIMAS QUESTÕES RESPONDIDAS</Text>
+                {diagnosticoData?.recentHistory && diagnosticoData.recentHistory.length > 0 ? (
+                  diagnosticoData.recentHistory.map((item, idx) => {
+                    const isOk = item.isCorrect === 1;
+                    const dateStr = new Date(item.answeredAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    return (
+                      <View key={item.id ?? idx} style={styles.diagItemCard}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <Text style={styles.diagItemTitle} numberOfLines={1}>{item.topic || 'Questão'}</Text>
+                          <View style={[styles.diagBadge, { backgroundColor: isOk ? 'rgba(68, 153, 104, 0.15)' : 'rgba(235, 87, 87, 0.15)' }]}>
+                            <Text style={[styles.diagBadgeText, { color: isOk ? '#449968' : '#EB5757' }]}>
+                              {isOk ? 'ACERTO' : 'ERRO'}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={styles.diagItemMeta}>⏱️ {item.timeSpentSeconds}s de resposta • {dateStr}</Text>
+                          <Text style={styles.diagItemSubMeta} numberOfLines={1}>ID: {item.questionId.slice(0, 10)}</Text>
+                        </View>
+                        {item.sessionId ? (
+                          <Text style={styles.diagSessionText} numberOfLines={1}>Sessão: {item.sessionId}</Text>
+                        ) : null}
+                      </View>
+                    );
+                  })
+                ) : (
+                  <View style={styles.diagEmptyBox}>
+                    <Text style={styles.diagEmptyText}>Nenhum registro encontrado ainda no QuestionHistory.</Text>
+                  </View>
+                )}
+
+                {/* Próximas revisões SM-2 */}
+                {diagnosticoData?.recentReviews && diagnosticoData.recentReviews.length > 0 && (
+                  <>
+                    <Text style={[styles.diagSectionHeader, { marginTop: 14 }]}>ESTADO NO ALGORITMO SM-2</Text>
+                    {diagnosticoData.recentReviews.map((r, idx) => (
+                      <View key={r.questionId ?? idx} style={styles.diagItemCard}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <Text style={styles.diagItemTitle}>ID: {r.questionId.slice(0, 16)}...</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#3B82F6' }}>Int: {r.interval}d</Text>
+                        </View>
+                        <Text style={styles.diagItemMeta}>
+                          Repetições: {r.repetitions} • Fator: {r.easeFactor.toFixed(2)} • Próxima: {new Date(r.nextReviewDate).toLocaleDateString('pt-BR')}
+                        </Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity style={styles.diagCloseBtn} activeOpacity={0.8} onPress={() => setModalDiagnosticoVisible(false)}>
+              <Text style={styles.diagCloseBtnText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -4292,5 +4420,119 @@ const styles = StyleSheet.create({
     color: '#8E959E',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  diagModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  diagModalContainer: {
+    backgroundColor: '#1E232A',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#2E3540',
+    padding: 18,
+  },
+  diagModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  diagModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  diagStatCard: {
+    flex: 1,
+    backgroundColor: '#15191E',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A313C',
+    padding: 12,
+    alignItems: 'center',
+  },
+  diagStatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginBottom: 2,
+  },
+  diagStatValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  diagStatSub: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  diagSectionHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  diagItemCard: {
+    backgroundColor: '#15191E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#262D37',
+    padding: 10,
+    marginBottom: 8,
+  },
+  diagItemTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    flex: 1,
+    marginRight: 8,
+  },
+  diagBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  diagBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  diagItemMeta: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  diagItemSubMeta: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  diagSessionText: {
+    fontSize: 9.5,
+    color: '#475569',
+    marginTop: 2,
+  },
+  diagEmptyBox: {
+    padding: 18,
+    alignItems: 'center',
+  },
+  diagEmptyText: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  diagCloseBtn: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  diagCloseBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
   },
 });

@@ -163,6 +163,39 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
       );
       CREATE INDEX IF NOT EXISTS idx_blocos_data ON blocos_estudo (data_agendada);
       CREATE INDEX IF NOT EXISTS idx_blocos_status ON blocos_estudo (status);
+
+      -- TABELAS DE MÉTRICAS E REPETIÇÃO ESPAÇADA (SM-2)
+      CREATE TABLE IF NOT EXISTS QuestionHistory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        questionId TEXT,
+        topic TEXT,
+        answeredAt INTEGER, -- Timestamp exato em milissegundos
+        timeSpentSeconds INTEGER, -- Tempo de resposta em segundos
+        isCorrect INTEGER, -- 1 para Sim, 0 para Não
+        sessionId TEXT -- Agrupador da sessão de estudo
+      );
+      CREATE INDEX IF NOT EXISTS idx_question_history_answeredAt ON QuestionHistory (answeredAt);
+      CREATE INDEX IF NOT EXISTS idx_question_history_sessionId ON QuestionHistory (sessionId);
+      CREATE INDEX IF NOT EXISTS idx_question_history_topic ON QuestionHistory (topic);
+
+      CREATE TABLE IF NOT EXISTS QuestionReviewState (
+        questionId TEXT PRIMARY KEY,
+        repetitions INTEGER NOT NULL,
+        easeFactor REAL NOT NULL,
+        interval INTEGER NOT NULL,
+        nextReviewDate INTEGER NOT NULL,
+        lastReviewedAt INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_question_review_nextDate ON QuestionReviewState (nextReviewDate);
+
+      CREATE TABLE IF NOT EXISTS TopicProgress (
+        topicName TEXT PRIMARY KEY,
+        repetitions INTEGER DEFAULT 0,
+        easeFactor REAL DEFAULT 2.5,
+        interval INTEGER DEFAULT 0,
+        nextReviewDate INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_topic_progress_nextDate ON TopicProgress (nextReviewDate);
     `);
 
     // Migração transparente de colunas caso as tabelas já existissem
@@ -784,10 +817,284 @@ export async function clearAllProgressRecords(): Promise<void> {
        WHERE status = 'pendente' 
          AND (titulo LIKE '%Tema Crítico%' OR titulo LIKE '%Gargalo%' OR titulo LIKE 'Flashcards Rápidos%');`
     );
+    try {
+      await database.runAsync('DELETE FROM QuestionHistory;');
+      await database.runAsync('DELETE FROM QuestionReviewState;');
+      await database.runAsync('DELETE FROM TopicProgress;');
+    } catch {}
   } catch (err) {
     console.error('[database] Erro ao limpar todo o progresso no SQLite:', err);
   }
 }
+
+/* =========================================================================
+   MÉTRICAS DETALHADAS DE QUESTÕES E REPETIÇÃO ESPAÇADA (SM-2)
+   ========================================================================= */
+
+export interface QuestionHistoryRecord {
+  id?: number;
+  questionId: string;
+  topic: string;
+  answeredAt: number;
+  timeSpentSeconds: number;
+  isCorrect: number;
+  sessionId: string;
+}
+
+export const logQuestionAnswer = async (
+  questionId: string,
+  topic: string,
+  isCorrect: boolean,
+  timeSpentSeconds: number,
+  sessionId: string
+): Promise<void> => {
+  try {
+    const database = getDatabase();
+    await database.runAsync(
+      `INSERT INTO QuestionHistory (questionId, topic, answeredAt, timeSpentSeconds, isCorrect, sessionId)
+       VALUES (?, ?, ?, ?, ?, ?);`,
+      [
+        String(questionId).trim(),
+        String(topic || 'Tema Geral').trim(),
+        Date.now(),
+        Math.max(0, Math.round(timeSpentSeconds || 0)),
+        isCorrect ? 1 : 0,
+        String(sessionId || '').trim(),
+      ]
+    );
+  } catch (error) {
+    console.error('Erro ao salvar histórico da questão:', error);
+  }
+};
+
+export async function getAllQuestionHistory(): Promise<QuestionHistoryRecord[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<QuestionHistoryRecord>(
+      'SELECT * FROM QuestionHistory ORDER BY answeredAt DESC;'
+    );
+    return rows ?? [];
+  } catch (err) {
+    console.error('[database] Erro ao buscar QuestionHistory:', err);
+    return [];
+  }
+}
+
+export async function getQuestionHistoryBySession(sessionId: string): Promise<QuestionHistoryRecord[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<QuestionHistoryRecord>(
+      'SELECT * FROM QuestionHistory WHERE sessionId = ? ORDER BY answeredAt ASC;',
+      [sessionId]
+    );
+    return rows ?? [];
+  } catch (err) {
+    console.error('[database] Erro ao buscar QuestionHistory por sessão:', err);
+    return [];
+  }
+}
+
+export interface ReviewStateData {
+  repetitions: number;
+  easeFactor: number;
+  interval: number;
+  nextReviewDate: number;
+}
+
+export async function getQuestionReviewState(questionId: string): Promise<ReviewStateData | null> {
+  try {
+    const database = getDatabase();
+    const row = await database.getFirstAsync<{
+      repetitions: number;
+      easeFactor: number;
+      interval: number;
+      nextReviewDate: number;
+    }>(
+      'SELECT repetitions, easeFactor, interval, nextReviewDate FROM QuestionReviewState WHERE questionId = ?;',
+      [String(questionId).trim()]
+    );
+    if (!row) return null;
+    return {
+      repetitions: row.repetitions,
+      easeFactor: row.easeFactor,
+      interval: row.interval,
+      nextReviewDate: row.nextReviewDate,
+    };
+  } catch (err) {
+    console.error('[database] Erro ao buscar reviewState:', err);
+    return null;
+  }
+}
+
+export async function updateQuestionReviewState(
+  questionId: string,
+  state: ReviewStateData
+): Promise<void> {
+  try {
+    const database = getDatabase();
+    await database.runAsync(
+      `INSERT INTO QuestionReviewState (questionId, repetitions, easeFactor, interval, nextReviewDate, lastReviewedAt)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(questionId) DO UPDATE SET
+         repetitions = excluded.repetitions,
+         easeFactor = excluded.easeFactor,
+         interval = excluded.interval,
+         nextReviewDate = excluded.nextReviewDate,
+         lastReviewedAt = excluded.lastReviewedAt;`,
+      [
+        String(questionId).trim(),
+        state.repetitions,
+        state.easeFactor,
+        state.interval,
+        state.nextReviewDate,
+        Date.now(),
+      ]
+    );
+  } catch (err) {
+    console.error('[database] Erro ao atualizar reviewState:', err);
+  }
+}
+
+export async function getDueQuestionIdsForReview(limit: number = 50): Promise<string[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<{ questionId: string }>(
+      'SELECT questionId FROM QuestionReviewState WHERE nextReviewDate <= ? ORDER BY nextReviewDate ASC LIMIT ?;',
+      [Date.now(), limit]
+    );
+    return rows ? rows.map(r => r.questionId) : [];
+  } catch (err) {
+    console.error('[database] Erro ao buscar questões para revisão:', err);
+    return [];
+  }
+}
+
+export interface DiagnosticSummary {
+  totalHistory: number;
+  totalReviews: number;
+  recentHistory: QuestionHistoryRecord[];
+  recentReviews: {
+    questionId: string;
+    interval: number;
+    repetitions: number;
+    easeFactor: number;
+    nextReviewDate: number;
+    lastReviewedAt: number;
+  }[];
+}
+
+export async function getDiagnosticSummary(): Promise<DiagnosticSummary> {
+  try {
+    const database = getDatabase();
+    const countHist = await database.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM QuestionHistory;');
+    const countRev = await database.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM QuestionReviewState;');
+    const recentHist = await database.getAllAsync<QuestionHistoryRecord>(
+      'SELECT * FROM QuestionHistory ORDER BY answeredAt DESC LIMIT 10;'
+    );
+    const recentRev = await database.getAllAsync<any>(
+      'SELECT * FROM QuestionReviewState ORDER BY lastReviewedAt DESC LIMIT 10;'
+    );
+    return {
+      totalHistory: countHist?.c ?? 0,
+      totalReviews: countRev?.c ?? 0,
+      recentHistory: recentHist ?? [],
+      recentReviews: recentRev ?? [],
+    };
+  } catch (err) {
+    console.error('[database] Erro ao obter diagnóstico:', err);
+    return { totalHistory: 0, totalReviews: 0, recentHistory: [], recentReviews: [] };
+  }
+}
+
+export interface TopicProgressRecord {
+  topicName: string;
+  repetitions: number;
+  easeFactor: number;
+  interval: number;
+  nextReviewDate: number;
+}
+
+export async function getDueTopics(): Promise<string[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<{ topicName: string }>(
+      `SELECT topicName FROM TopicProgress 
+       WHERE nextReviewDate <= ? 
+       ORDER BY nextReviewDate ASC;`,
+      [Date.now()]
+    );
+    return rows ? rows.map((r) => r.topicName) : [];
+  } catch (err) {
+    console.error('[database] Erro ao buscar temas atrasados:', err);
+    return [];
+  }
+}
+
+export async function getTopicProgress(topicName: string): Promise<ReviewStateData | null> {
+  try {
+    const database = getDatabase();
+    const row = await database.getFirstAsync<{
+      repetitions: number;
+      easeFactor: number;
+      interval: number;
+      nextReviewDate: number;
+    }>(
+      'SELECT repetitions, easeFactor, interval, nextReviewDate FROM TopicProgress WHERE topicName = ?;',
+      [String(topicName).trim()]
+    );
+    if (!row) return null;
+    return {
+      repetitions: row.repetitions,
+      easeFactor: row.easeFactor,
+      interval: row.interval,
+      nextReviewDate: row.nextReviewDate,
+    };
+  } catch (err) {
+    console.error('[database] Erro ao buscar progresso do tema:', err);
+    return null;
+  }
+}
+
+export async function updateTopicProgress(
+  topicName: string,
+  state: ReviewStateData
+): Promise<void> {
+  try {
+    const database = getDatabase();
+    await database.runAsync(
+      `INSERT INTO TopicProgress (topicName, repetitions, easeFactor, interval, nextReviewDate)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(topicName) DO UPDATE SET
+         repetitions = excluded.repetitions,
+         easeFactor = excluded.easeFactor,
+         interval = excluded.interval,
+         nextReviewDate = excluded.nextReviewDate;`,
+      [
+        String(topicName).trim(),
+        state.repetitions,
+        state.easeFactor,
+        state.interval,
+        state.nextReviewDate,
+      ]
+    );
+  } catch (err) {
+    console.error('[database] Erro ao atualizar progresso do tema:', err);
+  }
+}
+
+export async function getAllTopicProgress(): Promise<TopicProgressRecord[]> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<TopicProgressRecord>(
+      'SELECT * FROM TopicProgress ORDER BY nextReviewDate ASC;'
+    );
+    return rows ?? [];
+  } catch (err) {
+    console.error('[database] Erro ao buscar todos os progressos de tema:', err);
+    return [];
+  }
+}
+
 
 export interface AtividadeAgenda {
   id: string;

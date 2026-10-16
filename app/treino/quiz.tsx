@@ -15,7 +15,8 @@ import {
   GrandeAreaSimulado,
   getAllQuestions,
 } from '@/services/questionService';
-import { saveProgressRecord, getErroredQuestionIds } from '@/services/progressService';
+import { saveProgressRecord, getErroredQuestionIds, logQuestionAnswer } from '@/services/progressService';
+import { processQuestionReview, processTopicReview } from '@/services/spacedRepetitionService';
 import { concluirAtividadePorId } from '@/services/database';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { storage } from '@/services/storage';
@@ -482,6 +483,14 @@ export default function QuizScreen() {
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+
+  // Cronômetro invisível para cálculo de tempo e sessão de estudos
+  const questionStartTime = useRef<number>(Date.now());
+  const sessionIdRef = useRef<string>(`sessao_${Date.now()}`);
+
+  useEffect(() => {
+    questionStartTime.current = Date.now();
+  }, [currentIndex]);
   const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -1502,6 +1511,18 @@ export default function QuizScreen() {
       };
 
       await saveProgressRecord(record);
+
+      // 1. Calcula o tempo gasto de resolução
+      const timeSpentSeconds = Math.max(1, Math.round((Date.now() - questionStartTime.current) / 1000));
+
+      // 2. Grava histórico detalhado por questão e sessão
+      await logQuestionAnswer(qId, qTema, acerto, timeSpentSeconds, sessionIdRef.current);
+
+      // 3. Executa o algoritmo SM-2 e agenda a próxima revisão espaçada
+      await processQuestionReview(qId, acerto, timeSpentSeconds);
+      if (qTema) {
+        await processTopicReview(qTema, acerto, timeSpentSeconds);
+      }
     } catch (err) {
       console.error('Falha silenciosa ao salvar progresso:', err);
     }
