@@ -272,7 +272,11 @@ export default function ModalNovaAtividade({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+          >
             {/* Input e Ícone Separados */}
             <View style={styles.mainInputContainer}>
               <TouchableOpacity 
@@ -540,17 +544,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#E5E7EB',
-    maxHeight: '85%',
+    backgroundColor: '#FFF',
+    width: '100%',
+    padding: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    minHeight: '50%',
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -602,44 +602,34 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
   },
-  dropdownsRow: {
-    flexDirection: 'row',
-    gap: 16,
+  dropdownsRow: { 
+    flexDirection: 'row', 
+    gap: 16, 
     marginBottom: 20,
-    zIndex: 10,
+    alignItems: 'flex-start',
   },
-  dropdownColumn: {
-    flex: 1,
-    position: 'relative',
+  dropdownColumn: { 
+    flex: 1 
   },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    padding: 12,
-    borderRadius: 10,
+  dropdownButton: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    backgroundColor: '#F5F5F5', 
+    padding: 12, 
+    borderRadius: 10 
   },
   dropdownButtonText: {
     fontSize: 14,
     color: '#000000',
     fontWeight: '500',
   },
-  dropdownList: {
-    position: 'absolute',
-    top: 65,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
-    zIndex: 20,
-    elevation: 5,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  dropdownList: { 
+    marginTop: 6,
+    backgroundColor: '#FFF', 
+    borderRadius: 10, 
+    borderWidth: 1, 
+    borderColor: '#EEE',
   },
   dropdownListItem: {
     padding: 12,
