@@ -20,6 +20,7 @@ import {
 } from '@/services/database';
 import { getAdjustedDailyBudget } from '@/services/scheduleService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
+import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const CATEGORIA_CORES: Record<string, string> = {
@@ -506,20 +507,16 @@ export default function DashboardScreen() {
         dataInicial={dataSelecionada}
       />
 
-      {/* Modal Temporário do Calendário Mensal */}
-      <Modal visible={calendarVisible} transparent animationType="fade" onRequestClose={() => setCalendarVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCalendarVisible(false)}>
-          <View style={styles.calendarModalContent}>
-            <Text style={styles.calendarModalTitle}>Navegação Mensal</Text>
-            <Text style={styles.calendarModalSubtitle}>
-              Selecione um dia (Implementação do react-native-calendars pendente)
-            </Text>
-            <TouchableOpacity style={styles.closeCalButton} onPress={() => setCalendarVisible(false)}>
-              <Text style={styles.closeCalButtonText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* Modal Interativo do Calendário Mensal */}
+      <ModalCalendarioMensal
+        visible={calendarVisible}
+        onClose={() => setCalendarVisible(false)}
+        dataAtual={dataSelecionada}
+        onDayPress={(novaData) => {
+          setDataSelecionada(novaData);
+          setCalendarVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -642,48 +639,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginBottom: 16,
-  },
-
-  /* Modal Calendário */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  calendarModalContent: {
-    backgroundColor: Colors.surface,
-    padding: 24,
-    borderRadius: 20,
-    width: '90%',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2e3235',
-  },
-  calendarModalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  calendarModalSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  closeCalButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  closeCalButtonText: {
-    color: '#000000',
-    fontWeight: 'bold',
-    fontSize: 15,
   },
 
   /* 4. Timeline Vertical */
