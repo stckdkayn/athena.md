@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors, CATEGORIA_CORES, getTopicColor } from '@/constants/Colors';
+import { Colors, CATEGORIA_CORES, getTopicColor, ActiveThemeColors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import { storage } from '@/services/storage';
 import {
   getAtividadesPorData,
@@ -85,6 +86,8 @@ const gerarDiasVisiveis = () => {
 };
 
 export default function DashboardScreen() {
+  const { colors: themeColors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const router = useRouter();
   const [atividades, setAtividades] = useState<AtividadeAgenda[]>([]);
   const [blocosEstudo, setBlocosEstudo] = useState<DbBlocoEstudo[]>([]);
@@ -670,7 +673,7 @@ export default function DashboardScreen() {
           }
 
           // Senão, renderiza a bolinha contínua normal
-          const dotColor = (isPastDot || timePassed > threshold) ? Colors.primary : '#2E3236';
+          const dotColor = (isPastDot || timePassed > threshold) ? themeColors.primary : (isDark ? '#2E3236' : '#D1D5DB');
           return <View key={i} style={[styles.smallDot, { backgroundColor: dotColor }]} />;
         })}
       </View>
@@ -683,8 +686,8 @@ export default function DashboardScreen() {
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <Feather name="sunrise" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
-            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>07:00</Text>
+            <Feather name="sunrise" size={20} color={isPastOrCurrent ? themeColors.text : themeColors.textMuted} style={{ marginBottom: 4 }} />
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: themeColors.text } : styles.timeTextPast]}>07:00</Text>
             {renderDottedProgress(timePassed)}
           </View>
         </View>
@@ -699,10 +702,10 @@ export default function DashboardScreen() {
             <Ionicons
               name="moon"
               size={20}
-              color={isPastOrCurrent ? Colors.text : '#656B73'}
+              color={isPastOrCurrent ? themeColors.text : themeColors.textMuted}
               style={{ marginTop: 2, marginBottom: 4 }}
             />
-            <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>
+            <Text style={[styles.timeText, isPastOrCurrent ? { color: themeColors.text } : styles.timeTextPast]}>
               22:00
             </Text>
           </View>
@@ -750,17 +753,17 @@ export default function DashboardScreen() {
             <Feather
               name="sunrise"
               size={20}
-              color={(isDayPast || (isToday && currentHour >= 7)) ? Colors.text : '#656B73'}
+              color={(isDayPast || (isToday && currentHour >= 7)) ? themeColors.text : themeColors.textMuted}
               style={{ marginBottom: 4 }}
             />
           )}
           {horaItemStr ? (
-            <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: Colors.text } : styles.timeTextPast]}>
+            <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: themeColors.text } : styles.timeTextPast]}>
               {horaItemStr}
             </Text>
           ) : (
             <View style={styles.noTimeIndicator}>
-              <Ionicons name="book-outline" size={13} color={Colors.textSecondary} />
+              <Ionicons name="book-outline" size={13} color={themeColors.textSecondary} />
             </View>
           )}
 
@@ -783,7 +786,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       {/* 1. Header Dinâmico de 2 Linhas */}
       <View style={styles.header}>
@@ -806,7 +809,7 @@ export default function DashboardScreen() {
                         {userName.trim().charAt(0).toUpperCase()}
                       </Text>
                     ) : (
-                      <Ionicons name="person" size={24} color={Colors.textSecondary} />
+                      <Ionicons name="person" size={24} color={themeColors.textSecondary} />
                     )}
                   </View>
                 )}
@@ -874,7 +877,7 @@ export default function DashboardScreen() {
             <Ionicons
               name={showSearch ? 'close' : 'search'}
               size={20}
-              color={showSearch ? Colors.primary : Colors.text}
+              color={showSearch ? themeColors.primary : themeColors.text}
             />
           </TouchableOpacity>
 
@@ -888,14 +891,14 @@ export default function DashboardScreen() {
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="calendar-number-outline" size={20} color={Colors.text} />
+            <Ionicons name="calendar-number-outline" size={20} color={themeColors.text} />
           </TouchableOpacity>
         </View>
 
         {/* Barra Expansível de Pesquisa abaixo do ícone */}
         {showSearch && (
           <View style={styles.searchBarRow}>
-            <Ionicons name="search" size={16} color={Colors.primary} style={styles.searchIcon} />
+            <Ionicons name="search" size={16} color={themeColors.primary} style={styles.searchIcon} />
             <TextInput
               ref={searchInputRef}
               style={styles.searchInput}
@@ -909,7 +912,7 @@ export default function DashboardScreen() {
               autoFocus={true}
             />
             {isSearching && (
-              <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 6 }} />
+              <ActivityIndicator size="small" color={themeColors.primary} style={{ marginRight: 6 }} />
             )}
             {searchText.length > 0 && (
               <TouchableOpacity
@@ -927,7 +930,7 @@ export default function DashboardScreen() {
           <View style={styles.floatingResultsContainer}>
             {isSearching && searchResults.length === 0 ? (
               <View style={styles.floatingLoadingBox}>
-                <ActivityIndicator size="small" color={Colors.primary} />
+                <ActivityIndicator size="small" color={themeColors.primary} />
                 <Text style={styles.floatingLoadingText}>Buscando matérias e temas...</Text>
               </View>
             ) : searchResults.length > 0 ? (
@@ -973,7 +976,7 @@ export default function DashboardScreen() {
                           <Ionicons
                             name="checkmark-circle-outline"
                             size={13}
-                            color={Colors.primary}
+                            color={themeColors.primary}
                             style={{ marginRight: 4 }}
                           />
                           <Text style={styles.floatingMatchText} numberOfLines={1}>
@@ -1084,7 +1087,7 @@ export default function DashboardScreen() {
           setModalNovaVisible(true);
         }}
       >
-        <Ionicons name="add" size={28} color="#000000" />
+        <Ionicons name="add" size={28} color={themeColors.primary === '#EAE115' ? '#000000' : '#FFFFFF'} />
       </TouchableOpacity>
 
       {/* Modal para Adicionar ou Editar Atividade */}
@@ -1158,578 +1161,580 @@ export default function DashboardScreen() {
 }
 
 // Estilos minimalistas no padrão Notion Dark
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingTop: 8,
-  },
-  header: {
-    paddingHorizontal: 16,
-    marginBottom: 14,
-    gap: 12,
-    zIndex: 100,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerProfileGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  avatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1E2226',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#33383F',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1C1F22',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontSize: 22,
-    fontFamily: Fonts.extraBold,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  greetingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  greetingSubtitleText: {
-    fontSize: 13,
-    fontFamily: Fonts.semiBold,
-    fontWeight: '600',
-    color: '#8E959E',
-    lineHeight: 16,
-  },
-  bigGreetingText: {
-    fontSize: 22,
-    fontFamily: Fonts.extraBold,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: -0.4,
-    lineHeight: 26,
-    marginTop: -1,
-  },
-  headerSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 2,
-  },
-  weekLabel: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    fontFamily: Fonts.semiBold,
-    color: '#8E959E',
-    letterSpacing: -0.2,
-    textAlign: 'center',
-    paddingHorizontal: 8,
-  },
-  calendarIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarIconButtonActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    borderColor: Colors.primary,
-  },
-  searchBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2D3238',
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    marginTop: 6,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    paddingVertical: 0,
-  },
-  floatingResultsContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 16,
-    right: 16,
-    maxHeight: 340,
-    backgroundColor: '#1E2124',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2E3339',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 20,
-    zIndex: 9999,
-    overflow: 'hidden',
-  },
-  floatingResultsList: {
-    padding: 10,
-  },
-  floatingResultCard: {
-    backgroundColor: '#262A2E',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#343A40',
-  },
-  floatingResultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  floatingWeekPill: {
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
-  },
-  floatingWeekPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.primary,
-    fontFamily: Fonts.bold,
-  },
-  floatingEspecialidadeText: {
-    fontSize: 11,
-    color: '#8E959E',
-    fontWeight: '600',
-    fontFamily: Fonts.semiBold,
-  },
-  floatingTopicTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-    marginBottom: 4,
-  },
-  floatingMatchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  floatingMatchText: {
-    fontSize: 11,
-    color: '#B0B7C0',
-    fontFamily: Fonts.medium,
-  },
-  floatingLoadingBox: {
-    paddingVertical: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  floatingLoadingText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.medium,
-  },
-  floatingEmptyBox: {
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  floatingEmptyTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-    marginBottom: 2,
-  },
-  floatingEmptySubtitle: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    fontFamily: Fonts.regular,
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    height: 36,
-    paddingHorizontal: 9,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  streakBadgeActive: {
-    backgroundColor: 'rgba(255, 136, 0, 0.12)',
-    borderColor: 'rgba(255, 136, 0, 0.35)',
-  },
-  streakBadgeInactive: {
-    backgroundColor: Colors.surface,
-    borderColor: '#2e3235',
-  },
-  streakBadgeText: {
-    fontSize: 13,
-    fontFamily: Fonts.bold,
-    fontWeight: '800',
-  },
-  streakBadgeTextActive: {
-    color: '#FF8800',
-  },
-  streakBadgeTextInactive: {
-    color: '#8E959E',
-  },
-  calendarIconEmoji: {
-    fontSize: 18,
-  },
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+      paddingTop: 8,
+    },
+    header: {
+      paddingHorizontal: 16,
+      marginBottom: 14,
+      gap: 12,
+      zIndex: 100,
+    },
+    headerTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerProfileGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    avatarContainer: {
+      position: 'relative',
+      marginRight: 12,
+    },
+    avatarCircle: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: theme.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+    },
+    avatarPlaceholder: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: theme.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarInitials: {
+      fontSize: 22,
+      fontFamily: Fonts.extraBold,
+      fontWeight: '800',
+      color: theme.primary,
+    },
+    greetingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    greetingSubtitleText: {
+      fontSize: 13,
+      fontFamily: Fonts.semiBold,
+      fontWeight: '600',
+      color: theme.textSecondary,
+      lineHeight: 16,
+    },
+    bigGreetingText: {
+      fontSize: 22,
+      fontFamily: Fonts.extraBold,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.4,
+      lineHeight: 26,
+      marginTop: -1,
+    },
+    headerSubRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: 2,
+    },
+    weekLabel: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      fontFamily: Fonts.semiBold,
+      color: theme.textSecondary,
+      letterSpacing: -0.2,
+      textAlign: 'center',
+      paddingHorizontal: 8,
+    },
+    calendarIconButton: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    calendarIconButtonActive: {
+      backgroundColor: theme.primarySubtle,
+      borderColor: theme.primary,
+    },
+    searchBarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 12,
+      paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+      marginTop: 6,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 14,
+      fontFamily: Fonts.medium,
+      paddingVertical: 0,
+    },
+    floatingResultsContainer: {
+      position: 'absolute',
+      top: '100%',
+      left: 16,
+      right: 16,
+      maxHeight: 340,
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.5,
+      shadowRadius: 12,
+      elevation: 20,
+      zIndex: 9999,
+      overflow: 'hidden',
+    },
+    floatingResultsList: {
+      padding: 10,
+    },
+    floatingResultCard: {
+      backgroundColor: theme.backgroundSecondary,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    floatingResultHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+    },
+    floatingWeekPill: {
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    floatingWeekPillText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.primary,
+      fontFamily: Fonts.bold,
+    },
+    floatingEspecialidadeText: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      fontWeight: '600',
+      fontFamily: Fonts.semiBold,
+    },
+    floatingTopicTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+      fontFamily: Fonts.bold,
+      marginBottom: 4,
+    },
+    floatingMatchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    floatingMatchText: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      fontFamily: Fonts.medium,
+    },
+    floatingLoadingBox: {
+      paddingVertical: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    floatingLoadingText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      fontFamily: Fonts.medium,
+    },
+    floatingEmptyBox: {
+      paddingVertical: 24,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    floatingEmptyTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+      fontFamily: Fonts.bold,
+      marginBottom: 2,
+    },
+    floatingEmptySubtitle: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      fontFamily: Fonts.regular,
+    },
+    streakBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      height: 36,
+      paddingHorizontal: 9,
+      borderRadius: 18,
+      borderWidth: 1,
+    },
+    streakBadgeActive: {
+      backgroundColor: 'rgba(255, 136, 0, 0.12)',
+      borderColor: 'rgba(255, 136, 0, 0.35)',
+    },
+    streakBadgeInactive: {
+      backgroundColor: theme.surface,
+      borderColor: theme.border,
+    },
+    streakBadgeText: {
+      fontSize: 13,
+      fontFamily: Fonts.bold,
+      fontWeight: '800',
+    },
+    streakBadgeTextActive: {
+      color: '#FF8800',
+    },
+    streakBadgeTextInactive: {
+      color: theme.textSecondary,
+    },
+    calendarIconEmoji: {
+      fontSize: 18,
+    },
 
-  /* 2. Seletor de Semana Folha */
-  weekSelector: {
-    marginBottom: 16,
-  },
-  weekSelectorList: {
-    paddingHorizontal: 12,
-  },
-  dayPill: {
-    width: 48,
-    height: 60,
-    borderRadius: 10,
-    backgroundColor: Colors.surface,
-    marginHorizontal: 6,
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    overflow: 'hidden',
-  },
-  dayPillActive: {
-    borderColor: Colors.primary,
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
-  },
-  dayWeekContainer: {
-    backgroundColor: '#1c1f22',
-    width: '100%',
-    alignItems: 'center',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#282b2e',
-  },
-  dayWeekContainerActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.14)',
-    borderBottomColor: 'rgba(234, 225, 21, 0.28)',
-  },
-  dayMonthContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 2,
-  },
-  dayWeekText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-  },
-  dayWeekTextActive: {
-    color: Colors.primary,
-    fontWeight: '800',
-  },
-  dayMonthText: {
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: 'bold',
-    fontFamily: Fonts.bold,
-  },
-  dayMonthTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  todayIndicatorDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.textSecondary,
-    marginTop: 2,
-  },
-  todayIndicatorDotActive: {
-    backgroundColor: Colors.primary,
-  },
+    /* 2. Seletor de Semana Folha */
+    weekSelector: {
+      marginBottom: 16,
+    },
+    weekSelectorList: {
+      paddingHorizontal: 12,
+    },
+    dayPill: {
+      width: 48,
+      height: 60,
+      borderRadius: 10,
+      backgroundColor: theme.surface,
+      marginHorizontal: 6,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+    },
+    dayPillActive: {
+      borderColor: theme.primary,
+      borderWidth: 1.5,
+      backgroundColor: theme.primarySubtle,
+    },
+    dayWeekContainer: {
+      backgroundColor: theme.backgroundSecondary,
+      width: '100%',
+      alignItems: 'center',
+      paddingVertical: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderSubtle,
+    },
+    dayWeekContainerActive: {
+      backgroundColor: theme.primarySubtle,
+      borderBottomColor: theme.primaryBorder,
+    },
+    dayMonthContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 2,
+    },
+    dayWeekText: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      textTransform: 'uppercase',
+      fontWeight: '700',
+      fontFamily: Fonts.bold,
+    },
+    dayWeekTextActive: {
+      color: theme.primary,
+      fontWeight: '800',
+    },
+    dayMonthText: {
+      fontSize: 16,
+      color: theme.text,
+      fontWeight: 'bold',
+      fontFamily: Fonts.bold,
+    },
+    dayMonthTextActive: {
+      color: theme.text,
+      fontWeight: '800',
+    },
+    todayIndicatorDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.textSecondary,
+      marginTop: 2,
+    },
+    todayIndicatorDotActive: {
+      backgroundColor: theme.primary,
+    },
 
-  /* 3. Board Container */
-  boardContainer: {
-    flex: 1,
-    backgroundColor: '#181a1c',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#282c30',
-  },
-  boardTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  boardSubtitle: {
-    fontSize: 13,
-    fontFamily: Fonts.regular,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  boardSubtitleBold: {
-    fontFamily: Fonts.bold,
-    fontWeight: '700',
-    color: Colors.text,
-  },
+    /* 3. Board Container */
+    boardContainer: {
+      flex: 1,
+      backgroundColor: theme.backgroundSecondary,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 16,
+      paddingTop: 20,
+      borderTopWidth: 1,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: theme.border,
+    },
+    boardTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      fontFamily: Fonts.extraBold,
+      color: theme.text,
+      marginBottom: 4,
+    },
+    boardSubtitle: {
+      fontSize: 13,
+      fontFamily: Fonts.regular,
+      color: theme.textSecondary,
+      marginBottom: 8,
+    },
+    boardSubtitleBold: {
+      fontFamily: Fonts.bold,
+      fontWeight: '700',
+      color: theme.text,
+    },
 
-  /* 4. Timeline Vertical */
-  timelineContainer: {
-    paddingBottom: 90,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    minHeight: 64,
-  },
-  timeColumn: {
-    width: 50,
-    alignItems: 'center',
-    marginRight: 10,
-    marginTop: 0,
-  },
-  timeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  timeTextPast: {
-    color: '#555A62',
-  },
-  dottedLineContainer: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'space-evenly', 
-    paddingTop: 2,
-    paddingBottom: 2, 
-    minHeight: 56, 
-  },
-  smallDot: { 
-    width: 6, 
-    height: 6, 
-    borderRadius: 3, 
-    marginVertical: 1.5, 
-  },
-  nowDotWrapper: {
-    marginVertical: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  nowDotPill: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 4, // Reduzido para caber na coluna
-    paddingVertical: 3,
-    borderRadius: 8, // Borda um pouco menor para acompanhar o tamanho
-  },
-  nowDotText: {
-    color: '#000000',
-    fontSize: 8, // Fonte reduzida para não quebrar linha
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
-    letterSpacing: 0.5, // Dá um pequeno respiro entre as letras
-  },
-  anchorRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    alignItems: 'flex-start',
-  },
-  activityCard: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    overflow: 'hidden',
-  },
-  activityCardCompleted: {
-    opacity: 0.5,
-    borderColor: '#202325',
-  },
-  cardContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardMainContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  cardRightIconWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingLeft: 4,
-    paddingRight: 2,
-  },
-  activityTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
-  textStrikethrough: {
-    textDecorationLine: 'line-through',
-    color: Colors.textSecondary,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 10,
-  },
-  timeRangeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeRangeText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  routineBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  routineText: {
-    fontSize: 10,
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-    color: Colors.primary,
-  },
-  detailsRow: {
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  detailsText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-  },
-  noTimeIndicator: {
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
+    /* 4. Timeline Vertical */
+    timelineContainer: {
+      paddingBottom: 90,
+    },
+    timelineRow: {
+      flexDirection: 'row',
+      marginBottom: 6,
+      minHeight: 64,
+    },
+    timeColumn: {
+      width: 50,
+      alignItems: 'center',
+      marginRight: 10,
+      marginTop: 0,
+    },
+    timeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      fontFamily: Fonts.bold,
+      color: theme.textSecondary,
+      marginTop: 2,
+      marginBottom: 6,
+    },
+    timeTextPast: {
+      color: theme.textMuted,
+    },
+    dottedLineContainer: { 
+      flex: 1, 
+      alignItems: 'center', 
+      justifyContent: 'space-evenly', 
+      paddingTop: 2,
+      paddingBottom: 2, 
+      minHeight: 56, 
+    },
+    smallDot: { 
+      width: 6, 
+      height: 6, 
+      borderRadius: 3, 
+      marginVertical: 1.5, 
+    },
+    nowDotWrapper: {
+      marginVertical: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10,
+    },
+    nowDotPill: {
+      backgroundColor: theme.primary,
+      paddingHorizontal: 4,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    nowDotText: {
+      color: theme.primary === '#EAE115' ? '#000000' : '#FFFFFF',
+      fontSize: 8,
+      fontWeight: '800',
+      fontFamily: Fonts.extraBold,
+      letterSpacing: 0.5,
+    },
+    anchorRow: {
+      flexDirection: 'row',
+      marginBottom: 6,
+      alignItems: 'flex-start',
+    },
+    activityCard: {
+      flex: 1,
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+    },
+    activityCardCompleted: {
+      opacity: 0.5,
+      borderColor: theme.borderSubtle,
+    },
+    cardContentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    cardMainContent: {
+      flex: 1,
+      marginRight: 12,
+    },
+    cardRightIconWrapper: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingLeft: 4,
+      paddingRight: 2,
+    },
+    activityTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      fontFamily: Fonts.bold,
+      color: theme.text,
+    },
+    textStrikethrough: {
+      textDecorationLine: 'line-through',
+      color: theme.textSecondary,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 6,
+      gap: 10,
+    },
+    timeRangeBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    timeRangeText: {
+      fontSize: 12,
+      fontFamily: Fonts.medium,
+      color: theme.textSecondary,
+    },
+    routineBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      borderRadius: 4,
+    },
+    routineText: {
+      fontSize: 10,
+      fontWeight: '700',
+      fontFamily: Fonts.bold,
+      color: theme.primary,
+    },
+    detailsRow: {
+      marginTop: 4,
+      marginBottom: 2,
+    },
+    detailsText: {
+      fontSize: 12,
+      fontFamily: Fonts.medium,
+      color: theme.textSecondary,
+      lineHeight: 16,
+    },
+    noTimeIndicator: {
+      height: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
 
-  /* Empty State */
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    fontFamily: Fonts.regular,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+    /* Empty State */
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 48,
+      paddingHorizontal: 24,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      fontFamily: Fonts.bold,
+      color: theme.text,
+      marginBottom: 6,
+    },
+    emptySubtitle: {
+      fontSize: 13,
+      fontFamily: Fonts.regular,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
 
-  /* 5. FAB */
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 6,
-  },
+    /* 5. FAB */
+    fab: {
+      position: 'absolute',
+      bottom: 24,
+      right: 20,
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      backgroundColor: theme.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+      elevation: 6,
+    },
 
-  /* AI Planner & Replan Styles */
-  boardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  praticarBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
-    marginLeft: 'auto',
-  },
-  praticarBtnText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#000',
-  },
-});
+    /* AI Planner & Replan Styles */
+    boardHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    praticarBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primary,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      gap: 4,
+      marginLeft: 'auto',
+    },
+    praticarBtnText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: theme.primary === '#EAE115' ? '#000000' : '#FFFFFF',
+    },
+  });
+}
