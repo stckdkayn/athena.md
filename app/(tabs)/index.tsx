@@ -1025,21 +1025,48 @@ export default function DashboardScreen() {
 
             return (
               <TouchableOpacity
-                style={[styles.dayPill, isSelected && styles.dayPillActive]}
+                style={[
+                  styles.dayPill,
+                  isToday && styles.dayPillToday,
+                  isSelected && styles.dayPillActive,
+                ]}
                 onPress={() => setDataSelecionada(item.dataISO)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.dayWeekContainer, isSelected && styles.dayWeekContainerActive]}>
-                  <Text style={[styles.dayWeekText, isSelected && styles.dayWeekTextActive]}>
+                <View
+                  style={[
+                    styles.dayWeekContainer,
+                    isToday && styles.dayWeekContainerToday,
+                    isSelected && styles.dayWeekContainerActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayWeekText,
+                      isToday && styles.dayWeekTextToday,
+                      isSelected && styles.dayWeekTextActive,
+                    ]}
+                  >
                     {item.diaSemana}
                   </Text>
                 </View>
                 <View style={styles.dayMonthContainer}>
-                  <Text style={[styles.dayMonthText, isSelected && styles.dayMonthTextActive]}>
+                  <Text
+                    style={[
+                      styles.dayMonthText,
+                      isToday && styles.dayMonthTextToday,
+                      isSelected && styles.dayMonthTextActive,
+                    ]}
+                  >
                     {item.diaMes}
                   </Text>
                   {isToday && (
-                    <View style={[styles.todayIndicatorDot, isSelected && styles.todayIndicatorDotActive]} />
+                    <View
+                      style={[
+                        styles.todayIndicatorDot,
+                        isSelected && styles.todayIndicatorDotActive,
+                      ]}
+                    />
                   )}
                 </View>
               </TouchableOpacity>
@@ -1446,22 +1473,30 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       borderColor: theme.border,
       overflow: 'hidden',
     },
+    dayPillToday: {
+      borderColor: isDark ? '#383D42' : '#DCDCD8',
+      backgroundColor: isDark ? '#222528' : '#F2F2EF',
+    },
     dayPillActive: {
-      borderColor: theme.primary,
-      borderWidth: 1.5,
-      backgroundColor: theme.primarySubtle,
+      borderColor: isDark ? '#484D55' : '#D0D0CB',
+      borderWidth: 1,
+      backgroundColor: isDark ? '#2D3136' : '#E8E8E5',
     },
     dayWeekContainer: {
-      backgroundColor: theme.backgroundSecondary,
+      backgroundColor: isDark ? '#1C1F22' : '#F7F7F5',
       width: '100%',
       alignItems: 'center',
       paddingVertical: 4,
       borderBottomWidth: 1,
       borderBottomColor: theme.borderSubtle,
     },
+    dayWeekContainerToday: {
+      backgroundColor: isDark ? '#282C30' : '#E8E8E4',
+      borderBottomColor: isDark ? '#383D42' : '#DCDCD8',
+    },
     dayWeekContainerActive: {
-      backgroundColor: theme.primarySubtle,
-      borderBottomColor: theme.primaryBorder,
+      backgroundColor: isDark ? '#383E45' : '#DDDDD8',
+      borderBottomColor: isDark ? '#484D55' : '#D0D0CB',
     },
     dayMonthContainer: {
       flex: 1,
@@ -1470,14 +1505,18 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       paddingBottom: 2,
     },
     dayWeekText: {
-      fontSize: 11,
+      fontSize: 10,
       color: theme.textSecondary,
       textTransform: 'uppercase',
       fontWeight: '700',
       fontFamily: Fonts.bold,
     },
+    dayWeekTextToday: {
+      color: theme.text,
+      fontWeight: '700',
+    },
     dayWeekTextActive: {
-      color: theme.primary,
+      color: theme.text,
       fontWeight: '800',
     },
     dayMonthText: {
@@ -1485,6 +1524,9 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       color: theme.text,
       fontWeight: 'bold',
       fontFamily: Fonts.bold,
+    },
+    dayMonthTextToday: {
+      fontWeight: '800',
     },
     dayMonthTextActive: {
       color: theme.text,
@@ -1494,17 +1536,17 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       width: 4,
       height: 4,
       borderRadius: 2,
-      backgroundColor: theme.textSecondary,
+      backgroundColor: isDark ? '#7E858E' : '#9B9A97',
       marginTop: 2,
     },
     todayIndicatorDotActive: {
-      backgroundColor: theme.primary,
+      backgroundColor: isDark ? '#AEB4BC' : '#5A5852',
     },
 
     /* 3. Board Container */
     boardContainer: {
       flex: 1,
-      backgroundColor: theme.backgroundSecondary,
+      backgroundColor: theme.background,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       paddingHorizontal: 16,

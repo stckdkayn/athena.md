@@ -92,12 +92,12 @@ export const BASE_THEMES: Record<'dark' | 'light', ThemeTokens> = {
     warningSubtle: 'rgba(245, 158, 11, 0.15)',
   },
   light: {
-    background: '#FFFFFF',
-    backgroundSecondary: '#F7F7F5',
-    surface: '#F7F7F5',
-    surfaceCard: '#F7F7F5',
-    border: 'rgba(0, 0, 0, 0.06)',
-    borderSubtle: 'rgba(0, 0, 0, 0.04)',
+    background: '#F7F7F5',
+    backgroundSecondary: '#EFEFED',
+    surface: '#FFFFFF',
+    surfaceCard: '#FFFFFF',
+    border: 'rgba(0, 0, 0, 0.08)',
+    borderSubtle: 'rgba(0, 0, 0, 0.05)',
     text: '#37352F',
     textSecondary: '#787774',
     textMuted: '#9B9A97',
@@ -118,26 +118,26 @@ export interface ActiveThemeColors extends ThemeTokens {
 
 /**
  * Objeto legado para retrocompatibilidade imediata com telas existentes
- * Padronizado agora com os valores Notion Light
+ * Padronizado agora com os valores Notion Light (Fundo #F7F7F5, Cards #FFFFFF)
  */
 export const Colors = {
-  background: '#FFFFFF',
-  surface: '#F7F7F5',
+  background: '#F7F7F5',
+  surface: '#FFFFFF',
   primary: '#37352F',
   text: '#37352F',
   textSecondary: '#787774',
   textMuted: '#9B9A97',
-  border: 'rgba(0, 0, 0, 0.06)',
+  border: 'rgba(0, 0, 0, 0.08)',
   error: '#EB5757',
   success: '#27AE60',
   light: {
     text: '#37352F',
-    background: '#FFFFFF',
-    surface: '#F7F7F5',
+    background: '#F7F7F5',
+    surface: '#FFFFFF',
     tint: '#37352F',
     tabIconDefault: '#787774',
     tabIconSelected: '#37352F',
-    border: 'rgba(0, 0, 0, 0.06)',
+    border: 'rgba(0, 0, 0, 0.08)',
   },
   dark: {
     text: '#FFFFFF',
