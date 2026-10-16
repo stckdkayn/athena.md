@@ -1445,7 +1445,8 @@ export async function updateStatusBlocoEstudo(blocoId: string, status: BlocoStat
 }
 
 /**
- * Move um tópico inteiro (ou passo específico) para outro dia da semana no SQLite e no MMKV.
+ * Move um tópico inteiro com todos os seus passos (aulas, questões, flashcards, apostila)
+ * para outro dia da semana no SQLite e no MMKV.
  */
 export async function moverPassoOuTopicoDeDiaNoBanco(
   topicoId: string,
@@ -1454,11 +1455,8 @@ export async function moverPassoOuTopicoDeDiaNoBanco(
 ): Promise<void> {
   try {
     const database = getDatabase();
-    if (passoId) {
-      await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE id = ?;`, [novoDia, passoId]);
-    } else {
-      await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE topico_id = ?;`, [novoDia, topicoId]);
-    }
+    // Move todos os passos do tópico juntos para manter o conjunto íntegro
+    await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE topico_id = ?;`, [novoDia, topicoId]);
     await database.runAsync(`UPDATE Topicos SET assigned_day = ? WHERE id = ?;`, [novoDia, topicoId]);
 
     // Sincroniza também no cache MMKV
