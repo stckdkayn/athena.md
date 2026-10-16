@@ -357,24 +357,37 @@ export default function DashboardScreen() {
   // Referência para o auto-scroll
   const flatListRef = useRef<FlatList>(null);
 
-  // Processamento da Timeline (Injetando âncoras de 6h e 22h)
+  // Processamento da Timeline (Injetando âncoras de 6h e 00h)
   const timelineItems = useMemo(() => {
     let items: any[] = [...atividades];
 
-    // Injeta âncora de início
-    items.push({ id: 'ancora_6h', type: 'anchor_start', time: '06:00' });
-    // Injeta âncora de fim
-    items.push({ id: 'ancora_00h', type: 'anchor_end', time: '24:00' });
-
     // Ordena tudo pelo horário
     items.sort((a, b) => {
-      const getHora = (item: any) => {
-        if (item.type === 'anchor_start') return '05:59:59';
-        if (item.type === 'anchor_end') return '24:00';
-        return item.hora_inicio || item.time || '24:00';
-      };
-      return getHora(a).localeCompare(getHora(b));
+      const horaA = a.hora_inicio || a.time || '24:00';
+      const horaB = b.hora_inicio || b.time || '24:00';
+      return horaA.localeCompare(horaB);
     });
+
+    // Unifica a âncora de início: se já existe atividade começando às 06:00,
+    // marca ela com hasAnchorStart em vez de injetar uma linha extra de 06:00 com pontilhado duplicado
+    const has06hActivity = items.some((a) => (a.hora_inicio || a.time) === '06:00');
+
+    if (has06hActivity) {
+      let marked = false;
+      items = items.map((a) => {
+        if (!marked && (a.hora_inicio || a.time) === '06:00') {
+          marked = true;
+          return { ...a, hasAnchorStart: true };
+        }
+        return a;
+      });
+    } else {
+      // Se não há atividade às 06:00, insere a âncora de início de forma independente
+      items.unshift({ id: 'ancora_6h', type: 'anchor_start', time: '06:00' });
+    }
+
+    // Injeta âncora de fim
+    items.push({ id: 'ancora_00h', type: 'anchor_end', time: '24:00' });
 
     return items;
   }, [atividades]);
@@ -456,7 +469,7 @@ export default function DashboardScreen() {
     // 1. Renderiza âncoras fixas (6h e 00h)
     if (item.type === 'anchor_start') {
       const timePassed = calcTimePassed(6, 0);
-      const isPastOrCurrent = timePassed >= 0;
+      const isPastOrCurrent = isDayPast || (isToday && currentHour >= 6);
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
@@ -499,6 +512,14 @@ export default function DashboardScreen() {
     return (
       <View style={styles.timelineRow}>
         <View style={styles.timeColumn}>
+          {item.hasAnchorStart && (
+            <Ionicons
+              name="sunny"
+              size={20}
+              color={(isDayPast || (isToday && currentHour >= 6)) ? Colors.text : '#656B73'}
+              style={{ marginBottom: 4 }}
+            />
+          )}
           {horaItemStr ? (
             <Text style={[styles.timeText, (isPast || isCurrentHour) ? { color: Colors.text } : styles.timeTextPast]}>
               {horaItemStr}
@@ -516,7 +537,7 @@ export default function DashboardScreen() {
         <TouchableOpacity
           onPress={() => setAtividadeDetalhes(item)}
           activeOpacity={0.75}
-          style={{ flex: 1 }}
+          style={{ flex: 1, marginTop: item.hasAnchorStart ? 24 : 0 }}
         >
           <LinearGradient
             colors={item.concluida ? [`${corBase}10`, '#1b1d1f', '#1b1d1f'] : [`${corBase}20`, Colors.surface, Colors.surface]}
