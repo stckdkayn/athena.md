@@ -284,7 +284,7 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
     return {
       tipo,
       tema_id: g.tema,
-      titulo: `Revisão de Gargalo: ${g.tema}`,
+      titulo: `Revisão de Tema Crítico: ${g.tema}`,
       passo_id: null,
       prioridade: g.prioridade,
       duracaoSugerida: duracao,
@@ -440,14 +440,14 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
       }
     }
 
-    // Verifica se existem blocos de gargalo obsoletos (ex: após reset de progresso)
+    // Verifica se existem blocos de gargalo / temas críticos obsoletos (ex: após reset de progresso)
     const gargalosAtuais = await obterGargalos();
     const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema));
     const blocosGargaloRow = await database.getAllAsync<{ id: string; tema_id: string }>(
       `SELECT id, tema_id FROM blocos_estudo 
        WHERE data_agendada = ? 
          AND status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`,
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`,
       [dataYYYYMMDD]
     );
     const temGargaloInvalido = blocosGargaloRow.some((b) => !temasGargaloSet.has(b.tema_id));
@@ -471,13 +471,20 @@ export async function verificarEPlanejarAutomaticamente(dataYYYYMMDD: string): P
 }
 
 /**
- * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES, SEMANAS E GARGALOS
+ * 5. SINCRONIZAÇÃO GLOBAL DE LIMITES, SEMANAS E TEMAS CRÍTICOS
  * Replaneja todas as datas que contenham blocos pendentes fora dos limites de 07:00 às 22:00,
- * que contenham blocos de semanas antigas/loopadas ou blocos de gargalo de temas resetados.
+ * que contenham blocos de semanas antigas/loopadas ou blocos de temas críticos resetados.
  */
 export async function sincronizarLimitesHorarioUtil(): Promise<void> {
   const database = getDatabase();
   try {
+    // Migração transparente: renomeia qualquer bloco antigo que ainda tenha 'Revisão de Gargalo:' para 'Revisão de Tema Crítico:'
+    await database.runAsync(
+      `UPDATE blocos_estudo 
+       SET titulo = REPLACE(titulo, 'Revisão de Gargalo:', 'Revisão de Tema Crítico:')
+       WHERE titulo LIKE '%Revisão de Gargalo:%';`
+    );
+
     const rowsLimites = await database.getAllAsync<{ data_agendada: string }>(
       `SELECT DISTINCT data_agendada FROM blocos_estudo 
        WHERE status = 'pendente' 
@@ -514,13 +521,13 @@ export async function sincronizarLimitesHorarioUtil(): Promise<void> {
       }
     }
 
-    // Limpa blocos de gargalo obsoletos (quando o usuário resetou o progresso de questões)
+    // Limpa blocos de temas críticos obsoletos (quando o usuário resetou o progresso de questões)
     const gargalosAtuais = await obterGargalos();
     const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema));
     const todosGargalosPendentes = await database.getAllAsync<{ id: string; data_agendada: string; tema_id: string }>(
       `SELECT id, data_agendada, tema_id FROM blocos_estudo 
        WHERE status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
     );
 
     const datasReplanejarGargalo = new Set<string>();
@@ -542,7 +549,7 @@ export async function sincronizarLimitesHorarioUtil(): Promise<void> {
 }
 
 /**
- * 6. LIMPEZA MANUAL IMEDIATA DE GARGALOS E REPLANEJAMENTO
+ * 6. LIMPEZA MANUAL IMEDIATA DE TEMAS CRÍTICOS E REPLANEJAMENTO
  * Disparado quando o usuário reseta o progresso de um ou mais temas nas Configurações.
  */
 export async function limparGargalosEReplanejar(temas?: string[]): Promise<void> {
@@ -553,7 +560,7 @@ export async function limparGargalosEReplanejar(temas?: string[]): Promise<void>
       await database.runAsync(
         `DELETE FROM blocos_estudo 
          WHERE status = 'pendente' 
-           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%') 
+           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%') 
            AND (tema_id IN (${placeholders}) OR LOWER(tema_id) IN (${placeholders}));`,
         [...temas, ...temas.map((t) => t.toLowerCase())]
       );
@@ -561,17 +568,17 @@ export async function limparGargalosEReplanejar(temas?: string[]): Promise<void>
       await database.runAsync(
         `DELETE FROM blocos_estudo 
          WHERE status = 'pendente' 
-           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+           AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
       );
     }
 
-    // Validação extra: qualquer bloco de gargalo pendente que não esteja na lista atual de gargalos reais é excluído
+    // Validação extra: qualquer bloco de tema crítico pendente que não esteja na lista atual de gargalos reais é excluído
     const gargalosAtuais = await obterGargalos();
     const temasGargaloSet = new Set(gargalosAtuais.map((g) => g.tema.toLowerCase()));
     const todosGargalosPendentes = await database.getAllAsync<{ id: string; data_agendada: string; tema_id: string }>(
       `SELECT id, data_agendada, tema_id FROM blocos_estudo 
        WHERE status = 'pendente' 
-         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%');`
+         AND (passo_id IS NULL OR titulo LIKE '%Gargalo%' OR titulo LIKE '%Tema Crítico%');`
     );
 
     const datasReplanejar = new Set<string>();

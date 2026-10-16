@@ -177,7 +177,10 @@ export default function DashboardScreen() {
           else if (b.tipo === 'leitura') icone = 'book-open';
 
           // TÍTULO: O "detalhe" fica como Título no card
-          const tituloCard = b.passo_detalhe || b.passo_tema_questoes || b.topico_titulo || b.titulo || b.tema_id;
+          let tituloCard = b.passo_detalhe || b.passo_tema_questoes || b.topico_titulo || b.titulo || b.tema_id;
+          if (typeof tituloCard === 'string') {
+            tituloCard = tituloCard.replace('Revisão de Gargalo:', 'Revisão de Tema Crítico:');
+          }
 
           // SUBTÍTULO: O "label" fica como subtítulo, abaixo do título, substituindo o ex: "Leitura Teórica (40 min)"
           const subtituloCard = b.passo_label || (

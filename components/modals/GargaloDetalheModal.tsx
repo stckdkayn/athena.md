@@ -77,7 +77,7 @@ export function GargaloDetalheModal({ visible, onClose, gargalo, onPrepararTrein
               <View style={styles.gargaloModalTagRow}>
                 <View style={styles.gargaloModalBadge}>
                   <Ionicons name="alert-circle" size={13} color={Colors.error} style={{ marginRight: 4 }} />
-                  <Text style={styles.gargaloModalBadgeText}>Gargalo de Rendimento</Text>
+                  <Text style={styles.gargaloModalBadgeText}>Tema Crítico</Text>
                 </View>
               </View>
               <Text style={styles.gargaloModalTema} numberOfLines={2}>
