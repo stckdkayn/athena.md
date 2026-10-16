@@ -22,7 +22,7 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { unzip } from 'react-native-zip-archive';
 import JSZip from 'jszip';
 import { useNavigation } from 'expo-router';
-import { Colors, ThemeMode, AccentColorKey } from '@/constants/Colors';
+import Colors, { ActiveThemeColors } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 import AppHeader from '@/components/AppHeader';
 import {
@@ -217,15 +217,12 @@ function formatarNomeBanco(raw: string): string {
 
 export default function ConfiguracoesScreen() {
   const {
-    mode,
-    accentKey,
-    setMode,
-    setAccent,
     colors: themeColors,
     isDark,
-    accentOption,
-    availableAccents,
+    accentColor,
   } = useAppTheme();
+
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
 
   const [questoesCount, setQuestoesCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
@@ -334,7 +331,15 @@ export default function ConfiguracoesScreen() {
   const [sucessoAcaoCronograma, setSucessoAcaoCronograma] = useState<{ titulo: string; mensagem: string; } | null>(null);
   const [baixandoCronogramaGitHub, setBaixandoCronogramaGitHub] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'menu' | 'adicionar_questoes' | 'cronograma' | 'calendario'>('menu');
+  const [currentView, setCurrentView] = useState<'menu' | 'adicionar_questoes' | 'cronograma_calendario'>('menu');
+  const [subTabCronogramaCalendario, setSubTabCronogramaCalendario] = useState<'cronograma' | 'calendario'>('cronograma');
+
+  const abrirCronogramaECalendario = (tab: 'cronograma' | 'calendario' = 'cronograma') => {
+    carregarDadosCronograma();
+    carregarDadosCalendario();
+    setSubTabCronogramaCalendario(tab);
+    setCurrentView('cronograma_calendario');
+  };
   const [icalFeeds, setIcalFeeds] = useState<ICalFeed[]>([]);
   const [autoSyncAtivo, setAutoSyncAtivo] = useState<boolean>(true);
   const [ultimoSyncTimestamp, setUltimoSyncTimestamp] = useState<number | null>(null);
@@ -429,7 +434,7 @@ export default function ConfiguracoesScreen() {
 
   useEffect(() => {
     const onBackPress = () => {
-      if (currentView === 'adicionar_questoes' || currentView === 'cronograma' || currentView === 'calendario') {
+      if (currentView === 'adicionar_questoes' || currentView === 'cronograma_calendario') {
         setCurrentView('menu');
         return true;
       }
@@ -1502,197 +1507,36 @@ export default function ConfiguracoesScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={() => { carregarDadosCronograma(); setCurrentView('cronograma'); }}>
-              <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
+            <TouchableOpacity
+              style={styles.menuOptionCard}
+              activeOpacity={0.7}
+              onPress={() => abrirCronogramaECalendario('cronograma')}
+            >
+              <View style={[styles.menuOptionIconBox, { backgroundColor: themeColors.primarySubtle }]}>
+                <Ionicons name="calendar-outline" size={24} color={themeColors.primary} />
               </View>
               <View style={styles.menuOptionContent}>
-                <Text style={styles.menuOptionTitle}>Cronograma de Estudos</Text>
-                <Text style={styles.menuOptionSubtitle}>Baixar do GitHub, importar JSON ou gerenciar cronograma</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.menuOptionTitle}>Cronograma & Calendário</Text>
+                  {cronogramaInfo && (
+                    <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.35)' }]}>
+                      <Text style={[styles.menuUpdateBadgeText, { color: '#10B981' }]}>Ativo</Text>
+                    </View>
+                  )}
+                  {icalFeeds.length > 0 && (
+                    <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.35)', marginLeft: 6 }]}>
+                      <Text style={[styles.menuUpdateBadgeText, { color: '#3B82F6' }]}>
+                        {icalFeeds.length} {icalFeeds.length === 1 ? 'feed' : 'feeds'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.menuOptionSubtitle}>
+                  Sincronização de cronograma, Google Calendar (iCal/Webcal) e arquivos .ics
+                </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
             </TouchableOpacity>
-
-            {/* Seção: Calendário e Agenda */}
-            <View style={{ marginTop: 12 }}>
-              <View style={styles.minSectionHeader}>
-                <Text style={styles.minSectionTitle}>Calendário e Agenda</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.menuOptionCard}
-                activeOpacity={0.7}
-                onPress={() => {
-                  carregarDadosCalendario();
-                  setCurrentView('calendario');
-                }}
-              >
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                  <Ionicons name="calendar" size={24} color="#3B82F6" />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={styles.menuOptionTitle}>Calendário & Sincronização</Text>
-                    {icalFeeds.length > 0 && (
-                      <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(59, 130, 246, 0.18)', borderColor: 'rgba(59, 130, 246, 0.35)' }]}>
-                        <Text style={[styles.menuUpdateBadgeText, { color: '#60A5FA' }]}>
-                          {icalFeeds.length} {icalFeeds.length === 1 ? 'link ativo' : 'links ativos'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.menuOptionSubtitle}>
-                    Google Calendar (iCal/Webcal), sincronização automática e arquivos .ICS
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Seção: Aparência e Personalização */}
-            <View style={{ marginTop: 12 }}>
-              <View style={styles.minSectionHeader}>
-                <Text style={styles.minSectionTitle}>Aparência e Personalização</Text>
-              </View>
-              <View style={[styles.appearanceCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-                {/* Modo de Tema */}
-                <View style={styles.appearanceRowHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="contrast-outline" size={18} color={themeColors.primary} />
-                    <Text style={[styles.appearanceSectionLabel, { color: themeColors.text }]}>Tema Base</Text>
-                  </View>
-                  <Text style={[styles.appearanceCurrentValue, { color: themeColors.textSecondary }]}>
-                    {mode === 'dark' ? 'Modo Escuro' : mode === 'light' ? 'Modo Claro' : 'Acompanhar Sistema'}
-                  </Text>
-                </View>
-
-                <View style={styles.themeModeSelectorRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.themeModeChip,
-                      { backgroundColor: themeColors.backgroundSecondary, borderColor: themeColors.border },
-                      mode === 'dark' && [
-                        styles.themeModeChipActive,
-                        { borderColor: themeColors.primary, backgroundColor: themeColors.primarySubtle },
-                      ],
-                    ]}
-                    onPress={() => setMode('dark')}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="moon"
-                      size={16}
-                      color={mode === 'dark' ? themeColors.primary : themeColors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.themeModeChipText,
-                        { color: themeColors.textSecondary },
-                        mode === 'dark' && { color: themeColors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      Escuro
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.themeModeChip,
-                      { backgroundColor: themeColors.backgroundSecondary, borderColor: themeColors.border },
-                      mode === 'light' && [
-                        styles.themeModeChipActive,
-                        { borderColor: themeColors.primary, backgroundColor: themeColors.primarySubtle },
-                      ],
-                    ]}
-                    onPress={() => setMode('light')}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="sunny"
-                      size={16}
-                      color={mode === 'light' ? themeColors.primary : themeColors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.themeModeChipText,
-                        { color: themeColors.textSecondary },
-                        mode === 'light' && { color: themeColors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      Claro
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.themeModeChip,
-                      { backgroundColor: themeColors.backgroundSecondary, borderColor: themeColors.border },
-                      mode === 'system' && [
-                        styles.themeModeChipActive,
-                        { borderColor: themeColors.primary, backgroundColor: themeColors.primarySubtle },
-                      ],
-                    ]}
-                    onPress={() => setMode('system')}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="phone-portrait-outline"
-                      size={16}
-                      color={mode === 'system' ? themeColors.primary : themeColors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.themeModeChipText,
-                        { color: themeColors.textSecondary },
-                        mode === 'system' && { color: themeColors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      Sistema
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={[styles.appearanceDivider, { backgroundColor: themeColors.borderSubtle }]} />
-
-                {/* Seletor de Cores de Destaque */}
-                <View style={styles.appearanceRowHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="color-palette-outline" size={18} color={themeColors.primary} />
-                    <Text style={[styles.appearanceSectionLabel, { color: themeColors.text }]}>Cor de Destaque</Text>
-                  </View>
-                  <Text style={[styles.appearanceCurrentValue, { color: themeColors.primary, fontWeight: '700' }]}>
-                    {accentOption.label}
-                  </Text>
-                </View>
-
-                <View style={styles.accentColorsRow}>
-                  {availableAccents.map((item) => {
-                    const isSelected = accentKey === item.key;
-                    return (
-                      <TouchableOpacity
-                        key={item.key}
-                        style={[
-                          styles.accentCircleTouchTarget,
-                          isSelected && [styles.accentCircleActive, { borderColor: item.color }],
-                        ]}
-                        onPress={() => setAccent(item.key)}
-                        activeOpacity={0.7}
-                        accessibilityLabel={item.label}
-                      >
-                        <View style={[styles.accentCircleColor, { backgroundColor: item.color }]}>
-                          {isSelected && (
-                            <Ionicons
-                              name="checkmark-sharp"
-                              size={18}
-                              color={item.key === 'amarelo' ? '#000000' : '#FFFFFF'}
-                            />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            </View>
           </View>
         ) : currentView === 'adicionar_questoes' ? (
           <>
@@ -1950,74 +1794,8 @@ export default function ConfiguracoesScreen() {
               </TouchableOpacity>
             </View>
           </>
-        ) : currentView === 'cronograma' ? (
-          /* Sub-tela: Cronograma de Estudos */
-          <>
-            <View style={styles.subScreenHeader}>
-              <TouchableOpacity style={styles.subScreenBackBtn} onPress={() => setCurrentView('menu')} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Ionicons name="arrow-back" size={22} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.subScreenHeaderTitle}>Cronograma de Estudos</Text>
-            </View>
-
-            <View style={styles.menuSummaryCard}>
-              <View style={styles.menuSummaryLeft}>
-                <Text style={styles.menuSummaryLabel}>STATUS DO CRONOGRAMA</Text>
-                <Text style={styles.menuSummaryValue}>{cronogramaInfo ? cronogramaInfo.titulo : 'Nenhum cronograma ativo'}</Text>
-                <Text style={styles.menuSummarySubValue}>{cronogramaInfo ? `${cronogramaInfo.semanas?.length || 0} semanas • ${cronogramaStats.total} tarefas • ${cronogramaStats.concluidos} concluídas (${cronogramaStats.porcentagem}%)` : 'Importe um arquivo JSON ou carregue o modelo de residência médica.'}</Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: cronogramaInfo ? 'rgba(76, 175, 80, 0.15)' : Colors.background }]}>
-                <View style={[styles.statusDot, { backgroundColor: cronogramaInfo ? Colors.success : Colors.textSecondary }]} />
-                <Text style={[styles.statusBadgeText, { color: cronogramaInfo ? Colors.success : Colors.textSecondary }]}>{cronogramaInfo ? 'Ativo' : 'Vazio'}</Text>
-              </View>
-            </View>
-
-            {cronogramaInfo && cronogramaStats.total > 0 && (
-              <View style={[styles.weekProgressBarBg, { marginHorizontal: 0, marginBottom: 16 }]}>
-                <View style={[styles.weekProgressBarFill, { width: `${Math.min(100, Math.max(0, cronogramaStats.porcentagem))}%` }]} />
-              </View>
-            )}
-
-            <View style={styles.menuOptionsContainer}>
-              <TouchableOpacity style={[styles.menuOptionCard, baixandoCronogramaGitHub && styles.buttonDisabled]} activeOpacity={0.7} onPress={handleBaixarCronogramaGitHub} disabled={baixandoCronogramaGitHub}>
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="logo-github" size={24} color={Colors.primary} /></View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Baixar do GitHub</Text>
-                  <Text style={styles.menuOptionSubtitle}>Sincronizar cronograma.json direto do seu repositório configurado</Text>
-                </View>
-                {baixandoCronogramaGitHub ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={handleImportarCronogramaJSON}>
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="cloud-upload-outline" size={24} color={Colors.primary} /></View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Importar Arquivo JSON</Text>
-                  <Text style={styles.menuOptionSubtitle}>Carregar novo arquivo .json estruturado com suas semanas e tópicos</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.menuOptionCard, !cronogramaInfo && styles.buttonDisabled]} activeOpacity={0.7} onPress={() => setModalResetCronogramaVisible(true)} disabled={!cronogramaInfo}>
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(255, 167, 38, 0.12)' }]}><MaterialCommunityIcons name="refresh" size={24} color="#FFA726" /></View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Resetar Progresso</Text>
-                  <Text style={styles.menuOptionSubtitle}>Desmarcar todos os passos concluídos (Apostila, Aulas, Questões e Flashcards)</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.menuOptionCard, !cronogramaInfo && styles.buttonDisabled]} activeOpacity={0.7} onPress={() => setModalRemoverCronogramaVisible(true)} disabled={!cronogramaInfo}>
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}><Ionicons name="trash-outline" size={22} color={Colors.error} /></View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Remover Cronograma</Text>
-                  <Text style={styles.menuOptionSubtitle}>Excluir o cronograma salvo no aparelho e o progresso associado</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </>
         ) : (
-          /* Sub-tela: Calendário & iCal */
+          /* Sub-tela Unificada: Cronograma & Calendário */
           <>
             <View style={styles.subScreenHeader}>
               <TouchableOpacity
@@ -2026,242 +1804,357 @@ export default function ConfiguracoesScreen() {
                 activeOpacity={0.7}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="arrow-back" size={22} color={Colors.text} />
+                <Ionicons name="arrow-back" size={22} color={themeColors.text} />
               </TouchableOpacity>
-              <Text style={styles.subScreenHeaderTitle}>Calendário & Sincronização</Text>
+              <Text style={styles.subScreenHeaderTitle}>Cronograma & Calendário</Text>
             </View>
 
-            {/* Card de Resumo */}
-            <View style={styles.menuSummaryCard}>
-              <View style={styles.menuSummaryLeft}>
-                <Text style={styles.menuSummaryLabel}>STATUS DO CALENDÁRIO</Text>
-                <Text style={styles.menuSummaryValue}>
-                  {icalFeeds.length === 0
-                    ? 'Nenhum link conectado'
-                    : `${icalFeeds.length} ${icalFeeds.length === 1 ? 'calendário conectado' : 'calendários conectados'}`}
-                </Text>
-                <Text style={styles.menuSummarySubValue}>
-                  {ultimoSyncTimestamp
-                    ? `Última sincronização: ${formatarUltimaSincronizacao(ultimoSyncTimestamp)}`
-                    : 'Nenhuma sincronização realizada ainda.'}
-                </Text>
-              </View>
-              <View
+            {/* Segmented Tab Switcher */}
+            <View style={styles.tabSwitcherContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.statusBadge,
-                  { backgroundColor: icalFeeds.length > 0 ? 'rgba(59, 130, 246, 0.15)' : Colors.background },
+                  styles.tabSwitcherBtn,
+                  subTabCronogramaCalendario === 'cronograma' && styles.tabSwitcherBtnActive,
                 ]}
+                onPress={() => setSubTabCronogramaCalendario('cronograma')}
+                activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.statusDot,
-                    { backgroundColor: icalFeeds.length > 0 ? '#3B82F6' : Colors.textSecondary },
-                  ]}
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={subTabCronogramaCalendario === 'cronograma' ? (isDark ? '#FFF' : '#111') : themeColors.textSecondary}
+                  style={{ marginRight: 6 }}
                 />
                 <Text
                   style={[
-                    styles.statusBadgeText,
-                    { color: icalFeeds.length > 0 ? '#3B82F6' : Colors.textSecondary },
+                    styles.tabSwitcherBtnText,
+                    subTabCronogramaCalendario === 'cronograma' && styles.tabSwitcherBtnTextActive,
                   ]}
                 >
-                  {icalFeeds.length > 0 ? 'Ativo' : 'Vazio'}
+                  Cronograma
                 </Text>
-              </View>
-            </View>
+              </TouchableOpacity>
 
-            {/* Sincronização Automática Silenciosa */}
-            <TouchableOpacity
-              style={styles.menuOptionCard}
-              activeOpacity={0.7}
-              onPress={handleToggleAutoSync}
-            >
-              <View
+              <TouchableOpacity
                 style={[
-                  styles.menuOptionIconBox,
-                  { backgroundColor: autoSyncAtivo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(156, 163, 175, 0.12)' },
+                  styles.tabSwitcherBtn,
+                  subTabCronogramaCalendario === 'calendario' && styles.tabSwitcherBtnActive,
                 ]}
+                onPress={() => setSubTabCronogramaCalendario('calendario')}
+                activeOpacity={0.7}
               >
                 <Ionicons
-                  name={autoSyncAtivo ? 'sync' : 'sync-outline'}
-                  size={24}
-                  color={autoSyncAtivo ? '#10B981' : Colors.textSecondary}
+                  name="sync-outline"
+                  size={16}
+                  color={subTabCronogramaCalendario === 'calendario' ? (isDark ? '#FFF' : '#111') : themeColors.textSecondary}
+                  style={{ marginRight: 6 }}
                 />
-              </View>
-              <View style={styles.menuOptionContent}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.menuOptionTitle}>Sincronização Automática Silenciosa</Text>
-                </View>
-                <Text style={styles.menuOptionSubtitle}>
-                  {autoSyncAtivo
-                    ? 'Ativa: atualiza eventos em segundo plano ao abrir o app e ao ver a agenda (a cada 15 min)'
-                    : 'Desativada: os eventos só serão atualizados ao tocar em Sincronizar'}
+                <Text
+                  style={[
+                    styles.tabSwitcherBtnText,
+                    subTabCronogramaCalendario === 'calendario' && styles.tabSwitcherBtnTextActive,
+                  ]}
+                >
+                  Calendário & iCal
                 </Text>
-              </View>
-              <Ionicons
-                name={autoSyncAtivo ? 'toggle' : 'toggle-outline'}
-                size={34}
-                color={autoSyncAtivo ? '#10B981' : Colors.textSecondary}
-              />
-            </TouchableOpacity>
-
-            {/* Ações de Sincronização e Adição */}
-            <View style={styles.menuOptionsContainer}>
-              <TouchableOpacity
-                style={[styles.menuOptionCard, (sincronizandoTudo || icalFeeds.length === 0) && styles.buttonDisabled]}
-                activeOpacity={0.7}
-                onPress={handleSincronizarTudo}
-                disabled={sincronizandoTudo || icalFeeds.length === 0}
-              >
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                  <Ionicons name="refresh" size={24} color="#3B82F6" />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Sincronizar Todos os Calendários</Text>
-                  <Text style={styles.menuOptionSubtitle}>
-                    {sincronizandoTudo
-                      ? 'Baixando eventos e atualizando a agenda...'
-                      : 'Baixa as alterações mais recentes dos seus links cadastrados'}
-                  </Text>
-                </View>
-                {sincronizandoTudo ? (
-                  <ActivityIndicator size="small" color="#3B82F6" />
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.menuOptionCard}
-                activeOpacity={0.7}
-                onPress={() => {
-                  setNovoFeedNome('');
-                  setNovoFeedUrl('');
-                  setNovoFeedTipo('Faculdade');
-                  setModalAddFeedVisible(true);
-                }}
-              >
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.15)' }]}>
-                  <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={[styles.menuOptionTitle, { color: Colors.primary }]}>+ Adicionar Link de iCal</Text>
-                  <Text style={styles.menuOptionSubtitle}>
-                    Google Calendar, Outlook ou qualquer link no formato .ics / webcal
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Lista de Feeds Configurados */}
-            <View style={{ marginTop: 16 }}>
-              <View style={styles.minSectionHeader}>
-                <Text style={styles.minSectionTitle}>LINKS CONFIGURADOS ({icalFeeds.length})</Text>
-              </View>
-
-              {icalFeeds.length === 0 ? (
-                <View style={styles.emptyDayContainer}>
-                  <Ionicons name="calendar-outline" size={40} color="#454A52" />
-                  <Text style={styles.emptyDayTitle}>Nenhum link adicionado</Text>
-                  <Text style={styles.emptyDaySub}>
-                    Adicione o endereço secreto iCal do seu Google Calendar para que suas aulas e plantões apareçam na sua agenda diária.
-                  </Text>
+            {subTabCronogramaCalendario === 'cronograma' ? (
+              /* Aba: Cronograma de Estudos */
+              <>
+                <View style={styles.menuSummaryCard}>
+                  <View style={styles.menuSummaryLeft}>
+                    <Text style={styles.menuSummaryLabel}>STATUS DO CRONOGRAMA</Text>
+                    <Text style={styles.menuSummaryValue}>{cronogramaInfo ? cronogramaInfo.titulo : 'Nenhum cronograma ativo'}</Text>
+                    <Text style={styles.menuSummarySubValue}>{cronogramaInfo ? `${cronogramaInfo.semanas?.length || 0} semanas • ${cronogramaStats.total} tarefas • ${cronogramaStats.concluidos} concluídas (${cronogramaStats.porcentagem}%)` : 'Importe um arquivo JSON ou carregue o modelo de residência médica.'}</Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: cronogramaInfo ? 'rgba(76, 175, 80, 0.15)' : themeColors.background }]}>
+                    <View style={[styles.statusDot, { backgroundColor: cronogramaInfo ? Colors.success : themeColors.textSecondary }]} />
+                    <Text style={[styles.statusBadgeText, { color: cronogramaInfo ? Colors.success : themeColors.textSecondary }]}>{cronogramaInfo ? 'Ativo' : 'Vazio'}</Text>
+                  </View>
                 </View>
-              ) : (
-                icalFeeds.map((feed) => {
-                  const isSincronizandoEste = sincronizandoFeedId === feed.id;
-                  return (
-                    <View key={feed.id} style={[styles.menuOptionCard, { paddingVertical: 14, marginBottom: 10 }]}>
-                      <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                        <Ionicons name="logo-google" size={22} color="#3B82F6" />
-                      </View>
-                      <View style={styles.menuOptionContent}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                          <Text style={styles.menuOptionTitle} numberOfLines={1}>{feed.nome}</Text>
-                          <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(139, 92, 246, 0.18)', borderColor: 'rgba(139, 92, 246, 0.35)' }]}>
-                            <Text style={[styles.menuUpdateBadgeText, { color: '#A78BFA' }]}>{feed.tipo}</Text>
+
+                {cronogramaInfo && cronogramaStats.total > 0 && (
+                  <View style={[styles.weekProgressBarBg, { marginHorizontal: 0, marginBottom: 16 }]}>
+                    <View style={[styles.weekProgressBarFill, { width: `${Math.min(100, Math.max(0, cronogramaStats.porcentagem))}%` }]} />
+                  </View>
+                )}
+
+                <View style={styles.menuOptionsContainer}>
+                  <TouchableOpacity style={[styles.menuOptionCard, baixandoCronogramaGitHub && styles.buttonDisabled]} activeOpacity={0.7} onPress={handleBaixarCronogramaGitHub} disabled={baixandoCronogramaGitHub}>
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="logo-github" size={24} color={Colors.primary} /></View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={styles.menuOptionTitle}>Baixar do GitHub</Text>
+                      <Text style={styles.menuOptionSubtitle}>Sincronizar cronograma.json direto do seu repositório configurado</Text>
+                    </View>
+                    {baixandoCronogramaGitHub ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={handleImportarCronogramaJSON}>
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="cloud-upload-outline" size={24} color={Colors.primary} /></View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={styles.menuOptionTitle}>Importar Arquivo JSON</Text>
+                      <Text style={styles.menuOptionSubtitle}>Carregar novo arquivo .json estruturado com suas semanas e tópicos</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={[styles.menuOptionCard, !cronogramaInfo && styles.buttonDisabled]} activeOpacity={0.7} onPress={() => setModalResetCronogramaVisible(true)} disabled={!cronogramaInfo}>
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(255, 167, 38, 0.12)' }]}><MaterialCommunityIcons name="refresh" size={24} color="#FFA726" /></View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={styles.menuOptionTitle}>Resetar Progresso</Text>
+                      <Text style={styles.menuOptionSubtitle}>Desmarcar todos os passos concluídos (Apostila, Aulas, Questões e Flashcards)</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={[styles.menuOptionCard, !cronogramaInfo && styles.buttonDisabled]} activeOpacity={0.7} onPress={() => setModalRemoverCronogramaVisible(true)} disabled={!cronogramaInfo}>
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}><Ionicons name="trash-outline" size={22} color={Colors.error} /></View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Remover Cronograma</Text>
+                      <Text style={styles.menuOptionSubtitle}>Excluir o cronograma salvo no aparelho e o progresso associado</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              /* Aba: Calendário & iCal */
+              <>
+                {/* Card de Resumo */}
+                <View style={styles.menuSummaryCard}>
+                  <View style={styles.menuSummaryLeft}>
+                    <Text style={styles.menuSummaryLabel}>STATUS DO CALENDÁRIO</Text>
+                    <Text style={styles.menuSummaryValue}>
+                      {icalFeeds.length === 0
+                        ? 'Nenhum link conectado'
+                        : `${icalFeeds.length} ${icalFeeds.length === 1 ? 'calendário conectado' : 'calendários conectados'}`}
+                    </Text>
+                    <Text style={styles.menuSummarySubValue}>
+                      {ultimoSyncTimestamp
+                        ? `Última sincronização: ${formatarUltimaSincronizacao(ultimoSyncTimestamp)}`
+                        : 'Nenhuma sincronização realizada ainda.'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: icalFeeds.length > 0 ? 'rgba(59, 130, 246, 0.15)' : themeColors.background },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: icalFeeds.length > 0 ? '#3B82F6' : themeColors.textSecondary },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        { color: icalFeeds.length > 0 ? '#3B82F6' : themeColors.textSecondary },
+                      ]}
+                    >
+                      {icalFeeds.length > 0 ? 'Ativo' : 'Vazio'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Sincronização Automática Silenciosa */}
+                <TouchableOpacity
+                  style={styles.menuOptionCard}
+                  activeOpacity={0.7}
+                  onPress={handleToggleAutoSync}
+                >
+                  <View
+                    style={[
+                      styles.menuOptionIconBox,
+                      { backgroundColor: autoSyncAtivo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(156, 163, 175, 0.12)' },
+                    ]}
+                  >
+                    <Ionicons
+                      name={autoSyncAtivo ? 'sync' : 'sync-outline'}
+                      size={24}
+                      color={autoSyncAtivo ? '#10B981' : themeColors.textSecondary}
+                    />
+                  </View>
+                  <View style={styles.menuOptionContent}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={styles.menuOptionTitle}>Sincronização Automática Silenciosa</Text>
+                    </View>
+                    <Text style={styles.menuOptionSubtitle}>
+                      {autoSyncAtivo
+                        ? 'Ativa: atualiza eventos em segundo plano ao abrir o app e ao ver a agenda (a cada 15 min)'
+                        : 'Desativada: os eventos só serão atualizados ao tocar em Sincronizar'}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={autoSyncAtivo ? 'toggle' : 'toggle-outline'}
+                    size={34}
+                    color={autoSyncAtivo ? '#10B981' : themeColors.textSecondary}
+                  />
+                </TouchableOpacity>
+
+                {/* Ações de Sincronização e Adição */}
+                <View style={styles.menuOptionsContainer}>
+                  <TouchableOpacity
+                    style={[styles.menuOptionCard, (sincronizandoTudo || icalFeeds.length === 0) && styles.buttonDisabled]}
+                    activeOpacity={0.7}
+                    onPress={handleSincronizarTudo}
+                    disabled={sincronizandoTudo || icalFeeds.length === 0}
+                  >
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                      <Ionicons name="refresh" size={24} color="#3B82F6" />
+                    </View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={styles.menuOptionTitle}>Sincronizar Todos os Calendários</Text>
+                      <Text style={styles.menuOptionSubtitle}>
+                        {sincronizandoTudo
+                          ? 'Baixando eventos e atualizando a agenda...'
+                          : 'Baixa as alterações mais recentes dos seus links cadastrados'}
+                      </Text>
+                    </View>
+                    {sincronizandoTudo ? (
+                      <ActivityIndicator size="small" color="#3B82F6" />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.menuOptionCard}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setNovoFeedNome('');
+                      setNovoFeedUrl('');
+                      setNovoFeedTipo('Faculdade');
+                      setModalAddFeedVisible(true);
+                    }}
+                  >
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.15)' }]}>
+                      <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
+                    </View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={[styles.menuOptionTitle, { color: Colors.primary }]}>+ Adicionar Link de iCal</Text>
+                      <Text style={styles.menuOptionSubtitle}>
+                        Google Calendar, Outlook ou qualquer link no formato .ics / webcal
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Lista de Feeds Configurados */}
+                <View style={{ marginTop: 16 }}>
+                  <View style={styles.minSectionHeader}>
+                    <Text style={styles.minSectionTitle}>LINKS CONFIGURADOS ({icalFeeds.length})</Text>
+                  </View>
+
+                  {icalFeeds.length === 0 ? (
+                    <View style={styles.emptyDayContainer}>
+                      <Ionicons name="calendar-outline" size={40} color={themeColors.textMuted} />
+                      <Text style={styles.emptyDayTitle}>Nenhum link adicionado</Text>
+                      <Text style={styles.emptyDaySub}>
+                        Adicione o endereço secreto iCal do seu Google Calendar para que suas aulas e plantões apareçam na sua agenda diária.
+                      </Text>
+                    </View>
+                  ) : (
+                    icalFeeds.map((feed) => {
+                      const isSincronizandoEste = sincronizandoFeedId === feed.id;
+                      return (
+                        <View key={feed.id} style={[styles.menuOptionCard, { paddingVertical: 14, marginBottom: 10 }]}>
+                          <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                            <Ionicons name="logo-google" size={22} color="#3B82F6" />
+                          </View>
+                          <View style={styles.menuOptionContent}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <Text style={styles.menuOptionTitle} numberOfLines={1}>{feed.nome}</Text>
+                              <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(139, 92, 246, 0.18)', borderColor: 'rgba(139, 92, 246, 0.35)' }]}>
+                                <Text style={[styles.menuUpdateBadgeText, { color: '#A78BFA' }]}>{feed.tipo}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.menuOptionSubtitle} numberOfLines={1}>
+                              {feed.url}
+                            </Text>
+                            <Text style={[styles.menuOptionSubtitle, { color: themeColors.textSecondary, fontSize: 11, marginTop: 4 }]}>
+                              {feed.totalEventos !== undefined ? `${feed.totalEventos} eventos ativos` : 'Eventos sincronizados'} • {formatarUltimaSincronizacao(feed.ultimaSincronizacao)}
+                            </Text>
+                          </View>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <TouchableOpacity
+                              onPress={() => handleSincronizarFeed(feed.id)}
+                              disabled={isSincronizandoEste}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              {isSincronizandoEste ? (
+                                <ActivityIndicator size="small" color="#3B82F6" />
+                              ) : (
+                                <Ionicons name="sync-outline" size={20} color="#3B82F6" />
+                              )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => setFeedParaRemover(feed)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                            </TouchableOpacity>
                           </View>
                         </View>
-                        <Text style={styles.menuOptionSubtitle} numberOfLines={1}>
-                          {feed.url}
-                        </Text>
-                        <Text style={[styles.menuOptionSubtitle, { color: '#68707B', fontSize: 11, marginTop: 4 }]}>
-                          {feed.totalEventos !== undefined ? `${feed.totalEventos} eventos ativos` : 'Eventos sincronizados'} • {formatarUltimaSincronizacao(feed.ultimaSincronizacao)}
-                        </Text>
-                      </View>
+                      );
+                    })
+                  )}
+                </View>
 
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <TouchableOpacity
-                          onPress={() => handleSincronizarFeed(feed.id)}
-                          disabled={isSincronizandoEste}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          {isSincronizandoEste ? (
-                            <ActivityIndicator size="small" color="#3B82F6" />
-                          ) : (
-                            <Ionicons name="sync-outline" size={20} color="#3B82F6" />
-                          )}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          onPress={() => setFeedParaRemover(feed)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Ionicons name="trash-outline" size={20} color={Colors.error} />
-                        </TouchableOpacity>
-                      </View>
+                {/* Importação Manual por Arquivo */}
+                <View style={{ marginTop: 14 }}>
+                  <View style={styles.minSectionHeader}>
+                    <Text style={styles.minSectionTitle}>IMPORTAÇÃO MANUAL</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.menuOptionCard, importandoICS && styles.buttonDisabled]}
+                    activeOpacity={0.7}
+                    onPress={handleImportarICS}
+                    disabled={importandoICS}
+                  >
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
+                      <Feather name="download-cloud" size={24} color={Colors.primary} />
                     </View>
-                  );
-                })
-              )}
-            </View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={styles.menuOptionTitle}>Importar Arquivo .ICS Local</Text>
+                      <Text style={styles.menuOptionSubtitle}>
+                        {importandoICS
+                          ? 'Processando eventos e salvando na agenda...'
+                          : 'Carregar arquivo salvo na memória do aparelho'}
+                      </Text>
+                    </View>
+                    {importandoICS ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
 
-            {/* Importação Manual por Arquivo */}
-            <View style={{ marginTop: 14 }}>
-              <View style={styles.minSectionHeader}>
-                <Text style={styles.minSectionTitle}>IMPORTAÇÃO MANUAL</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.menuOptionCard, importandoICS && styles.buttonDisabled]}
-                activeOpacity={0.7}
-                onPress={handleImportarICS}
-                disabled={importandoICS}
-              >
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                  <Feather name="download-cloud" size={24} color={Colors.primary} />
+                  <TouchableOpacity
+                    style={[styles.menuOptionCard, { marginTop: 10 }]}
+                    activeOpacity={0.7}
+                    onPress={handleAbrirModalLimparICS}
+                  >
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                      <Ionicons name="trash-outline" size={22} color={Colors.error} />
+                    </View>
+                    <View style={styles.menuOptionContent}>
+                      <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Limpar Eventos do .ICS</Text>
+                      <Text style={styles.menuOptionSubtitle}>
+                        Remover todas as aulas e atividades adicionadas por arquivo .ICS
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Importar Arquivo .ICS Local</Text>
-                  <Text style={styles.menuOptionSubtitle}>
-                    {importandoICS
-                      ? 'Processando eventos e salvando na agenda...'
-                      : 'Carregar arquivo salvo na memória do aparelho'}
-                  </Text>
-                </View>
-                {importandoICS ? (
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuOptionCard, { marginTop: 10 }]}
-                activeOpacity={0.7}
-                onPress={handleAbrirModalLimparICS}
-              >
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-                  <Ionicons name="trash-outline" size={22} color={Colors.error} />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Limpar Eventos do .ICS</Text>
-                  <Text style={styles.menuOptionSubtitle}>
-                    Remover todas as aulas e atividades adicionadas por arquivo .ICS
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -4266,516 +4159,474 @@ export default function ConfiguracoesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, backgroundColor: Colors.background },
-  scrollContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 110, alignItems: 'stretch' },
-  headerContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#2e3235' },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  headerIcon: { marginRight: 10 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
-  headerSubtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 4, lineHeight: 20, textAlign: 'left' },
-  statusCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 20, marginVertical: 12, borderWidth: 1, borderColor: Colors.border, elevation: 0, shadowOpacity: 0 },
-  statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  statusLabel: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.8 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
-  statusBadgeText: { fontSize: 12, fontWeight: '600' },
-  countContainer: { marginVertical: 8 },
-  countNumber: { fontSize: 38, fontWeight: '800', color: Colors.primary },
-  countText: { fontSize: 16, fontWeight: '600', color: Colors.text, marginTop: -2 },
-  statusDescription: { fontSize: 13, color: Colors.textSecondary, marginTop: 8, lineHeight: 18 },
-  actionsContainer: { marginTop: 16, gap: 12 },
-  primaryButton: { backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 12, elevation: 0, shadowOpacity: 0 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  zipButton: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 },
-  zipButtonText: { color: Colors.text, fontSize: 15, fontWeight: '700' },
-  zipButtonSubText: { color: Colors.textSecondary, fontSize: 11, marginTop: 2 },
-  dangerButton: { backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 },
-  dangerButtonText: { color: Colors.error, fontSize: 14, fontWeight: '600' },
-  infoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 10, padding: 12, marginTop: 20, borderWidth: 1, borderColor: Colors.border },
-  infoText: { flex: 1, fontSize: 12, color: Colors.textSecondary, lineHeight: 16 },
-  backupCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 20, marginTop: 20, borderWidth: 1, borderColor: Colors.border, elevation: 0, shadowOpacity: 0 },
-  backupHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  backupSectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  backupDescription: { fontSize: 13, color: Colors.textSecondary, lineHeight: 18, marginBottom: 16 },
-  exportButton: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12 },
-  exportButtonText: { color: Colors.primary, fontSize: 15, fontWeight: '700' },
-  buttonDisabled: { opacity: 0.6 },
-  buttonIcon: { marginRight: 8 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 4 },
-  sectionHeaderTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  warningButton: { backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: '#FFA726', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12 },
-  warningButtonText: { color: '#FFA726', fontSize: 15, fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalCard: { backgroundColor: Colors.surface, borderRadius: 20, padding: 22, width: '100%', maxHeight: '82%', borderWidth: 1, borderColor: Colors.border, elevation: 0, shadowOpacity: 0 },
-  modalHeader: { alignItems: 'center', marginBottom: 12 },
-  modalIconCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255, 167, 38, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.25)' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  modalSubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginTop: 6, lineHeight: 18, paddingHorizontal: 8 },
-  selectionToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginTop: 2, marginBottom: 8 },
-  selectionToolbarBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 },
-  selectionToolbarBtnText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
-  selectionCountBadge: { backgroundColor: 'rgba(255, 255, 255, 0.06)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#2e3235' },
-  selectionCountText: { fontSize: 11, fontWeight: '700', color: Colors.primary },
-  modalScroll: { maxHeight: 250, marginVertical: 4 },
-  modalScrollContent: { gap: 8, paddingVertical: 4 },
-  temaItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.background, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#2e3235' },
-  temaItemRowSelected: { borderColor: 'rgba(239, 68, 68, 0.45)', backgroundColor: 'rgba(239, 68, 68, 0.08)' },
-  temaItemInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  temaItemText: { fontSize: 14, color: Colors.text, fontWeight: '600', flexShrink: 1 },
-  temaItemTextSelected: { color: '#ff8a80', fontWeight: '700' },
-  modalDeleteSelectedBtn: { backgroundColor: Colors.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, marginTop: 12, shadowColor: Colors.error, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
-  modalDeleteSelectedBtnDisabled: { backgroundColor: '#1c1f21', shadowOpacity: 0, elevation: 0 },
-  modalDeleteSelectedBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  modalDeleteSelectedBtnTextDisabled: { color: '#656b73' },
-  modalCancelButton: { backgroundColor: Colors.background, paddingVertical: 13, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#3e4347', marginTop: 8 },
-  modalCancelButtonText: { color: Colors.text, fontSize: 14, fontWeight: '700' },
-  modalEmptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 32, paddingHorizontal: 16 },
-  modalEmptyTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 10 },
-  modalEmptySubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, lineHeight: 18 },
-  searchBarContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 12, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 6, marginVertical: 12, borderWidth: 1, borderColor: '#2e3235' },
-  searchBarInput: { flex: 1, color: Colors.text, fontSize: 14, padding: 0 },
-  confirmModalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.82)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  confirmBackdropDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  confirmModalCard: { backgroundColor: Colors.surface, borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, alignItems: 'center', borderWidth: 1.5, borderColor: '#3a2d2d', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 18, elevation: 10 },
-  confirmIconCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 76, 76, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1, borderColor: 'rgba(255, 76, 76, 0.3)' },
-  confirmTitle: { fontSize: 20, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 8 },
-  confirmDescription: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 12 },
-  confirmThemeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#3e4347', marginBottom: 14, maxWidth: '100%' },
-  confirmThemeText: { fontSize: 14, fontWeight: '700', color: Colors.text, flexShrink: 1 },
-  confirmWarningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 167, 38, 0.08)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.25)', marginBottom: 20 },
-  confirmWarningText: { flex: 1, fontSize: 12, color: '#FFA726', lineHeight: 16 },
-  confirmButtonsRow: { flexDirection: 'row', width: '100%', gap: 12 },
-  confirmCancelBtn: { flex: 1, backgroundColor: Colors.background, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#3e4347' },
-  confirmCancelBtnText: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  confirmDeleteBtn: { flex: 1, backgroundColor: Colors.error, flexDirection: 'row', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.error, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  confirmDeleteBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
-  successModalCard: { backgroundColor: Colors.surface, borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, alignItems: 'center', borderWidth: 1.5, borderColor: '#2e3532', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 18, elevation: 10 },
-  successIconCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(76, 175, 80, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.3)' },
-  successModalTitle: { fontSize: 20, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 8 },
-  successModalDescription: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 14, paddingHorizontal: 8 },
-  successThemeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: '#3e4347', marginBottom: 14, maxWidth: '100%' },
-  successThemeText: { fontSize: 14, fontWeight: '700', color: Colors.text, flexShrink: 1 },
-  successInfoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(234, 225, 21, 0.08)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)', marginBottom: 20, width: '100%' },
-  successInfoText: { flex: 1, fontSize: 12, color: Colors.textSecondary, lineHeight: 16 },
-  successDoneButton: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
-  successDoneButtonText: { color: '#000000', fontSize: 15, fontWeight: '700' },
-  dangerIconCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(239, 68, 68, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
-  dangerHighlightBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', marginBottom: 14, width: '100%' },
-  dangerHighlightText: { fontSize: 14, fontWeight: '700', color: '#ff6b6b', flexShrink: 1 },
-  importSuccessCard: { width: '100%', maxWidth: 380, backgroundColor: Colors.surface, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#34383d', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
-  importSuccessIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(76, 175, 80, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(76, 175, 80, 0.3)' },
-  importSuccessTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 6 },
-  importSuccessSubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 8 },
-  importStatsCard: { width: '100%', backgroundColor: '#121416', borderRadius: 16, borderWidth: 1, borderColor: '#26292c', padding: 16, marginBottom: 16 },
-  importStatsGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  importStatBox: { flex: 1, alignItems: 'center' },
-  importStatLabel: { fontSize: 10, fontWeight: '700', color: '#6b7280', letterSpacing: 0.5, marginBottom: 4 },
-  importStatValue: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  importStatDivider: { width: 1, height: 26, backgroundColor: '#26292c' },
-  importSpecsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#202326', justifyContent: 'center' },
-  importSpecChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(234, 225, 21, 0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)' },
-  importSpecChipText: { fontSize: 11, fontWeight: '600', color: Colors.primary },
-  importInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(234, 225, 21, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)', marginBottom: 20, width: '100%' },
-  importInfoText: { flex: 1, fontSize: 12, color: Colors.textSecondary, lineHeight: 17 },
-  importDoneButton: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
-  importDoneButtonText: { color: '#000000', fontSize: 15, fontWeight: '800' },
-  imageSuccessIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(234, 225, 21, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
-  imagePathPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0c0e0f', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 12, borderWidth: 1, borderColor: '#26292c', width: '100%' },
-  imagePathPillLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginRight: 4 },
-  imagePathPillText: { flex: 1, fontSize: 12, fontWeight: '700', color: Colors.primary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  emptyDbModalCard: { width: '100%', maxWidth: 380, backgroundColor: Colors.surface, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#34383d', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
-  emptyDbIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255, 167, 38, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(255, 167, 38, 0.3)' },
-  emptyDbTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 8 },
-  emptyDbSubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 8 },
-  emptyDbInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(255, 167, 38, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.2)', marginBottom: 20, width: '100%' },
-  emptyDbInfoText: { flex: 1, fontSize: 12, color: Colors.textSecondary, lineHeight: 17 },
-  emptyDbButtonsCol: { width: '100%', gap: 10 },
-  emptyDbPrimaryButton: { width: '100%', backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
-  emptyDbPrimaryButtonText: { color: '#000000', fontSize: 15, fontWeight: '800' },
-  emptyDbSecondaryButton: { width: '100%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  emptyDbSecondaryButtonText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  pkgModalCard: { width: '100%', maxWidth: 380, backgroundColor: Colors.surface, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#34383d', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
-  pkgIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(234, 225, 21, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
-  pkgTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 6 },
-  pkgSubtitle: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 4 },
-  pkgInputContainer: { width: '100%', marginBottom: 14 },
-  pkgInputLabel: { fontSize: 10, fontWeight: '700', color: '#8b949e', letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 },
-  pkgInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#121416', borderRadius: 12, borderWidth: 1.5, borderColor: '#2b2f33', paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 6 },
-  pkgInput: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: '700' },
-  pkgPreviewBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(234, 225, 21, 0.07)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)', marginBottom: 20, width: '100%' },
-  pkgPreviewLabel: { fontSize: 11, color: Colors.textSecondary, marginBottom: 2 },
-  pkgPreviewPath: { fontSize: 13, fontWeight: '700', color: Colors.primary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  pkgButtonsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
-  pkgCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#34383d' },
-  pkgCancelBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '700' },
-  pkgConfirmBtn: { flex: 1.4, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
-  pkgConfirmBtnText: { color: '#000000', fontSize: 14, fontWeight: '800' },
-  storageSectionSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 14, lineHeight: 18 },
-  storageManagerCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#26292c', marginBottom: 20 },
-  storageSubHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  storageSubTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  storageCountBadge: { backgroundColor: 'rgba(234, 225, 21, 0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)' },
-  storageCountBadgeText: { color: Colors.primary, fontSize: 12, fontWeight: '700' },
-  storageEmptyBox: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#121416', borderRadius: 12, borderWidth: 1, borderColor: '#202326', marginBottom: 4 },
-  storageEmptyText: { color: Colors.textSecondary, fontSize: 12 },
-  storageItemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#121416', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#202326' },
-  storageItemIconWrapper: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(234, 225, 21, 0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  storageItemContent: { flex: 1, marginRight: 8 },
-  storageItemName: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 2 },
-  storageItemMeta: { fontSize: 11, color: Colors.textSecondary, lineHeight: 15 },
-  storageDeleteBtn: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)' },
-  storageDivider: { height: 1, backgroundColor: '#26292c', marginVertical: 14 },
-  menuSummaryCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#2A2E33', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  menuSummaryLeft: { flex: 1, paddingRight: 10 },
-  menuSummaryLabel: { fontSize: 11, fontWeight: '800', color: '#8A929A', letterSpacing: 0.8, marginBottom: 4, textTransform: 'uppercase' },
-  menuSummaryValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  menuSummarySubValue: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-  menuOptionsContainer: { gap: 12, marginTop: 4 },
-  menuOptionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2A2E33', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 2 },
-  menuOptionIconBox: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  menuOptionContent: { flex: 1, marginRight: 8 },
-  menuOptionTitle: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 3 },
-  menuOptionSubtitle: { fontSize: 12, color: Colors.textSecondary, lineHeight: 16 },
-  subScreenHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: 4 },
-  subScreenBackBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: '#2A2E33', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  subScreenHeaderTitle: { fontSize: 20, fontWeight: '800', color: Colors.text },
-  minSectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingHorizontal: 2 },
-  minSectionTitle: { fontSize: 12, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.8 },
-  minCardsCol: { gap: 10 },
-  minActionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#2A2E33', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
-  minIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  minActionContent: { flex: 1 },
-  minActionTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 2 },
-  minActionSub: { fontSize: 12, color: Colors.textSecondary },
-  minActionPill: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.35)', backgroundColor: 'rgba(234, 225, 21, 0.08)' },
-  minActionPillText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
-  minStorageCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2A2E33' },
-  minStorageSubHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  minStorageSubTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  minStorageBadge: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, backgroundColor: '#141618', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#25282B' },
-  minStorageRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#121416', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: '#202326' },
-  minGroupIconBox: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(234, 225, 21, 0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 10, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)' },
-  storageItemInModal: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#141618', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: '#24282C' },
-  modalDeleteAllGroupBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)', marginTop: 8, marginBottom: 8, width: '100%' },
-  modalDeleteAllGroupBtnText: { fontSize: 12, fontWeight: '700', color: Colors.error },
-  minItemTitle: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 1 },
-  minItemSub: { fontSize: 11, color: Colors.textSecondary },
-  minDeleteBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)' },
-  minDivider: { height: 1, backgroundColor: '#25282B', marginVertical: 12 },
-  minEmptyText: { fontSize: 12, color: Colors.textSecondary, paddingVertical: 4, marginBottom: 6 },
-  syncMiniBadge: { backgroundColor: 'rgba(76, 175, 80, 0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 8, borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.3)' },
-  syncMiniBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.success },
-  gitHubSyncCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2A2E33', marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
-  gitHubSyncHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  gitHubSyncIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(234, 225, 21, 0.12)', borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  gitHubSyncTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, flexShrink: 1, marginRight: 8 },
-  gitHubSyncSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  gitHubSyncSub: { fontSize: 11, color: Colors.textSecondary, marginLeft: 4 },
-  gitHubStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
-  gitHubStatusBadgeText: { fontSize: 10, fontWeight: '700' },
-  gitHubSyncActionsContainer: { gap: 8 },
-  gitHubSyncPrimaryBtn: { width: '100%', backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 11, shadowColor: Colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 2 },
-  gitHubSyncPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: '#000000' },
-  gitHubSyncSecondaryRow: { flexDirection: 'row', gap: 8 },
-  gitHubSyncSecondaryBtn: { flex: 1, backgroundColor: '#16191B', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: '#2A2E33' },
-  gitHubSyncSecondaryBtnText: { fontSize: 12, fontWeight: '700', color: Colors.text },
-  gitHubInputContainer: { width: '100%' },
-  gitHubFeedbackBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, marginBottom: 12, width: '100%' },
-  gitHubFeedbackText: { flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 16 },
-  gitHubTestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 11, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(234, 225, 21, 0.08)', borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.3)', width: '100%', marginBottom: 4 },
-  gitHubTestBtnText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
-  gitHubSaveBtn: { flex: 1, backgroundColor: Colors.primary, flexDirection: 'row', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-  gitHubSaveBtnText: { color: '#000000', fontSize: 14, fontWeight: '800' },
-  syncProgressBarTrack: { width: '100%', height: 8, backgroundColor: '#141618', borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: '#25282B', marginBottom: 16 },
-  syncProgressBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 4 },
-  syncStatusCard: { width: '100%', backgroundColor: '#121416', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#202326', alignItems: 'center', marginBottom: 14 },
-  syncStepMessage: { fontSize: 14, fontWeight: '700', color: Colors.text, textAlign: 'center' },
-  syncStepDetail: { fontSize: 12, color: Colors.textSecondary, textAlign: 'center', marginTop: 4 },
-  syncWarningSubtext: { fontSize: 11, color: '#656b73', textAlign: 'center', lineHeight: 15 },
-  upToDateInfoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.25)', marginBottom: 20, width: '100%' },
-  upToDateInfoText: { flex: 1, fontSize: 13, color: Colors.text, lineHeight: 18, fontWeight: '600' },
-  forceSyncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginTop: 10 },
-  forceSyncBtnText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
-  cardNotificationDot: { position: 'absolute', top: 6, right: 6, width: 9, height: 9, borderRadius: 4.5, backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: Colors.surface },
-  menuUpdateBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 59, 48, 0.15)', borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.35)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, marginLeft: 8 },
-  menuUpdateBadgeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#FF3B30', marginRight: 4 },
-  menuUpdateBadgeText: { fontSize: 10, fontWeight: '700', color: '#FF5252' },
-  updateAlertBanner: { backgroundColor: 'rgba(234, 225, 21, 0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.3)', padding: 14, marginBottom: 16 },
-  updateAlertContent: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  updateAlertIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  updateAlertTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 2 },
-  updateAlertSubtitle: { fontSize: 12, color: Colors.textSecondary, lineHeight: 16 },
-  updateAlertActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 },
-  updateAlertActionBtnText: { fontSize: 13, fontWeight: '700', color: '#000000' },
-  novasQuestoesInfoCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: '#141618', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 10, borderWidth: 1, borderColor: '#25282B', marginBottom: 20, width: '100%' },
-  novasQuestoesStatItem: { alignItems: 'center', flex: 1 },
-  novasQuestoesStatValue: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  novasQuestoesStatLabel: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary, marginTop: 2, textAlign: 'center' },
-  novasQuestoesStatDivider: { width: 1, height: 32, backgroundColor: '#25282B' },
-  credenciaisInfoBox: { width: '100%', backgroundColor: '#141618', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#25282B', marginBottom: 20 },
-  credenciaisInfoRow: { flexDirection: 'row', alignItems: 'center' },
-  credenciaisInfoText: { fontSize: 13, fontWeight: '600', color: Colors.text, flex: 1 },
-  syncErrorDetailsBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)', marginBottom: 20, width: '100%' },
-  syncErrorDetailsText: { flex: 1, fontSize: 13, color: '#ff8a80', lineHeight: 18, fontWeight: '600' },
-  selectiveImageToggleRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#141618', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#25282B', marginBottom: 10 },
-  selectiveImageToggleTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  selectiveImageToggleSub: { fontSize: 11, color: Colors.textSecondary, marginTop: 1 },
-  selectiveItemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1.5, borderColor: '#26292c' },
-  selectiveItemCardSelected: { borderColor: Colors.primary, backgroundColor: 'rgba(234, 225, 21, 0.05)' },
-  selectiveItemName: { fontSize: 14, fontWeight: '700', color: Colors.text, flexShrink: 1 },
-  selectiveItemNameSelected: { color: Colors.primary },
-  selectiveItemVersion: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
-  badgeAtualizacao: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 },
-  badgeAtualizacaoText: { fontSize: 9, fontWeight: '800', color: '#000000', letterSpacing: 0.3 },
-  badgeNovo: { backgroundColor: 'rgba(96, 165, 250, 0.15)', borderWidth: 1, borderColor: 'rgba(96, 165, 250, 0.35)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, marginLeft: 6 },
-  badgeNovoText: { fontSize: 9, fontWeight: '800', color: '#60A5FA', letterSpacing: 0.3 },
-  badgeInstalado: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.06)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, marginLeft: 6 },
-  badgeInstaladoText: { fontSize: 9, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 0.3 },
-  warningIconCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(255, 167, 38, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.3)' },
-  confirmResetBtn: { flex: 1, backgroundColor: '#FFA726', flexDirection: 'row', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: '#FFA726', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  confirmResetBtnText: { color: '#000000', fontSize: 14, fontWeight: '700' },
-  weekProgressBarBg: { height: 4, backgroundColor: '#202428', borderRadius: 2, overflow: 'hidden' },
-  weekProgressBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
-  accordionCard: { backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: '#2A2E33', marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 2 },
-  accordionHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  accordionHeaderOpen: { borderBottomWidth: 1, borderBottomColor: '#24282D', backgroundColor: 'rgba(255, 255, 255, 0.02)' },
-  accordionIconBox: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  accordionHeaderContent: { flex: 1, marginRight: 8 },
-  accordionTitle: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 2 },
-  accordionSubtitle: { fontSize: 12, color: Colors.textSecondary },
-  accordionBody: { padding: 16, backgroundColor: '#131517' },
-  gitHubSyncCardInner: { width: '100%' },
-  minStorageCardInner: { width: '100%' },
-  emptyDayContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    backgroundColor: '#181A1D',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#26292C',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  emptyDayTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#E1E4EA',
-    marginTop: 12,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptyDaySub: {
-    fontSize: 12,
-    color: '#8E959E',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  diagModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  diagModalContainer: {
-    backgroundColor: '#1E232A',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#2E3540',
-    padding: 18,
-  },
-  diagModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  diagModalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  diagStatCard: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 12,
-    alignItems: 'center',
-  },
-  diagStatLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 2,
-  },
-  diagStatValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: Colors.text,
-  },
-  diagStatSub: {
-    fontSize: 10,
-    color: Colors.textMuted,
-  },
-  diagSectionHeader: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  diagItemCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 10,
-    marginBottom: 8,
-  },
-  diagItemTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  diagBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  diagBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  diagItemMeta: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-  },
-  diagItemSubMeta: {
-    fontSize: 10,
-    color: Colors.textMuted,
-  },
-  diagSessionText: {
-    fontSize: 9.5,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  diagEmptyBox: {
-    padding: 18,
-    alignItems: 'center',
-  },
-  diagEmptyText: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  diagCloseBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  diagCloseBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  appearanceCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  const cardBorder = theme.border;
+  const subtleBorder = theme.borderSubtle;
+  const nestedBg = isDark ? '#141618' : '#F7F7F6';
+  const softShadow = {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowOpacity: isDark ? 0.25 : 0.05,
+    shadowRadius: 8,
     elevation: 2,
-  },
-  appearanceRowHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  appearanceSectionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  appearanceCurrentValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  themeModeSelectorRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  themeModeChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: '#16191B',
-    borderWidth: 1,
-    borderColor: '#2A2E33',
-  },
-  themeModeChipActive: {
-    borderWidth: 1.5,
-  },
-  themeModeChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  appearanceDivider: {
-    height: 1,
-    backgroundColor: '#25282B',
-    marginVertical: 16,
-  },
-  accentColorsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    paddingTop: 4,
-    paddingBottom: 2,
-  },
-  accentCircleTouchTarget: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  accentCircleActive: {
-    borderWidth: 2,
-  },
-  accentCircleColor: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-});
+  };
+
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.background },
+    container: { flex: 1, backgroundColor: theme.background },
+    scrollContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 110, alignItems: 'stretch' },
+    headerContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: cardBorder, backgroundColor: theme.background },
+    headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
+    headerIcon: { marginRight: 10 },
+    headerTitle: { fontSize: 24, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
+    headerSubtitle: { fontSize: 14, color: theme.textSecondary, marginTop: 4, lineHeight: 20, textAlign: 'left' },
+    statusCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 20, marginVertical: 12, borderWidth: 1, borderColor: cardBorder, ...softShadow },
+    statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    statusLabel: { fontSize: 12, fontWeight: '700', color: theme.textSecondary, letterSpacing: 0.8 },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+    statusBadgeText: { fontSize: 12, fontWeight: '600' },
+    countContainer: { marginVertical: 8 },
+    countNumber: { fontSize: 38, fontWeight: '800', color: theme.primary },
+    countText: { fontSize: 16, fontWeight: '600', color: theme.text, marginTop: -2 },
+    statusDescription: { fontSize: 13, color: theme.textSecondary, marginTop: 8, lineHeight: 18 },
+    actionsContainer: { marginTop: 16, gap: 12 },
+    primaryButton: { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 12, elevation: 0, shadowOpacity: 0 },
+    primaryButtonText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 16, fontWeight: '700' },
+    zipButton: { backgroundColor: theme.surfaceCard, borderWidth: 1, borderColor: cardBorder, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, ...softShadow },
+    zipButtonText: { color: theme.text, fontSize: 15, fontWeight: '700' },
+    zipButtonSubText: { color: theme.textSecondary, fontSize: 11, marginTop: 2 },
+    dangerButton: { backgroundColor: theme.surfaceCard, borderWidth: 1.5, borderColor: theme.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 },
+    dangerButtonText: { color: theme.error, fontSize: 14, fontWeight: '600' },
+    infoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, borderRadius: 10, padding: 12, marginTop: 20, borderWidth: 1, borderColor: cardBorder },
+    infoText: { flex: 1, fontSize: 12, color: theme.textSecondary, lineHeight: 16 },
+    backupCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 20, marginTop: 20, borderWidth: 1, borderColor: cardBorder, ...softShadow },
+    backupHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    backupSectionTitle: { fontSize: 16, fontWeight: '700', color: theme.text },
+    backupDescription: { fontSize: 13, color: theme.textSecondary, lineHeight: 18, marginBottom: 16 },
+    exportButton: { backgroundColor: theme.surfaceCard, borderWidth: 1, borderColor: cardBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, ...softShadow },
+    exportButtonText: { color: theme.primary, fontSize: 15, fontWeight: '700' },
+    buttonDisabled: { opacity: 0.6 },
+    buttonIcon: { marginRight: 8 },
+    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 4 },
+    sectionHeaderTitle: { fontSize: 16, fontWeight: '700', color: theme.text },
+    warningButton: { backgroundColor: theme.surfaceCard, borderWidth: 1.5, borderColor: '#FFA726', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12 },
+    warningButtonText: { color: '#FFA726', fontSize: 15, fontWeight: '600' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalCard: { backgroundColor: theme.surfaceCard, borderRadius: 20, padding: 22, width: '100%', maxHeight: '82%', borderWidth: 1, borderColor: cardBorder, ...softShadow },
+    modalHeader: { alignItems: 'center', marginBottom: 12 },
+    modalIconCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255, 167, 38, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.25)' },
+    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, textAlign: 'center' },
+    modalSubtitle: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', marginTop: 6, lineHeight: 18, paddingHorizontal: 8 },
+    selectionToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginTop: 2, marginBottom: 8 },
+    selectionToolbarBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 },
+    selectionToolbarBtnText: { fontSize: 12, fontWeight: '700', color: theme.textSecondary },
+    selectionCountBadge: { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: cardBorder },
+    selectionCountText: { fontSize: 11, fontWeight: '700', color: theme.primary },
+    modalScroll: { maxHeight: 250, marginVertical: 4 },
+    modalScrollContent: { gap: 8, paddingVertical: 4 },
+    temaItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.background, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: subtleBorder },
+    temaItemRowSelected: { borderColor: 'rgba(239, 68, 68, 0.45)', backgroundColor: 'rgba(239, 68, 68, 0.08)' },
+    temaItemInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    temaItemText: { fontSize: 14, color: theme.text, fontWeight: '600', flexShrink: 1 },
+    temaItemTextSelected: { color: '#ff8a80', fontWeight: '700' },
+    modalDeleteSelectedBtn: { backgroundColor: theme.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, marginTop: 12, shadowColor: theme.error, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
+    modalDeleteSelectedBtnDisabled: { backgroundColor: isDark ? '#1c1f21' : '#E0E0E0', shadowOpacity: 0, elevation: 0 },
+    modalDeleteSelectedBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+    modalDeleteSelectedBtnTextDisabled: { color: theme.textMuted },
+    modalCancelButton: { backgroundColor: theme.background, paddingVertical: 13, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: cardBorder, marginTop: 8 },
+    modalCancelButtonText: { color: theme.text, fontSize: 14, fontWeight: '700' },
+    modalEmptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 32, paddingHorizontal: 16 },
+    modalEmptyTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginTop: 10 },
+    modalEmptySubtitle: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', marginTop: 4, lineHeight: 18 },
+    searchBarContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.background, borderRadius: 12, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 6, marginVertical: 12, borderWidth: 1, borderColor: cardBorder },
+    searchBarInput: { flex: 1, color: theme.text, fontSize: 14, padding: 0 },
+    confirmModalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.82)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+    confirmBackdropDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    confirmModalCard: { backgroundColor: theme.surfaceCard, borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, alignItems: 'center', borderWidth: 1.5, borderColor: isDark ? '#3a2d2d' : 'rgba(239, 68, 68, 0.2)', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.5 : 0.15, shadowRadius: 18, elevation: 10 },
+    confirmIconCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 76, 76, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1, borderColor: 'rgba(255, 76, 76, 0.3)' },
+    confirmTitle: { fontSize: 20, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 8 },
+    confirmDescription: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 12 },
+    confirmThemeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.background, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: cardBorder, marginBottom: 14, maxWidth: '100%' },
+    confirmThemeText: { fontSize: 14, fontWeight: '700', color: theme.text, flexShrink: 1 },
+    confirmWarningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 167, 38, 0.08)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.25)', marginBottom: 20 },
+    confirmWarningText: { flex: 1, fontSize: 12, color: '#FFA726', lineHeight: 16 },
+    confirmButtonsRow: { flexDirection: 'row', width: '100%', gap: 12 },
+    confirmCancelBtn: { flex: 1, backgroundColor: theme.background, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: cardBorder },
+    confirmCancelBtnText: { color: theme.text, fontSize: 14, fontWeight: '600' },
+    confirmDeleteBtn: { flex: 1, backgroundColor: theme.error, flexDirection: 'row', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: theme.error, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+    confirmDeleteBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+    successModalCard: { backgroundColor: theme.surfaceCard, borderRadius: 22, padding: 24, width: '100%', maxWidth: 380, alignItems: 'center', borderWidth: 1.5, borderColor: isDark ? '#2e3532' : 'rgba(76, 175, 80, 0.25)', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.5 : 0.15, shadowRadius: 18, elevation: 10 },
+    successIconCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(76, 175, 80, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.3)' },
+    successModalTitle: { fontSize: 20, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 8 },
+    successModalDescription: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 14, paddingHorizontal: 8 },
+    successThemeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.background, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: cardBorder, marginBottom: 14, maxWidth: '100%' },
+    successThemeText: { fontSize: 14, fontWeight: '700', color: theme.text, flexShrink: 1 },
+    successInfoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(234, 225, 21, 0.08)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)', marginBottom: 20, width: '100%' },
+    successInfoText: { flex: 1, fontSize: 12, color: theme.textSecondary, lineHeight: 16 },
+    successDoneButton: { width: '100%', backgroundColor: theme.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
+    successDoneButtonText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 15, fontWeight: '700' },
+    dangerIconCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(239, 68, 68, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+    dangerHighlightBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', marginBottom: 14, width: '100%' },
+    dangerHighlightText: { fontSize: 14, fontWeight: '700', color: '#ff6b6b', flexShrink: 1 },
+    importSuccessCard: { width: '100%', maxWidth: 380, backgroundColor: theme.surfaceCard, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: cardBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: isDark ? 0.5 : 0.15, shadowRadius: 20, elevation: 10 },
+    importSuccessIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(76, 175, 80, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(76, 175, 80, 0.3)' },
+    importSuccessTitle: { fontSize: 22, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 6 },
+    importSuccessSubtitle: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 8 },
+    importStatsCard: { width: '100%', backgroundColor: nestedBg, borderRadius: 16, borderWidth: 1, borderColor: cardBorder, padding: 16, marginBottom: 16 },
+    importStatsGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    importStatBox: { flex: 1, alignItems: 'center' },
+    importStatLabel: { fontSize: 10, fontWeight: '700', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 4 },
+    importStatValue: { fontSize: 18, fontWeight: '800', color: theme.text },
+    importStatDivider: { width: 1, height: 26, backgroundColor: cardBorder },
+    importSpecsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: subtleBorder, justifyContent: 'center' },
+    importSpecChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(234, 225, 21, 0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)' },
+    importSpecChipText: { fontSize: 11, fontWeight: '600', color: theme.primary },
+    importInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(234, 225, 21, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)', marginBottom: 20, width: '100%' },
+    importInfoText: { flex: 1, fontSize: 12, color: theme.textSecondary, lineHeight: 17 },
+    importDoneButton: { width: '100%', backgroundColor: theme.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
+    importDoneButtonText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 15, fontWeight: '800' },
+    imageSuccessIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(234, 225, 21, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
+    imagePathPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 12, borderWidth: 1, borderColor: cardBorder, width: '100%' },
+    imagePathPillLabel: { fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginRight: 4 },
+    imagePathPillText: { flex: 1, fontSize: 12, fontWeight: '700', color: theme.primary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+    emptyDbModalCard: { width: '100%', maxWidth: 380, backgroundColor: theme.surfaceCard, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: cardBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: isDark ? 0.5 : 0.15, shadowRadius: 20, elevation: 10 },
+    emptyDbIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255, 167, 38, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(255, 167, 38, 0.3)' },
+    emptyDbTitle: { fontSize: 22, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 8 },
+    emptyDbSubtitle: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 8 },
+    emptyDbInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(255, 167, 38, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.2)', marginBottom: 20, width: '100%' },
+    emptyDbInfoText: { flex: 1, fontSize: 12, color: theme.textSecondary, lineHeight: 17 },
+    emptyDbButtonsCol: { width: '100%', gap: 10 },
+    emptyDbPrimaryButton: { width: '100%', backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
+    emptyDbPrimaryButtonText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 15, fontWeight: '800' },
+    emptyDbSecondaryButton: { width: '100%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
+    emptyDbSecondaryButtonText: { color: theme.textSecondary, fontSize: 14, fontWeight: '600' },
+    pkgModalCard: { width: '100%', maxWidth: 380, backgroundColor: theme.surfaceCard, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: cardBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: isDark ? 0.5 : 0.15, shadowRadius: 20, elevation: 10 },
+    pkgIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(234, 225, 21, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
+    pkgTitle: { fontSize: 22, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 6 },
+    pkgSubtitle: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 4 },
+    pkgInputContainer: { width: '100%', marginBottom: 14 },
+    pkgInputLabel: { fontSize: 10, fontWeight: '700', color: theme.textMuted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 },
+    pkgInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 12, borderWidth: 1.5, borderColor: cardBorder, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 6 },
+    pkgInput: { flex: 1, color: theme.text, fontSize: 15, fontWeight: '700' },
+    pkgPreviewBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(234, 225, 21, 0.07)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)', marginBottom: 20, width: '100%' },
+    pkgPreviewLabel: { fontSize: 11, color: theme.textSecondary, marginBottom: 2 },
+    pkgPreviewPath: { fontSize: 13, fontWeight: '700', color: theme.primary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+    pkgButtonsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
+    pkgCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: theme.background, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: cardBorder },
+    pkgCancelBtnText: { color: theme.textSecondary, fontSize: 14, fontWeight: '700' },
+    pkgConfirmBtn: { flex: 1.4, paddingVertical: 14, borderRadius: 12, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
+    pkgConfirmBtnText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 14, fontWeight: '800' },
+    storageSectionSubtitle: { fontSize: 13, color: theme.textSecondary, marginBottom: 14, lineHeight: 18 },
+    storageManagerCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: cardBorder, marginBottom: 20, ...softShadow },
+    storageSubHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+    storageSubTitle: { fontSize: 14, fontWeight: '700', color: theme.text },
+    storageCountBadge: { backgroundColor: 'rgba(234, 225, 21, 0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)' },
+    storageCountBadgeText: { color: theme.primary, fontSize: 12, fontWeight: '700' },
+    storageEmptyBox: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: nestedBg, borderRadius: 12, borderWidth: 1, borderColor: subtleBorder, marginBottom: 4 },
+    storageEmptyText: { color: theme.textSecondary, fontSize: 12 },
+    storageItemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: subtleBorder },
+    storageItemIconWrapper: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(234, 225, 21, 0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    storageItemContent: { flex: 1, marginRight: 8 },
+    storageItemName: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 2 },
+    storageItemMeta: { fontSize: 11, color: theme.textSecondary, lineHeight: 15 },
+    storageDeleteBtn: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)' },
+    storageDivider: { height: 1, backgroundColor: subtleBorder, marginVertical: 14 },
+    menuSummaryCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: cardBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...softShadow },
+    menuSummaryLeft: { flex: 1, paddingRight: 10 },
+    menuSummaryLabel: { fontSize: 11, fontWeight: '800', color: theme.textMuted, letterSpacing: 0.8, marginBottom: 4, textTransform: 'uppercase' },
+    menuSummaryValue: { fontSize: 15, fontWeight: '700', color: theme.text },
+    menuSummarySubValue: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    menuOptionsContainer: { gap: 12, marginTop: 4 },
+    menuOptionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: cardBorder, ...softShadow },
+    menuOptionIconBox: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    menuOptionContent: { flex: 1, marginRight: 8 },
+    menuOptionTitle: { fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 3 },
+    menuOptionSubtitle: { fontSize: 12, color: theme.textSecondary, lineHeight: 16 },
+    subScreenHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: 4 },
+    subScreenBackBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.surfaceCard, borderWidth: 1, borderColor: cardBorder, alignItems: 'center', justifyContent: 'center', marginRight: 14, ...softShadow },
+    subScreenHeaderTitle: { fontSize: 20, fontWeight: '800', color: theme.text },
+    tabSwitcherContainer: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+      borderRadius: 14,
+      padding: 4,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: subtleBorder,
+    },
+    tabSwitcherBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 11,
+    },
+    tabSwitcherBtnActive: {
+      backgroundColor: theme.surfaceCard,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    tabSwitcherBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    tabSwitcherBtnTextActive: {
+      color: theme.text,
+      fontWeight: '700',
+    },
+    minSectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingHorizontal: 2 },
+    minSectionTitle: { fontSize: 12, fontWeight: '800', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 },
+    minCardsCol: { gap: 10 },
+    minActionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: cardBorder, ...softShadow },
+    minIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    minActionContent: { flex: 1 },
+    minActionTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 2 },
+    minActionSub: { fontSize: 12, color: theme.textSecondary },
+    minActionPill: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.35)', backgroundColor: 'rgba(234, 225, 21, 0.08)' },
+    minActionPillText: { fontSize: 12, fontWeight: '700', color: theme.primary },
+    minStorageCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: cardBorder, ...softShadow },
+    minStorageSubHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+    minStorageSubTitle: { fontSize: 13, fontWeight: '700', color: theme.text },
+    minStorageBadge: { fontSize: 11, fontWeight: '700', color: theme.textSecondary, backgroundColor: nestedBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: subtleBorder },
+    minStorageRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: subtleBorder },
+    minGroupIconBox: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(234, 225, 21, 0.08)', alignItems: 'center', justifyContent: 'center', marginRight: 10, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.2)' },
+    storageItemInModal: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: subtleBorder },
+    modalDeleteAllGroupBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)', marginTop: 8, marginBottom: 8, width: '100%' },
+    modalDeleteAllGroupBtnText: { fontSize: 12, fontWeight: '700', color: theme.error },
+    minItemTitle: { fontSize: 13, fontWeight: '700', color: theme.text, marginBottom: 1 },
+    minItemSub: { fontSize: 11, color: theme.textSecondary },
+    minDeleteBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)' },
+    minDivider: { height: 1, backgroundColor: subtleBorder, marginVertical: 12 },
+    minEmptyText: { fontSize: 12, color: theme.textSecondary, paddingVertical: 4, marginBottom: 6 },
+    syncMiniBadge: { backgroundColor: 'rgba(76, 175, 80, 0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 8, borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.3)' },
+    syncMiniBadgeText: { fontSize: 10, fontWeight: '700', color: theme.success },
+    gitHubSyncCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: cardBorder, marginBottom: 14, ...softShadow },
+    gitHubSyncHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+    gitHubSyncIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(234, 225, 21, 0.12)', borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    gitHubSyncTitle: { fontSize: 14, fontWeight: '700', color: theme.text, flexShrink: 1, marginRight: 8 },
+    gitHubSyncSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    gitHubSyncSub: { fontSize: 11, color: theme.textSecondary, marginLeft: 4 },
+    gitHubStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+    gitHubStatusBadgeText: { fontSize: 10, fontWeight: '700' },
+    gitHubSyncActionsContainer: { gap: 8 },
+    gitHubSyncPrimaryBtn: { width: '100%', backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 11, shadowColor: theme.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 2 },
+    gitHubSyncPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: isDark ? '#000000' : '#FFFFFF' },
+    gitHubSyncSecondaryRow: { flexDirection: 'row', gap: 8 },
+    gitHubSyncSecondaryBtn: { flex: 1, backgroundColor: nestedBg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: cardBorder },
+    gitHubSyncSecondaryBtnText: { fontSize: 12, fontWeight: '700', color: theme.text },
+    gitHubInputContainer: { width: '100%' },
+    gitHubFeedbackBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, marginBottom: 12, width: '100%' },
+    gitHubFeedbackText: { flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 16 },
+    gitHubTestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 11, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(234, 225, 21, 0.08)', borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.3)', width: '100%', marginBottom: 4 },
+    gitHubTestBtnText: { fontSize: 13, fontWeight: '700', color: theme.primary },
+    gitHubSaveBtn: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
+    gitHubSaveBtnText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 14, fontWeight: '800' },
+    syncProgressBarTrack: { width: '100%', height: 8, backgroundColor: nestedBg, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: subtleBorder, marginBottom: 16 },
+    syncProgressBarFill: { height: '100%', backgroundColor: theme.primary, borderRadius: 4 },
+    syncStatusCard: { width: '100%', backgroundColor: nestedBg, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: cardBorder, alignItems: 'center', marginBottom: 14 },
+    syncStepMessage: { fontSize: 14, fontWeight: '700', color: theme.text, textAlign: 'center' },
+    syncStepDetail: { fontSize: 12, color: theme.textSecondary, textAlign: 'center', marginTop: 4 },
+    syncWarningSubtext: { fontSize: 11, color: theme.textMuted, textAlign: 'center', lineHeight: 15 },
+    upToDateInfoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.25)', marginBottom: 20, width: '100%' },
+    upToDateInfoText: { flex: 1, fontSize: 13, color: theme.text, lineHeight: 18, fontWeight: '600' },
+    forceSyncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginTop: 10 },
+    forceSyncBtnText: { fontSize: 12, fontWeight: '600', color: theme.textSecondary },
+    cardNotificationDot: { position: 'absolute', top: 6, right: 6, width: 9, height: 9, borderRadius: 4.5, backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: theme.surfaceCard },
+    menuUpdateBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 59, 48, 0.15)', borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.35)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, marginLeft: 8 },
+    menuUpdateBadgeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#FF3B30', marginRight: 4 },
+    menuUpdateBadgeText: { fontSize: 10, fontWeight: '700', color: '#FF5252' },
+    updateAlertBanner: { backgroundColor: 'rgba(234, 225, 21, 0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.3)', padding: 14, marginBottom: 16 },
+    updateAlertContent: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    updateAlertIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    updateAlertTitle: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 2 },
+    updateAlertSubtitle: { fontSize: 12, color: theme.textSecondary, lineHeight: 16 },
+    updateAlertActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 },
+    updateAlertActionBtnText: { fontSize: 13, fontWeight: '700', color: isDark ? '#000000' : '#FFFFFF' },
+    novasQuestoesInfoCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: nestedBg, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 10, borderWidth: 1, borderColor: cardBorder, marginBottom: 20, width: '100%' },
+    novasQuestoesStatItem: { alignItems: 'center', flex: 1 },
+    novasQuestoesStatValue: { fontSize: 16, fontWeight: '800', color: theme.text },
+    novasQuestoesStatLabel: { fontSize: 11, fontWeight: '600', color: theme.textSecondary, marginTop: 2, textAlign: 'center' },
+    novasQuestoesStatDivider: { width: 1, height: 32, backgroundColor: cardBorder },
+    credenciaisInfoBox: { width: '100%', backgroundColor: nestedBg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: cardBorder, marginBottom: 20 },
+    credenciaisInfoRow: { flexDirection: 'row', alignItems: 'center' },
+    credenciaisInfoText: { fontSize: 13, fontWeight: '600', color: theme.text, flex: 1 },
+    syncErrorDetailsBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.25)', marginBottom: 20, width: '100%' },
+    syncErrorDetailsText: { flex: 1, fontSize: 13, color: '#ff8a80', lineHeight: 18, fontWeight: '600' },
+    selectiveImageToggleRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: cardBorder, marginBottom: 10 },
+    selectiveImageToggleTitle: { fontSize: 13, fontWeight: '700', color: theme.text },
+    selectiveImageToggleSub: { fontSize: 11, color: theme.textSecondary, marginTop: 1 },
+    selectiveItemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.background, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1.5, borderColor: subtleBorder },
+    selectiveItemCardSelected: { borderColor: theme.primary, backgroundColor: 'rgba(234, 225, 21, 0.05)' },
+    selectiveItemName: { fontSize: 14, fontWeight: '700', color: theme.text, flexShrink: 1 },
+    selectiveItemNameSelected: { color: theme.primary },
+    selectiveItemVersion: { fontSize: 11, color: theme.textSecondary, marginTop: 2 },
+    badgeAtualizacao: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 },
+    badgeAtualizacaoText: { fontSize: 9, fontWeight: '800', color: isDark ? '#000000' : '#FFFFFF', letterSpacing: 0.3 },
+    badgeNovo: { backgroundColor: 'rgba(96, 165, 250, 0.15)', borderWidth: 1, borderColor: 'rgba(96, 165, 250, 0.35)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, marginLeft: 6 },
+    badgeNovoText: { fontSize: 9, fontWeight: '800', color: '#60A5FA', letterSpacing: 0.3 },
+    badgeInstalado: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)', borderWidth: 1, borderColor: cardBorder, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, marginLeft: 6 },
+    badgeInstaladoText: { fontSize: 9, fontWeight: '600', color: theme.textSecondary, letterSpacing: 0.3 },
+    warningIconCircle: { width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(255, 167, 38, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255, 167, 38, 0.3)' },
+    confirmResetBtn: { flex: 1, backgroundColor: '#FFA726', flexDirection: 'row', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: '#FFA726', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+    confirmResetBtnText: { color: '#000000', fontSize: 14, fontWeight: '700' },
+    weekProgressBarBg: { height: 4, backgroundColor: nestedBg, borderRadius: 2, overflow: 'hidden' },
+    weekProgressBarFill: { height: '100%', backgroundColor: theme.primary, borderRadius: 2 },
+    accordionCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, borderWidth: 1, borderColor: cardBorder, marginBottom: 12, overflow: 'hidden', ...softShadow },
+    accordionHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+    accordionHeaderOpen: { borderBottomWidth: 1, borderBottomColor: subtleBorder, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)' },
+    accordionIconBox: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    accordionHeaderContent: { flex: 1, marginRight: 8 },
+    accordionTitle: { fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 2 },
+    accordionSubtitle: { fontSize: 12, color: theme.textSecondary },
+    accordionBody: { padding: 16, backgroundColor: nestedBg },
+    gitHubSyncCardInner: { width: '100%' },
+    minStorageCardInner: { width: '100%' },
+    emptyDayContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 32,
+      paddingHorizontal: 24,
+      backgroundColor: nestedBg,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    emptyDayTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.text,
+      marginTop: 12,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    emptyDaySub: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    diagModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      padding: 16,
+    },
+    diagModalContainer: {
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      padding: 18,
+      ...softShadow,
+    },
+    diagModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    diagModalTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    diagStatCard: {
+      flex: 1,
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      padding: 12,
+      alignItems: 'center',
+    },
+    diagStatLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.textSecondary,
+      marginBottom: 2,
+    },
+    diagStatValue: {
+      fontSize: 22,
+      fontWeight: '900',
+      color: theme.text,
+    },
+    diagStatSub: {
+      fontSize: 10,
+      color: theme.textMuted,
+    },
+    diagSectionHeader: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: theme.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 8,
+      marginTop: 4,
+    },
+    diagItemCard: {
+      backgroundColor: theme.surfaceCard,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      padding: 10,
+      marginBottom: 8,
+    },
+    diagItemTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+      flex: 1,
+      marginRight: 8,
+    },
+    diagBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    diagBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    diagItemMeta: {
+      fontSize: 11,
+      color: theme.textSecondary,
+    },
+    diagItemSubMeta: {
+      fontSize: 10,
+      color: theme.textMuted,
+    },
+    diagSessionText: {
+      fontSize: 9.5,
+      color: theme.textMuted,
+      marginTop: 2,
+    },
+    diagEmptyBox: {
+      padding: 18,
+      alignItems: 'center',
+    },
+    diagEmptyText: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      textAlign: 'center',
+    },
+    diagCloseBtn: {
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    diagCloseBtnText: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontWeight: '800',
+      fontSize: 13,
+    },
+  });
+}
