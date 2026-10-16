@@ -848,65 +848,6 @@ export async function pickAndImportCronograma(): Promise<{
   }
 }
 
-// ============================================================================
-// MOTOR DE ORÇAMENTO DE ENERGIA (ENERGY BUDGET)
-// ============================================================================
-
-// Configurações do Orçamento de Energia
-export const BASE_DAILY_BUDGET = 15; // Teto ideal de pontos por dia
-export const SOFT_LIMIT = 18; // Teto máximo absoluto tolerado (com penalidade no dia seguinte)
-
-/**
- * Calcula a carga cognitiva total já alocada em um dia específico.
- */
-export async function calculateDailyLoad(dataYYYYMMDD: string): Promise<number> {
-  const atividades = await getAtividadesPorData(dataYYYYMMDD);
-  return atividades.reduce((total, atv) => total + (atv.feedback_cansaco || 0), 0);
-}
-
-/**
- * Calcula o orçamento de energia disponível para o dia atual, 
- * aplicando penalidades se o dia anterior ultrapassou o teto ideal.
- */
-export async function getAdjustedDailyBudget(
-  dataAtualYYYYMMDD: string,
-  dataAnteriorYYYYMMDD: string
-): Promise<number> {
-  const cargaOntem = await calculateDailyLoad(dataAnteriorYYYYMMDD);
-
-  let orcamentoHoje = BASE_DAILY_BUDGET;
-
-  // Se passou do ideal ontem, cobra a dívida hoje
-  if (cargaOntem > BASE_DAILY_BUDGET) {
-    const excesso = cargaOntem - BASE_DAILY_BUDGET;
-    orcamentoHoje -= excesso;
-  }
-
-  // Garante um orçamento mínimo de sobrevivência (ex: 8 pontos) para não travar o app
-  return Math.max(orcamentoHoje, 8);
-}
-
-/**
- * Verifica se uma nova atividade pode ser agendada no dia solicitado 
- * respeitando o Soft Limit (Tolerância).
- */
-export async function canScheduleActivity(
-  dataYYYYMMDD: string,
-  pesoAtividade: number
-): Promise<{ canSchedule: boolean; currentLoad: number; futureLoad: number }> {
-  const cargaAtual = await calculateDailyLoad(dataYYYYMMDD);
-  const cargaFutura = cargaAtual + pesoAtividade;
-
-  // Permite agendar se a carga futura não estourar o limite rígido (SOFT_LIMIT)
-  const canSchedule = cargaFutura <= SOFT_LIMIT;
-
-  return {
-    canSchedule,
-    currentLoad: cargaAtual,
-    futureLoad: cargaFutura,
-  };
-}
-
 /**
  * Realiza o seed do cronograma completo da residência médica no SQLite.
  * Verifica previamente se o banco já possui dados na tabela Semanas para evitar duplicidade.

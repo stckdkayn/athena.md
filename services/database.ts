@@ -977,7 +977,7 @@ export async function criarNovaAtividade(dados: {
   data_inicio: string; // YYYY-MM-DD
   hora_inicio?: string;
   hora_fim?: string;
-  feedback_cansaco: number;
+  feedback_cansaco?: number;
   dias_semana?: number[]; // Para semanal ex: [1, 3, 5]
 }): Promise<void> {
   const database = getDatabase();

@@ -15,7 +15,6 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
 import { criarNovaAtividade, atualizarAtividade, excluirAtividade } from '@/services/database';
-import { canScheduleActivity } from '@/services/scheduleService';
 
 interface Props {
   visible: boolean;
@@ -60,14 +59,12 @@ export default function ModalNovaAtividade({
   const [tipo, setTipo] = useState('Estudos');
   const [iconeSelecionado, setIconeSelecionado] = useState('book');
   const [showCategoriaDrop, setShowCategoriaDrop] = useState(false);
-  const [showDemandaDrop, setShowDemandaDrop] = useState(false);
   const [horaInicio, setHoraInicio] = useState(new Date());
   const [horaFim, setHoraFim] = useState(new Date(new Date().getTime() + 60 * 60 * 1000)); // +1 hora padrão
   const [showPickerInicio, setShowPickerInicio] = useState(false);
   const [showPickerFim, setShowPickerFim] = useState(false);
   const [showIconMenu, setShowIconMenu] = useState(false);
   const [frequencia, setFrequencia] = useState<'unica' | 'diaria' | 'dias_uteis' | 'semanal'>('unica');
-  const [demanda, setDemanda] = useState(3);
   const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<number[]>([1, 3, 5]);
   const [isChecking, setIsChecking] = useState(false);
 
@@ -84,13 +81,11 @@ export default function ModalNovaAtividade({
         setDetalhes(atividadeEmEdicao.detalhes || '');
         setTipo(atividadeEmEdicao.tipo || 'Estudos');
         setIconeSelecionado(atividadeEmEdicao.icone || 'book');
-        setDemanda(typeof atividadeEmEdicao.feedback_cansaco === 'number' ? atividadeEmEdicao.feedback_cansaco : 3);
         setFrequencia('unica');
         setShowIconMenu(false);
         setShowPickerInicio(false);
         setShowPickerFim(false);
         setShowCategoriaDrop(false);
-        setShowDemandaDrop(false);
         setIsChecking(false);
 
         // Converte as strings de hora de volta para Date objects para o Picker
@@ -115,9 +110,7 @@ export default function ModalNovaAtividade({
         setShowPickerInicio(false);
         setShowPickerFim(false);
         setShowCategoriaDrop(false);
-        setShowDemandaDrop(false);
         setFrequencia('unica');
-        setDemanda(3);
         setIsChecking(false);
       }
     }
@@ -161,47 +154,8 @@ export default function ModalNovaAtividade({
     }
     if (isChecking) return;
 
-    setIsChecking(true);
     const dataSelecionada = dataInicial || toLocalDateStr(new Date());
-
-    try {
-      // 1. O Algoritmo avalia o Orçamento de Energia
-      const analise = await canScheduleActivity(dataSelecionada, demanda);
-
-      if (!analise.canSchedule) {
-        setIsChecking(false);
-        // O limite rígido estourou.
-        Alert.alert(
-          '🔥 Carga Mental Excedida!',
-          `Adicionar essa tarefa vai elevar sua carga de hoje para ${analise.futureLoad} pontos, passando do seu limite crítico de tolerância.\n\nO Athena recomenda remanejar esse estudo/tarefa para amanhã. Tem certeza que deseja forçar o agendamento?`,
-          [
-            { text: 'Cancelar, vou remanejar', style: 'cancel' },
-            { 
-              text: 'Sim, forçar agendamento', 
-              style: 'destructive',
-              onPress: () => executarSalvamento(dataSelecionada) 
-            }
-          ]
-        );
-      } else if (analise.futureLoad > 15) {
-        setIsChecking(false);
-        // Passou do limite ideal, mas está dentro da margem de tolerância. Avisa da dívida.
-        Alert.alert(
-          '⚠️ Limite de Tolerância',
-          `Sua carga vai para ${analise.futureLoad} pontos hoje. Amanhã o seu teto de energia será reduzido para compensar esse esforço extra.`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Continuar', onPress: () => executarSalvamento(dataSelecionada) }
-          ]
-        );
-      } else {
-        // Tudo dentro do normal
-        await executarSalvamento(dataSelecionada);
-      }
-    } catch (error) {
-      console.error('[ModalNovaAtividade] Erro ao validar atividade:', error);
-      setIsChecking(false);
-    }
+    await executarSalvamento(dataSelecionada);
   };
 
   // 3. Função auxiliar de salvamento real (isola o código do banco)
@@ -216,7 +170,6 @@ export default function ModalNovaAtividade({
           detalhes: detalhes.trim(),
           hora_inicio: formatTimeStr(horaInicio),
           hora_fim: formatTimeStr(horaFim),
-          feedback_cansaco: demanda,
         });
       } else {
         await criarNovaAtividade({
@@ -228,7 +181,6 @@ export default function ModalNovaAtividade({
           data_inicio: data,
           hora_inicio: formatTimeStr(horaInicio),
           hora_fim: formatTimeStr(horaFim),
-          feedback_cansaco: demanda,
           dias_semana: frequencia === 'semanal' ? diasSemanaSelecionados : undefined,
         });
       }
@@ -239,10 +191,8 @@ export default function ModalNovaAtividade({
       const now = new Date();
       setHoraInicio(now);
       setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
-      setDemanda(3); // reseta para o padrão
       setFrequencia('unica'); // reseta
       setShowCategoriaDrop(false);
-      setShowDemandaDrop(false);
       onSaveSuccess();
       onClose();
     } catch (error) {
@@ -430,71 +380,33 @@ export default function ModalNovaAtividade({
               )}
             </View>
 
-            {/* Dropdowns Lado a Lado (Categoria e Carga Cognitiva) */}
-            <View style={styles.dropdownsRow}>
-              {/* Coluna 1: Categoria */}
-              <View style={styles.dropdownColumn}>
-                <Text style={styles.subLabel}>Categoria</Text>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => {
-                    setShowCategoriaDrop(!showCategoriaDrop);
-                    setShowDemandaDrop(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dropdownButtonText}>{tipo}</Text>
-                  <Feather name="chevron-down" size={16} color={Colors.textSecondary} />
-                </TouchableOpacity>
-                {showCategoriaDrop && (
-                  <View style={styles.dropdownList}>
-                    {['Estudos', 'Faculdade', 'Saúde', 'Lazer', 'Outros'].map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.dropdownListItem, tipo === cat && styles.dropdownListItemActive]}
-                        onPress={() => {
-                          setTipo(cat);
-                          setShowCategoriaDrop(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownListItemText, tipo === cat && styles.dropdownListItemTextActive]}>{cat}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* Coluna 2: Carga Cognitiva */}
-              <View style={styles.dropdownColumn}>
-                <Text style={styles.subLabel}>Carga Cognitiva</Text>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => {
-                    setShowDemandaDrop(!showDemandaDrop);
-                    setShowCategoriaDrop(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dropdownButtonText}>{demanda}</Text>
-                  <Feather name="chevron-down" size={16} color={Colors.textSecondary} />
-                </TouchableOpacity>
-                {showDemandaDrop && (
-                  <View style={styles.dropdownList}>
-                    {[1, 2, 3, 4, 5].map((peso) => (
-                      <TouchableOpacity
-                        key={peso}
-                        style={[styles.dropdownListItem, demanda === peso && styles.dropdownListItemActive]}
-                        onPress={() => {
-                          setDemanda(peso);
-                          setShowDemandaDrop(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownListItemText, demanda === peso && styles.dropdownListItemTextActive]}>{peso}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
+            {/* Seletor de Categoria */}
+            <View style={styles.categoryContainer}>
+              <Text style={styles.subLabel}>Categoria</Text>
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowCategoriaDrop(!showCategoriaDrop)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dropdownButtonText}>{tipo}</Text>
+                <Feather name="chevron-down" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+              {showCategoriaDrop && (
+                <View style={styles.dropdownList}>
+                  {['Estudos', 'Faculdade', 'Saúde', 'Lazer', 'Outros'].map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.dropdownListItem, tipo === cat && styles.dropdownListItemActive]}
+                      onPress={() => {
+                        setTipo(cat);
+                        setShowCategoriaDrop(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownListItemText, tipo === cat && styles.dropdownListItemTextActive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Botão Salvar */}
@@ -619,14 +531,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 18,
   },
-  dropdownsRow: { 
-    flexDirection: 'row', 
-    gap: 16, 
+  categoryContainer: {
     marginBottom: 18,
-    alignItems: 'flex-start',
-  },
-  dropdownColumn: { 
-    flex: 1,
   },
   dropdownButton: { 
     flexDirection: 'row', 

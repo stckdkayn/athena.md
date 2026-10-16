@@ -23,7 +23,6 @@ import {
   updateStatusBlocoEstudo,
   DbBlocoEstudo,
 } from '@/services/database';
-import { getAdjustedDailyBudget } from '@/services/scheduleService';
 import { gerarPlanoDiario, verificarEPlanejarAutomaticamente } from '@/services/schedulerService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
@@ -68,7 +67,6 @@ export default function DashboardScreen() {
   const [atividades, setAtividades] = useState<AtividadeAgenda[]>([]);
   const [blocosEstudo, setBlocosEstudo] = useState<DbBlocoEstudo[]>([]);
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => toLocalDateStr(new Date()));
-  const [limiteDiario, setLimiteDiario] = useState<number>(15);
   const [loading, setLoading] = useState<boolean>(true);
   const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
   const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
@@ -175,7 +173,6 @@ export default function DashboardScreen() {
             hora_inicio: b.hora_inicio || undefined,
             hora_fim: b.hora_fim || undefined,
             detalhes: detalhesTexto,
-            feedback_cansaco: b.tipo === 'questoes' ? 3 : b.tipo === 'videoaula' ? 2 : 1,
           };
         });
       } else {
@@ -222,21 +219,11 @@ export default function DashboardScreen() {
             icone,
             concluida: p.concluido === 1,
             detalhes: detalhesTexto || undefined,
-            feedback_cansaco: p.tipo === 'questoes' ? 3 : p.tipo === 'aulas' ? 2 : 1,
           };
         });
       }
 
       setAtividades([...dadosAgenda, ...itensEstudo]);
-
-      // 3. Calcula a data do dia anterior (para verificar eventual "dívida de cansaço")
-      const dataAtual = new Date(dataSelecionada + 'T12:00:00Z');
-      dataAtual.setDate(dataAtual.getDate() - 1);
-      const dataAnteriorISO = toLocalDateStr(dataAtual);
-
-      // 4. Busca o orçamento ajustado (limite dinâmico)
-      const orcamentoAjustado = await getAdjustedDailyBudget(dataSelecionada, dataAnteriorISO);
-      setLimiteDiario(orcamentoAjustado);
     } catch (error) {
       console.error('[Dashboard] Erro ao carregar agenda:', error);
     } finally {
@@ -483,21 +470,6 @@ export default function DashboardScreen() {
               </View>
 
               <View style={styles.badgesRow}>
-                {/* Badge Athena AI para blocos gerados */}
-                {item.id?.startsWith('bloco_') && (
-                  <View style={styles.aiBadge}>
-                    <Feather name="zap" size={10} color={Colors.primary} />
-                    <Text style={styles.aiBadgeText}>ATHENA AI</Text>
-                  </View>
-                )}
-
-                {/* Badge de Demanda Cognitiva */}
-                {typeof item.feedback_cansaco === 'number' && item.feedback_cansaco > 0 && (
-                  <View style={styles.energyBadge}>
-                    <Text style={styles.energyBadgeText}>⚡ {item.feedback_cansaco}</Text>
-                  </View>
-                )}
-
                 {/* Badge de Categoria */}
                 <View style={[styles.typeBadge, { borderColor: `${corBase}40` }]}>
                   <Text style={[styles.typeBadgeText, { color: corBase }]}>{item.tipo.toUpperCase()}</Text>
@@ -900,19 +872,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  energyBadge: {
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.3)',
-  },
-  energyBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
   typeBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -1017,23 +976,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
-  },
-  aiBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.3)',
-    gap: 3,
-  },
-  aiBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.3,
   },
   praticarBtn: {
     flexDirection: 'row',
