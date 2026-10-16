@@ -75,12 +75,11 @@ export default function DashboardScreen() {
   // Busca o nome do usuário salvo localmente ou fallback
   const userName = storage.getString('@athena_user_name') || '';
 
-  // Lógica de Saudação (Sol/Lua com Feather Icons)
+  // Lógica de Saudação (Sol/Lua com Ionicons Preenchidos)
   const getGreeting = () => {
     const hour = new Date().getHours();
     const nome = userName && userName.trim() ? userName.trim() : 'Dr.';
-    if (hour >= 5 && hour < 12) return { text: `Bom dia, ${nome}!`, icon: 'sunrise' as const };
-    if (hour >= 12 && hour < 18) return { text: `Boa tarde, ${nome}!`, icon: 'sun' as const };
+    if (hour >= 5 && hour < 18) return { text: hour < 12 ? `Bom dia, ${nome}!` : `Boa tarde, ${nome}!`, icon: 'sunny' as const };
     return { text: `Boa noite, ${nome}!`, icon: 'moon' as const };
   };
   const greeting = getGreeting();
@@ -385,7 +384,7 @@ export default function DashboardScreen() {
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <Feather name="sunrise" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
+            <Ionicons name="sunny" size={20} color={isPastOrCurrent ? Colors.text : '#656B73'} style={{ marginBottom: 4 }} />
             <Text style={[styles.timeText, isPastOrCurrent ? { color: Colors.text } : styles.timeTextPast]}>06:00</Text>
             {renderDottedProgress(timePassed)}
           </View>
@@ -398,7 +397,7 @@ export default function DashboardScreen() {
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <Feather
+            <Ionicons
               name="moon"
               size={20}
               color={isPastOrCurrent ? Colors.text : '#656B73'}
@@ -533,7 +532,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Text style={styles.greeting}>{greeting.text}</Text>
-          <Feather name={greeting.icon} size={24} color={Colors.primary} />
+          <Ionicons name={greeting.icon} size={24} color={Colors.primary} />
         </View>
         <TouchableOpacity
           style={styles.calendarIconButton}
@@ -588,7 +587,7 @@ export default function DashboardScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
             <Text style={styles.boardSubtitle}>
-              Você completou {concluidas}/{total} {total === 1 ? 'atividade programada' : 'atividades programadas'} para {getRelativeDateTitle(dataSelecionada).toLowerCase()}!
+              {concluidas} de {total} {total === 1 ? 'atividade completa' : 'atividades completas'} hoje!
             </Text>
           </View>
         </View>
