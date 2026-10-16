@@ -833,6 +833,9 @@ export default function DashboardScreen() {
           contentContainerStyle={styles.weekSelectorList}
           renderItem={({ item }) => {
             const isSelected = item.dataISO === dataSelecionada;
+            const todayStr = toLocalDateStr(new Date());
+            const isToday = item.dataISO === todayStr;
+
             return (
               <TouchableOpacity
                 style={[styles.dayPill, isSelected && styles.dayPillActive]}
@@ -840,14 +843,17 @@ export default function DashboardScreen() {
                 activeOpacity={0.7}
               >
                 <View style={[styles.dayWeekContainer, isSelected && styles.dayWeekContainerActive]}>
-                  <Text style={[styles.dayWeekText, isSelected && styles.dayTextActive]}>
+                  <Text style={[styles.dayWeekText, isSelected && styles.dayWeekTextActive]}>
                     {item.diaSemana}
                   </Text>
                 </View>
                 <View style={styles.dayMonthContainer}>
-                  <Text style={[styles.dayMonthText, isSelected && styles.dayTextActive]}>
+                  <Text style={[styles.dayMonthText, isSelected && styles.dayMonthTextActive]}>
                     {item.diaMes}
                   </Text>
+                  {isToday && (
+                    <View style={[styles.todayIndicatorDot, isSelected && styles.todayIndicatorDotActive]} />
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -1148,24 +1154,26 @@ const styles = StyleSheet.create({
   },
   dayPillActive: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.primary,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(234, 225, 21, 0.08)',
   },
   dayWeekContainer: {
     backgroundColor: '#1c1f22',
     width: '100%',
     alignItems: 'center',
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#282b2e',
   },
   dayWeekContainerActive: {
-    backgroundColor: '#D1CA10',
-    borderBottomColor: '#B8B20E',
+    backgroundColor: 'rgba(234, 225, 21, 0.14)',
+    borderBottomColor: 'rgba(234, 225, 21, 0.28)',
   },
   dayMonthContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingBottom: 2,
   },
   dayWeekText: {
     fontSize: 11,
@@ -1174,14 +1182,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: Fonts.bold,
   },
+  dayWeekTextActive: {
+    color: Colors.primary,
+    fontWeight: '800',
+  },
   dayMonthText: {
     fontSize: 16,
     color: Colors.text,
     fontWeight: 'bold',
     fontFamily: Fonts.bold,
   },
-  dayTextActive: {
-    color: '#000000',
+  dayMonthTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  todayIndicatorDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.textSecondary,
+    marginTop: 2,
+  },
+  todayIndicatorDotActive: {
+    backgroundColor: Colors.primary,
   },
 
   /* 3. Board Container */
@@ -1263,17 +1286,19 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   nowDotPill: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 4, // Reduzido para caber na coluna
-    paddingVertical: 3,
-    borderRadius: 8, // Borda um pouco menor para acompanhar o tamanho
+    backgroundColor: 'rgba(234, 225, 21, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(234, 225, 21, 0.6)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   nowDotText: {
-    color: '#000000',
-    fontSize: 8, // Fonte reduzida para não quebrar linha
+    color: Colors.primary,
+    fontSize: 8,
     fontWeight: '800',
     fontFamily: Fonts.extraBold,
-    letterSpacing: 0.5, // Dá um pequeno respiro entre as letras
+    letterSpacing: 0.5,
   },
   anchorRow: {
     flexDirection: 'row',
