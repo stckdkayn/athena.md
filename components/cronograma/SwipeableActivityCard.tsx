@@ -6,6 +6,7 @@ import {
   Animated,
   PanResponder,
   TouchableOpacity,
+  Easing,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -51,34 +52,34 @@ export default function SwipeableActivityCard({
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dx < -65) {
-          // Limiar atingido: aciona a conclusão com feedback
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 7,
-            tension: 40,
-            useNativeDriver: true,
-          }).start();
+          // Limiar atingido: aciona a conclusão
           onSwipeComplete();
-        } else {
-          // Não atingiu o limiar: volta suavemente ao início
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 7,
-            tension: 40,
-            useNativeDriver: true,
-          }).start();
         }
+        // Retorna normalmente de forma suave, sem animação de mola
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }).start();
       },
       onPanResponderTerminate: () => {
-        Animated.spring(translateX, {
+        Animated.timing(translateX, {
           toValue: 0,
-          friction: 7,
-          tension: 40,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }).start();
       },
     })
   ).current;
+
+  // Opacidade do fundo verde: 0 em repouso (evita vazamento em cantos arredondados)
+  const bgOpacity = translateX.interpolate({
+    inputRange: [-30, -8, 0],
+    outputRange: [1, 0.3, 0],
+    extrapolate: 'clamp',
+  });
 
   // Animação de escala e opacidade do ícone de check verde conforme o card é arrastado
   const iconOpacity = translateX.interpolate({
@@ -95,8 +96,8 @@ export default function SwipeableActivityCard({
 
   return (
     <View style={styles.cardWrapper}>
-      {/* Fundo verde escondido com ícone de check revelado ao arrastar */}
-      <View style={styles.swipeBackground}>
+      {/* Fundo verde escondido com ícone de check revelado apenas ao arrastar */}
+      <Animated.View style={[styles.swipeBackground, { opacity: bgOpacity }]}>
         <Animated.View
           style={[
             styles.checkIconContainer,
@@ -108,7 +109,7 @@ export default function SwipeableActivityCard({
         >
           <Ionicons name="checkmark" size={26} color="#FFFFFF" />
         </Animated.View>
-      </View>
+      </Animated.View>
 
       {/* Card da atividade com suporte ao gesto de arrasto da direita para a esquerda */}
       <Animated.View
@@ -126,9 +127,10 @@ export default function SwipeableActivityCard({
           <LinearGradient
             colors={
               item.concluida
-                ? [`${corBase}10`, '#1b1d1f', '#1b1d1f']
-                : [`${corBase}20`, Colors.surface, Colors.surface]
+                ? [`${corBase}12`, '#1b1d1f', '#1b1d1f']
+                : [`${corBase}25`, Colors.surface, Colors.surface]
             }
+            locations={[0, 0.55, 1]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
@@ -235,7 +237,7 @@ const styles = StyleSheet.create({
   },
   animatedCardContainer: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: '#181a1c',
     borderRadius: 14,
   },
   activityCard: {
