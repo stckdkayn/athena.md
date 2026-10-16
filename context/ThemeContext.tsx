@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved as ThemeMode;
     }
-    return 'dark'; // Padrão Notion Dark
+    return 'light'; // Padrão Notion Light
   });
 
   const [accentKey, setAccentKeyState] = useState<AccentColorKey>(() => {
@@ -46,7 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (saved && ACCENT_PALETTE[saved]) {
       return saved;
     }
-    return 'amarelo'; // Padrão Athena Dourado
+    return 'monocromatico'; // Padrão Notion Monocromático
   });
 
   const isDark = useMemo(() => {
@@ -57,18 +57,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [mode, deviceColorScheme]);
 
   const accentOption = useMemo(() => {
-    return ACCENT_PALETTE[accentKey] || ACCENT_PALETTE.amarelo;
+    return ACCENT_PALETTE[accentKey] || ACCENT_PALETTE.monocromatico;
   }, [accentKey]);
 
   const colors = useMemo<ActiveThemeColors>(() => {
     const base = isDark ? BASE_THEMES.dark : BASE_THEMES.light;
+    // No modo claro ou com accent monocromático: tudo preto, branco e variações de cinza
+    if (!isDark || accentKey === 'monocromatico') {
+      const isLightMono = !isDark;
+      return {
+        ...base,
+        primary: isLightMono ? '#37352F' : '#FFFFFF',
+        primarySubtle: isLightMono ? 'rgba(55, 53, 47, 0.08)' : 'rgba(255, 255, 255, 0.10)',
+        primaryBorder: isLightMono ? 'rgba(55, 53, 47, 0.16)' : 'rgba(255, 255, 255, 0.25)',
+      };
+    }
     return {
       ...base,
       primary: accentOption.color,
       primarySubtle: accentOption.subtle,
       primaryBorder: accentOption.border,
     };
-  }, [isDark, accentOption]);
+  }, [isDark, accentKey, accentOption]);
 
   const setMode = (newMode: ThemeMode) => {
     setModeState(newMode);
@@ -96,7 +106,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isDark,
       colors,
       theme: colors,
-      accentColor: accentOption.color,
+      accentColor: colors.primary,
       accentOption,
       setMode,
       setAccent,
@@ -113,21 +123,21 @@ export function useAppTheme(): ThemeContextData {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
     // Fallback gracioso caso chamado fora do Provider
-    const fallbackBase = BASE_THEMES.dark;
-    const fallbackAccent = ACCENT_PALETTE.amarelo;
+    const fallbackBase = BASE_THEMES.light;
+    const fallbackAccent = ACCENT_PALETTE.monocromatico;
     const fallbackColors: ActiveThemeColors = {
       ...fallbackBase,
-      primary: fallbackAccent.color,
-      primarySubtle: fallbackAccent.subtle,
-      primaryBorder: fallbackAccent.border,
+      primary: '#37352F',
+      primarySubtle: 'rgba(55, 53, 47, 0.08)',
+      primaryBorder: 'rgba(55, 53, 47, 0.16)',
     };
     return {
-      mode: 'dark',
-      accentKey: 'amarelo',
-      isDark: true,
+      mode: 'light',
+      accentKey: 'monocromatico',
+      isDark: false,
       colors: fallbackColors,
       theme: fallbackColors,
-      accentColor: fallbackAccent.color,
+      accentColor: '#37352F',
       accentOption: fallbackAccent,
       setMode: () => {},
       setAccent: () => {},

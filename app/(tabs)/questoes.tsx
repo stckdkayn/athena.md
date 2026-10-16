@@ -19,7 +19,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+import { Colors, ActiveThemeColors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import HealthIcon from '@/components/HealthIcon';
 
 import { storage } from '@/services/storage'; // <-- Importando MMKV
@@ -110,6 +111,8 @@ const normalizeText = (text: string): string => {
 };
 
 export default function TreinoScreen() {
+  const { colors: themeColors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
@@ -752,19 +755,19 @@ export default function TreinoScreen() {
       >
         {isSelected && (
           <View style={styles.selectedBadge}>
-            <Ionicons name="checkmark" size={12} color="#000000" />
+            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
             {selectedThemesCount > 1 && <Text style={styles.selectedBadgeCount}>{selectedThemesCount}</Text>}
           </View>
         )}
         <View style={styles.cardIconBox}>
-          <HealthIcon specialty={item.nome} size={40} color={Colors.primary} />
+          <HealthIcon specialty={item.nome} size={40} color={themeColors.primary} />
         </View>
         <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]} numberOfLines={1}>
           {item.nome}
         </Text>
         {matchedThemes && matchedThemes.length > 0 && !isSpecNameDirectMatch ? (
           <View style={styles.cardMatchThemeBadge}>
-            <Ionicons name="search" size={10} color={Colors.primary} style={{ marginRight: 3 }} />
+            <Ionicons name="search" size={10} color={themeColors.primary} style={{ marginRight: 3 }} />
             <Text style={styles.cardMatchThemeText} numberOfLines={1}>
               {matchedThemes[0]}{matchedThemes.length > 1 ? ` (+${matchedThemes.length - 1})` : ''}
             </Text>
@@ -782,11 +785,11 @@ export default function TreinoScreen() {
     if (searchText.trim().length > 0) {
       return (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconCircle}><Ionicons name="search-outline" size={36} color={Colors.primary} /></View>
+          <View style={styles.emptyIconCircle}><Ionicons name="search-outline" size={36} color={themeColors.primary} /></View>
           <Text style={styles.emptyTitle}>Nenhum resultado encontrado</Text>
           <Text style={styles.emptySubtitle}>Não encontramos especialidades ou temas correspondentes a "{searchText}".</Text>
-          <TouchableOpacity style={styles.emptyButton} activeOpacity={0.8} onPress={() => setSearchText('')}>
-            <Ionicons name="close-circle-outline" size={18} color="#000000" style={{ marginRight: 6 }} />
+          <TouchableOpacity style={styles.emptyButton} activeOpacity={0.7} onPress={() => setSearchText('')}>
+            <Ionicons name="close-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.emptyButtonText}>Limpar pesquisa</Text>
           </TouchableOpacity>
         </View>
@@ -794,11 +797,11 @@ export default function TreinoScreen() {
     }
     return (
       <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconCircle}><Ionicons name="file-tray-outline" size={36} color={Colors.primary} /></View>
+        <View style={styles.emptyIconCircle}><Ionicons name="file-tray-outline" size={36} color={themeColors.primary} /></View>
         <Text style={styles.emptyTitle}>O seu banco está vazio</Text>
         <Text style={styles.emptySubtitle}>Vá à aba Configurações para importar as suas questões.</Text>
-        <TouchableOpacity style={styles.emptyButton} activeOpacity={0.8} onPress={() => router.push('/configuracoes')}>
-          <Ionicons name="settings-outline" size={18} color="#000000" style={{ marginRight: 6 }} />
+        <TouchableOpacity style={styles.emptyButton} activeOpacity={0.7} onPress={() => router.push('/configuracoes')}>
+          <Ionicons name="settings-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={styles.emptyButtonText}>Ir para Configurações</Text>
         </TouchableOpacity>
       </View>
@@ -820,12 +823,12 @@ export default function TreinoScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar hidden={true} barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       {/* Cabeçalho Principal (Estilo Cronograma / Configurações) */}
       <View style={styles.headerContainer}>
         <View style={styles.headerTitleRow}>
-          <Ionicons name="document-text-outline" size={26} color={Colors.primary} style={styles.headerIcon} />
+          <Ionicons name="document-text-outline" size={26} color={themeColors.primary} style={styles.headerIcon} />
           <Text style={styles.headerTitle}>Questões</Text>
         </View>
         <Text style={styles.headerSubtitle}>Treine por temas e resolva questões para fixação</Text>
@@ -851,7 +854,7 @@ export default function TreinoScreen() {
             <Ionicons
               name={showSearch || searchText.length > 0 ? 'close' : 'search'}
               size={20}
-              color={showSearch || searchText.length > 0 ? Colors.primary : Colors.textSecondary}
+              color={showSearch || searchText.length > 0 ? themeColors.primary : themeColors.textSecondary}
             />
           </TouchableOpacity>
 
@@ -879,7 +882,7 @@ export default function TreinoScreen() {
             <Ionicons
               name="ellipsis-vertical"
               size={20}
-              color={isModoSimulado || filtroErros || filtroFavoritas ? Colors.primary : Colors.textSecondary}
+              color={isModoSimulado || filtroErros || filtroFavoritas ? themeColors.primary : themeColors.textSecondary}
             />
             {(isModoSimulado || filtroErros || filtroFavoritas) && <View style={styles.menuActiveDot} />}
           </TouchableOpacity>
@@ -936,7 +939,7 @@ export default function TreinoScreen() {
           {isModoSimulado ? (
             <View style={[styles.cartThemesWrapper, isLandscape && { maxWidth: 560, alignSelf: 'center', width: '100%' }]}>
               <View style={styles.simuladoBottomBanner}>
-                <MaterialCommunityIcons name="clipboard-text-clock-outline" size={15} color={Colors.primary} style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name="clipboard-text-clock-outline" size={15} color={themeColors.primary} style={{ marginRight: 6 }} />
                 <Text style={styles.simuladoBottomBannerText} numberOfLines={1}>
                   Modo Simulado • 20% por Grande Área (Automático)
                 </Text>
@@ -960,13 +963,13 @@ export default function TreinoScreen() {
                         }
                       }}
                     >
-                      {hasFilter && <Ionicons name="funnel" size={11} color={Colors.primary} style={{ marginRight: 4 }} />}
+                      {hasFilter && <Ionicons name="funnel" size={11} color={themeColors.primary} style={{ marginRight: 4 }} />}
                       <Text style={[styles.cartThemeChipText, hasFilter && styles.cartThemeChipTextFiltered]} numberOfLines={1}>
                         {item.microFocos?.[0] ? `${item.tema}: ${item.microFocos[0]}` : item.focos?.[0] ? `${item.tema}: ${item.focos[0]}` : item.tema}
                         {hasFilter && item.filterCount ? ` (${item.filterCount}q)` : ''}
                       </Text>
                       <TouchableOpacity onPress={() => removerTemaDoCarrinho(item)} style={styles.cartThemeRemoveButton} hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}>
-                        <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
+                        <Ionicons name="close-circle" size={16} color={themeColors.textSecondary} />
                       </TouchableOpacity>
                     </TouchableOpacity>
                   );
@@ -977,16 +980,16 @@ export default function TreinoScreen() {
 
           <View style={[styles.cartActionsRow, isLandscape && { maxWidth: 560, alignSelf: 'center', width: '100%' }]}>
             {activeSession ? (
-              <TouchableOpacity style={styles.cartStartButton} activeOpacity={0.85} onPress={continuarQuiz}>
-                <Ionicons name="play-forward" size={20} color="#000000" style={{ marginRight: 8 }} />
+              <TouchableOpacity style={styles.cartStartButton} activeOpacity={0.7} onPress={continuarQuiz}>
+                <Ionicons name="play-forward" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                 <Text style={styles.cartStartButtonText} numberOfLines={1}>
                   Continuar Questões ({activeSession.currentIndex + 1}/{activeSession.totalQuestions})
                 </Text>
               </TouchableOpacity>
             ) : (
               <>
-                <TouchableOpacity style={styles.cartStartButton} activeOpacity={0.85} onPress={iniciarQuiz}>
-                  <Ionicons name="play" size={20} color="#000000" style={{ marginRight: 8 }} />
+                <TouchableOpacity style={styles.cartStartButton} activeOpacity={0.7} onPress={iniciarQuiz}>
+                  <Ionicons name="play" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cartStartButtonText} numberOfLines={1}>
                       {isModoSimulado
@@ -1020,7 +1023,7 @@ export default function TreinoScreen() {
                     maxLength={3}
                     selectTextOnFocus
                     placeholder="20"
-                    placeholderTextColor={Colors.textSecondary}
+                    placeholderTextColor={themeColors.textSecondary}
                   />
                 </View>
               </>
@@ -1416,446 +1419,446 @@ export default function TreinoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  headerContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2e3235',
-    backgroundColor: '#141617',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 20,
-    textAlign: 'left',
-  },
-  topHeaderContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 6,
-  },
-  topHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 40,
-  },
-  searchIconButton: {
-    width: 38,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 19,
-  },
-  searchIconButtonActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-  },
-  topHeaderCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  screenMainTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-    textAlign: 'center',
-  },
-  topHeaderCartSubtext: {
-    fontSize: 11,
-    color: Colors.primary,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  menuIconButton: {
-    width: 38,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 19,
-    position: 'relative',
-  },
-  menuIconButtonActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-  },
-  menuActiveDot: {
-    position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-  },
-  searchBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#24272B',
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    marginTop: 10,
-  },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, color: '#FFFFFF', fontSize: 14, height: '100%', paddingVertical: 0 },
-  searchSummaryContainer: { paddingVertical: 8, paddingHorizontal: 4, marginBottom: 4 },
-  searchSummaryText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.background },
+    headerContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      backgroundColor: theme.background,
+    },
+    headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    headerIcon: {
+      marginRight: 10,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.5,
+    },
+    headerSubtitle: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 4,
+      lineHeight: 20,
+      textAlign: 'left',
+    },
+    topHeaderContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 6,
+    },
+    topHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 40,
+    },
+    searchIconButton: {
+      width: 38,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 19,
+    },
+    searchIconButtonActive: {
+      backgroundColor: theme.primarySubtle,
+    },
+    topHeaderCenter: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+    },
+    screenMainTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.text,
+      letterSpacing: -0.3,
+      textAlign: 'center',
+    },
+    topHeaderCartSubtext: {
+      fontSize: 11,
+      color: theme.primary,
+      fontWeight: '700',
+      marginTop: 2,
+    },
+    menuIconButton: {
+      width: 38,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 19,
+      position: 'relative',
+    },
+    menuIconButtonActive: {
+      backgroundColor: theme.primarySubtle,
+    },
+    menuActiveDot: {
+      position: 'absolute',
+      top: 7,
+      right: 7,
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: theme.primary,
+    },
+    searchBarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 12,
+      paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+      marginTop: 10,
+    },
+    searchIcon: { marginRight: 8 },
+    searchInput: { flex: 1, color: theme.text, fontSize: 14, height: '100%', paddingVertical: 0 },
+    searchSummaryContainer: { paddingVertical: 8, paddingHorizontal: 4, marginBottom: 4 },
+    searchSummaryText: { fontSize: 13, color: theme.textSecondary, fontWeight: '600' },
 
-  headerSimuladoPill: {
-    backgroundColor: 'rgba(234, 225, 21, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.35)',
-    marginTop: 3,
-  },
-  headerSimuladoPillText: {
-    color: Colors.primary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
+    headerSimuladoPill: {
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      marginTop: 3,
+    },
+    headerSimuladoPillText: {
+      color: theme.primary,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
 
-  simuladoBottomBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  simuladoBottomBannerText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
+    simuladoBottomBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primarySubtle,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      alignSelf: 'flex-start',
+      marginBottom: 4,
+    },
+    simuladoBottomBannerText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.primary,
+      textTransform: 'uppercase',
+    },
 
-  // Menu de Contexto (Dropdown Flutuante)
-  contextMenuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-  },
-  contextMenuContainer: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 144 : 138,
-    right: 14,
-    width: 295,
-    backgroundColor: Colors.background,
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderWidth: 1.5,
-    borderColor: '#26292E',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 14,
-  },
-  contextMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-  },
-  contextIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 11,
-  },
-  contextCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#4B5563',
-    backgroundColor: '#1A1C1E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contextCheckboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  contextMenuLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#D1D5DB',
-  },
-  contextMenuLabelActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  contextHelpBtn: {
-    padding: 6,
-    marginRight: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contextMenuDivider: {
-    height: 1,
-    backgroundColor: '#202327',
-    marginVertical: 4,
-    marginHorizontal: 8,
-  },
+    // Menu de Contexto (Dropdown Flutuante)
+    contextMenuBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    },
+    contextMenuContainer: {
+      position: 'absolute',
+      top: Platform.OS === 'ios' ? 144 : 138,
+      right: 14,
+      width: 295,
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      paddingVertical: 8,
+      paddingHorizontal: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      elevation: isDark ? 8 : 1,
+      shadowOpacity: isDark ? 0.3 : 0.05,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 8,
+    },
+    contextMenuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: 10,
+    },
+    contextIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 11,
+    },
+    contextCheckbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.backgroundSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    contextCheckboxChecked: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    contextMenuLabel: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+    },
+    contextMenuLabelActive: {
+      color: theme.text,
+      fontWeight: '700',
+    },
+    contextHelpBtn: {
+      padding: 6,
+      marginRight: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    contextMenuDivider: {
+      height: 1,
+      backgroundColor: theme.borderSubtle,
+      marginVertical: 4,
+      marginHorizontal: 8,
+    },
 
-  // Modal Explicativo do Modo Simulado
-  simuladoInfoBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  simuladoInfoDismiss: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  simuladoInfoCard: {
-    width: '100%',
-    maxWidth: 390,
-    backgroundColor: Colors.background,
-    borderRadius: 22,
-    padding: 22,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#26292E',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  simuladoInfoIconBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.3)',
-    marginBottom: 12,
-  },
-  simuladoInfoTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.3,
-  },
-  simuladoInfoSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginTop: 2,
-    marginBottom: 18,
-  },
-  simuladoInfoList: {
-    width: '100%',
-    gap: 10,
-    marginBottom: 20,
-  },
-  simuladoInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#141618',
-    padding: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#25292E',
-  },
-  simuladoInfoRowIcon: {
-    marginTop: 1,
-    marginRight: 10,
-  },
-  simuladoInfoRowTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#F3F4F6',
-    marginBottom: 2,
-  },
-  simuladoInfoRowDesc: {
-    fontSize: 11.5,
-    color: '#9CA3AF',
-    lineHeight: 16,
-  },
-  simuladoInfoBtn: {
-    backgroundColor: Colors.primary,
-    height: 46,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  simuladoInfoBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#000000',
-  },
+    // Modal Explicativo do Modo Simulado
+    simuladoInfoBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+    },
+    simuladoInfoDismiss: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+    },
+    simuladoInfoCard: {
+      width: '100%',
+      maxWidth: 390,
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      padding: 22,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+    simuladoInfoIconBox: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: theme.primarySubtle,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      marginBottom: 12,
+    },
+    simuladoInfoTitle: {
+      fontSize: 19,
+      fontWeight: '800',
+      color: theme.text,
+      textAlign: 'center',
+      letterSpacing: -0.3,
+    },
+    simuladoInfoSubtitle: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      fontWeight: '600',
+      marginTop: 2,
+      marginBottom: 18,
+    },
+    simuladoInfoList: {
+      width: '100%',
+      gap: 10,
+      marginBottom: 20,
+    },
+    simuladoInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: theme.backgroundSecondary,
+      padding: 11,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    simuladoInfoRowIcon: {
+      marginTop: 1,
+      marginRight: 10,
+    },
+    simuladoInfoRowTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+      marginBottom: 2,
+    },
+    simuladoInfoRowDesc: {
+      fontSize: 11.5,
+      color: theme.textSecondary,
+      lineHeight: 16,
+    },
+    simuladoInfoBtn: {
+      backgroundColor: theme.primary,
+      height: 46,
+      borderRadius: 12,
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+    simuladoInfoBtnText: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
 
-  contentContainer: { flex: 1, backgroundColor: Colors.background },
-  listContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
-  listHeaderContainer: { marginBottom: 14, paddingHorizontal: 2 },
-  listHeaderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
-  sectionMainTitle: { fontSize: 17, fontWeight: '700', color: Colors.text, letterSpacing: -0.3 },
-  cartBadgeContainer: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, marginTop: 6 },
-  cartBadgeText: { fontSize: 11, fontWeight: '800', color: '#000000', letterSpacing: 0.2 },
-  columnWrapper: { justifyContent: 'space-between', marginBottom: 12 },
-  bottomDrawer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopLeftRadius: 25, borderTopRightRadius: 25, overflow: 'hidden', paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#2f3337', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 12, zIndex: 999 },
-  cartActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cartStartButton: { flex: 1, height: 54, backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 14, shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
-  cartStartButtonText: { color: '#000000', fontSize: 14, fontWeight: '800' },
-  cartStartButtonSubtext: { fontSize: 11, fontWeight: '600', color: '#1a1a1a', marginTop: 1 },
-  limitBox: { width: 78, height: 54, backgroundColor: Colors.surface, borderRadius: 14, borderWidth: 1.5, borderColor: '#2e3235', alignItems: 'center', justifyContent: 'center', paddingVertical: 4, paddingHorizontal: 6 },
-  limitLabel: { fontSize: 8.5, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.5, marginBottom: 1 },
-  limitInput: { fontSize: 18, fontWeight: '800', color: Colors.primary, textAlign: 'center', padding: 0, margin: 0, width: '100%' },
-  cartThemesWrapper: { marginBottom: 10, marginTop: 2 },
-  cartThemesScrollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2, paddingHorizontal: 2 },
-  cartThemeChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#22262a', borderWidth: 1, borderColor: '#3a3e42', borderRadius: 20, paddingVertical: 6, paddingLeft: 12, paddingRight: 8, gap: 6 },
-  cartThemeChipText: { fontSize: 12, fontWeight: '600', color: Colors.text, maxWidth: 160 },
-  cartThemeRemoveButton: { alignItems: 'center', justifyContent: 'center' },
-  gridCard: { width: '48.5%', minHeight: 140, backgroundColor: Colors.surface, borderRadius: 16, paddingVertical: 20, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#2e3235', elevation: 3, position: 'relative' },
-  gridCardSelected: { borderColor: Colors.primary, backgroundColor: '#27291a' },
-  selectedBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 12, gap: 2 },
-  selectedBadgeCount: { fontSize: 10, fontWeight: '800', color: '#000000' },
-  cardIconBox: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 6 },
-  cardTitleSelected: { color: '#FFFFFF' },
-  cardCount: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary, textAlign: 'center' },
-  cardCountSelected: { color: Colors.primary, fontWeight: '700' },
-  cardMatchThemeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(234, 225, 21, 0.12)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.3)', maxWidth: '96%', marginTop: 2 },
-  cardMatchThemeText: { fontSize: 11, fontWeight: '700', color: Colors.primary, flexShrink: 1 },
-  emptyContainer: { marginTop: 60, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: '#2e3235', elevation: 2 },
-  emptyIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20, paddingHorizontal: 8 },
-  emptyButton: { backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, elevation: 3 },
-  emptyButtonText: { color: '#000000', fontSize: 14, fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.75)', justifyContent: 'flex-end' },
-  modalDismissArea: { flex: 1 },
-  modalContent: { backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderColor: '#2e3235', maxHeight: '88%', minHeight: '65%', paddingBottom: Platform.OS === 'ios' ? 32 : 20 },
-  modalHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#3e4347', alignSelf: 'center', marginTop: 10, marginBottom: 12 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 14 },
-  modalHeaderInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
-  modalIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 1, borderColor: '#2e3235' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  modalSubtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-  modalCloseButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2e3235' },
-  modalSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: '#2e3235', marginBottom: 10 },
-  modalSearchInput: { flex: 1, fontSize: 14, color: Colors.text, height: '100%' },
-  modalActionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
-  modalActionsSummary: { fontSize: 13, color: Colors.textSecondary },
-  modalSelectAllButton: { fontSize: 13, fontWeight: '700', color: Colors.primary },
-  modalLoadingContainer: { paddingVertical: 50, alignItems: 'center', justifyContent: 'center' },
-  modalLoadingText: { marginTop: 12, fontSize: 14, color: Colors.textSecondary },
-  modalColumnWrapper: { justifyContent: 'space-between', marginBottom: 10 },
-  modalListContent: { paddingHorizontal: 20, paddingBottom: 16 },
-  themeGridCard: { width: '48.5%', minHeight: 96, backgroundColor: Colors.surface, borderRadius: 12, padding: 12, borderWidth: 1.5, borderColor: '#2e3235', position: 'relative', justifyContent: 'space-between' },
-  themeGridCardSelected: { borderColor: Colors.primary, backgroundColor: '#27291a' },
-  themeCheckHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  cardFilterIconBtn: { padding: 2, borderRadius: 6 },
-  themeGridCardFiltered: { borderColor: Colors.primary, borderWidth: 1.5, backgroundColor: '#27291a' },
-  themeCardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  cardFilterPill: { backgroundColor: 'rgba(234, 225, 21, 0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.35)' },
-  cardFilterPillText: { fontSize: 9, fontWeight: '800', color: Colors.primary, letterSpacing: 0.2 },
-  cartThemeChipFiltered: { borderColor: Colors.primary, backgroundColor: '#222518' },
-  cartThemeChipTextFiltered: { color: Colors.primary, fontWeight: '700' },
-  themeCheckCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#3e4347', alignItems: 'center', justifyContent: 'center' },
-  themeCheckCircleSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  themeCardTitle: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 4 },
-  themeCardTitleSelected: { color: '#FFFFFF' },
-  themeMatchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(234, 225, 21, 0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.3)', marginBottom: 4, alignSelf: 'flex-start', maxWidth: '100%' },
-  themeMatchBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.primary, flexShrink: 1 },
-  themeCardCount: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' },
-  themeCardCountSelected: { color: Colors.primary, fontWeight: '700' },
-  modalEmptyContainer: { paddingVertical: 36, alignItems: 'center', justifyContent: 'center' },
-  modalEmptyText: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
-  modalFooter: { paddingHorizontal: 20, paddingTop: 10 },
-  modalDoneButton: { backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  modalDoneButtonText: { fontSize: 15, fontWeight: '800', color: '#000000' },
-  activeSessionText: { color: Colors.primary, fontSize: 14, fontWeight: '800', textAlign: 'center', paddingVertical: 2 },
-  filtroOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.82)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, zIndex: 9999 },
-  filtroBackdropDismiss: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
-  filtroCard: { width: '100%', maxWidth: 420, maxHeight: '85%', backgroundColor: '#16181A', borderRadius: 20, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14, borderWidth: 1.5, borderColor: '#2A2E33', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 18, elevation: 10 },
-  filtroHeader: { marginBottom: 8 },
-  filtroHeaderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  filtroHeaderTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
-  filtroTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', flexShrink: 1 },
-  filtroCloseBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#202428', alignItems: 'center', justifyContent: 'center' },
-  filtroSubtitle: { fontSize: 12, color: '#8A9098', marginTop: 3 },
-  filtroSelectionToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#22262B', marginBottom: 6 },
-  filtroSelectionToolbarBtn: { flexDirection: 'row', alignItems: 'center' },
-  filtroSelectionToolbarBtnText: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
-  filtroSelectionCountText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
-  filtroScroll: { maxHeight: 340, marginVertical: 4 },
-  filtroScrollContent: { paddingVertical: 4, gap: 6 },
-  focoGroupSection: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#111315', borderWidth: 1, borderColor: '#22262B' },
-  focoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#151719' },
-  focoRowActive: { backgroundColor: 'rgba(234, 225, 21, 0.04)' },
-  focoTitle: { fontSize: 14, fontWeight: '700', color: '#D1D5DB', flex: 1 },
-  focoTitleActive: { color: '#FFFFFF', fontWeight: '800' },
-  focoBadgeCount: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginLeft: 6 },
-  microFocosSubList: { paddingLeft: 30, paddingRight: 12, paddingVertical: 4, backgroundColor: '#111315', borderTopWidth: 1, borderTopColor: '#1A1D20' },
-  microFocoCleanRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  microFocoCleanText: { fontSize: 12, fontWeight: '500', color: '#71767B', flex: 1 },
-  microFocoCleanTextActive: { color: '#E5E7EB', fontWeight: '600' },
-  microFocoCountText: { fontSize: 11, fontWeight: '500', color: '#525860', marginLeft: 6 },
-  filtroFooter: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#22262B', alignItems: 'center', gap: 6 },
-  filtroPrimaryBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderRadius: 12, height: 48 },
-  filtroPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: '#000000' },
-  filtroQuickStartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, paddingHorizontal: 12 },
-  filtroQuickStartBtnText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
-  filtroBtnDisabled: { opacity: 0.35 },
-  noThemesOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  noThemesBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  noThemesCard: { width: '100%', maxWidth: 380, backgroundColor: '#1a1d22', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#2e333b', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 12 },
-  noThemesIconBox: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(0, 229, 255, 0.12)', borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  noThemesTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', letterSpacing: -0.3, marginBottom: 8 },
-  noThemesDescription: { fontSize: 14, color: '#959ea8', textAlign: 'center', lineHeight: 21, marginBottom: 18 },
-  noThemesTipBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#22262d', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#2f353f', marginBottom: 20, width: '100%' },
-  noThemesTipText: { flex: 1, fontSize: 13, color: '#b0b8c2', lineHeight: 18 },
-  noThemesPrimaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, height: 48, borderRadius: 14, width: '100%', marginBottom: 8, shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-  noThemesPrimaryBtnText: { fontSize: 15, fontWeight: '700', color: '#000000' },
-  noThemesCloseBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10, width: '100%' },
-  noThemesCloseBtnText: { fontSize: 13, fontWeight: '600', color: '#717882' },
-});
+    contentContainer: { flex: 1, backgroundColor: theme.background },
+    listContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    listHeaderContainer: { marginBottom: 14, paddingHorizontal: 2 },
+    listHeaderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+    sectionMainTitle: { fontSize: 17, fontWeight: '700', color: theme.text, letterSpacing: -0.3 },
+    cartBadgeContainer: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder, marginTop: 6 },
+    cartBadgeText: { fontSize: 10, fontWeight: '700', color: theme.primary, textTransform: 'uppercase' },
+    columnWrapper: { justifyContent: 'space-between', marginBottom: 12 },
+    bottomDrawer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, elevation: 0, shadowOpacity: 0, zIndex: 999 },
+    cartActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    cartStartButton: { flex: 1, height: 52, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, elevation: 0, shadowOpacity: 0 },
+    cartStartButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+    cartStartButtonSubtext: { fontSize: 10, fontWeight: '600', color: 'rgba(255, 255, 255, 0.8)', marginTop: 1 },
+    limitBox: { width: 78, height: 52, backgroundColor: theme.surfaceCard, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, paddingHorizontal: 6 },
+    limitLabel: { fontSize: 8.5, fontWeight: '700', color: theme.textSecondary, letterSpacing: 0.5, marginBottom: 1 },
+    limitInput: { fontSize: 18, fontWeight: '800', color: theme.primary, textAlign: 'center', padding: 0, margin: 0, width: '100%' },
+    cartThemesWrapper: { marginBottom: 10, marginTop: 2 },
+    cartThemesScrollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2, paddingHorizontal: 2 },
+    cartThemeChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, borderWidth: 1, borderColor: theme.border, borderRadius: 20, paddingVertical: 6, paddingLeft: 12, paddingRight: 8, gap: 6 },
+    cartThemeChipText: { fontSize: 12, fontWeight: '600', color: theme.text, maxWidth: 160 },
+    cartThemeRemoveButton: { alignItems: 'center', justifyContent: 'center' },
+    gridCard: { width: '48.5%', minHeight: 140, backgroundColor: theme.surfaceCard, borderRadius: 16, paddingVertical: 20, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border, elevation: 0, shadowOpacity: 0, position: 'relative' },
+    gridCardSelected: { borderColor: theme.primary, backgroundColor: theme.primarySubtle },
+    selectedBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 2 },
+    selectedBadgeCount: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+    cardIconBox: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
+    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 6 },
+    cardTitleSelected: { color: theme.text },
+    cardCount: { fontSize: 12, fontWeight: '500', color: theme.textSecondary, textAlign: 'center' },
+    cardCountSelected: { color: theme.textSecondary, fontWeight: '700' },
+    cardMatchThemeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder, maxWidth: '96%', marginTop: 2 },
+    cardMatchThemeText: { fontSize: 10, fontWeight: '700', color: theme.primary, textTransform: 'uppercase', flexShrink: 1 },
+    emptyContainer: { marginTop: 60, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: theme.surfaceCard, borderRadius: 16, borderWidth: 1, borderColor: theme.border, elevation: 0 },
+    emptyIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.backgroundSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 },
+    emptySubtitle: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20, paddingHorizontal: 8 },
+    emptyButton: { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, elevation: 0 },
+    emptyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' },
+    modalDismissArea: { flex: 1 },
+    modalContent: { backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: theme.border, maxHeight: '88%', minHeight: '65%', paddingBottom: Platform.OS === 'ios' ? 32 : 20 },
+    modalHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: theme.borderSubtle, alignSelf: 'center', marginTop: 10, marginBottom: 12 },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 14 },
+    modalHeaderInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
+    modalIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.surfaceCard, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 1, borderColor: theme.border },
+    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text },
+    modalSubtitle: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    modalCloseButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: theme.surfaceCard, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.border },
+    modalSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceCard, marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: theme.border, marginBottom: 10 },
+    modalSearchInput: { flex: 1, fontSize: 14, color: theme.text, height: '100%' },
+    modalActionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
+    modalActionsSummary: { fontSize: 13, color: theme.textSecondary },
+    modalSelectAllButton: { fontSize: 13, fontWeight: '700', color: theme.primary },
+    modalLoadingContainer: { paddingVertical: 50, alignItems: 'center', justifyContent: 'center' },
+    modalLoadingText: { marginTop: 12, fontSize: 14, color: theme.textSecondary },
+    modalColumnWrapper: { justifyContent: 'space-between', marginBottom: 10 },
+    modalListContent: { paddingHorizontal: 20, paddingBottom: 16 },
+    themeGridCard: { width: '48.5%', minHeight: 96, backgroundColor: theme.surfaceCard, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.border, position: 'relative', justifyContent: 'space-between' },
+    themeGridCardSelected: { borderColor: theme.primary, backgroundColor: theme.primarySubtle },
+    themeCheckHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    cardFilterIconBtn: { padding: 2, borderRadius: 6 },
+    themeGridCardFiltered: { borderColor: theme.primary, borderWidth: 1, backgroundColor: theme.primarySubtle },
+    themeCardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+    cardFilterPill: { backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder },
+    cardFilterPillText: { fontSize: 9, fontWeight: '700', color: theme.primary, letterSpacing: 0.2, textTransform: 'uppercase' },
+    cartThemeChipFiltered: { borderColor: theme.primary, backgroundColor: theme.primarySubtle },
+    cartThemeChipTextFiltered: { color: theme.primary, fontWeight: '700' },
+    themeCheckCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
+    themeCheckCircleSelected: { backgroundColor: theme.primary, borderColor: theme.primary },
+    themeCardTitle: { fontSize: 13, fontWeight: '700', color: theme.text, marginBottom: 4 },
+    themeCardTitleSelected: { color: theme.text },
+    themeMatchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder, marginBottom: 4, alignSelf: 'flex-start', maxWidth: '100%' },
+    themeMatchBadgeText: { fontSize: 10, fontWeight: '700', color: theme.primary, textTransform: 'uppercase', flexShrink: 1 },
+    themeCardCount: { fontSize: 11, color: theme.textSecondary, fontWeight: '500' },
+    themeCardCountSelected: { color: theme.text, fontWeight: '700' },
+    modalEmptyContainer: { paddingVertical: 36, alignItems: 'center', justifyContent: 'center' },
+    modalEmptyText: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
+    modalFooter: { paddingHorizontal: 20, paddingTop: 10 },
+    modalDoneButton: { backgroundColor: theme.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    modalDoneButtonText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    activeSessionText: { color: theme.primary, fontSize: 14, fontWeight: '800', textAlign: 'center', paddingVertical: 2 },
+    filtroOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, zIndex: 9999 },
+    filtroBackdropDismiss: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
+    filtroCard: { width: '100%', maxWidth: 420, maxHeight: '85%', backgroundColor: theme.surface, borderRadius: 16, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14, borderWidth: 1, borderColor: theme.border, elevation: 0, shadowOpacity: 0 },
+    filtroHeader: { marginBottom: 8 },
+    filtroHeaderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    filtroHeaderTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
+    filtroTitle: { fontSize: 16, fontWeight: '800', color: theme.text, flexShrink: 1 },
+    filtroCloseBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.surfaceCard, alignItems: 'center', justifyContent: 'center' },
+    filtroSubtitle: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
+    filtroSelectionToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.borderSubtle, marginBottom: 6 },
+    filtroSelectionToolbarBtn: { flexDirection: 'row', alignItems: 'center' },
+    filtroSelectionToolbarBtnText: { fontSize: 12, fontWeight: '600', color: theme.textSecondary },
+    filtroSelectionCountText: { fontSize: 12, fontWeight: '700', color: theme.primary },
+    filtroScroll: { maxHeight: 340, marginVertical: 4 },
+    filtroScrollContent: { paddingVertical: 4, gap: 6 },
+    focoGroupSection: { borderRadius: 12, overflow: 'hidden', backgroundColor: theme.backgroundSecondary, borderWidth: 1, borderColor: theme.border },
+    focoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: theme.surfaceCard },
+    focoRowActive: { backgroundColor: theme.primarySubtle },
+    focoTitle: { fontSize: 14, fontWeight: '700', color: theme.text, flex: 1 },
+    focoTitleActive: { color: theme.text, fontWeight: '800' },
+    focoBadgeCount: { fontSize: 11, fontWeight: '600', color: theme.textSecondary, marginLeft: 6 },
+    microFocosSubList: { paddingLeft: 30, paddingRight: 12, paddingVertical: 4, backgroundColor: theme.backgroundSecondary, borderTopWidth: 1, borderTopColor: theme.borderSubtle },
+    microFocoCleanRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+    microFocoCleanText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary, flex: 1 },
+    microFocoCleanTextActive: { color: theme.text, fontWeight: '600' },
+    microFocoCountText: { fontSize: 11, fontWeight: '500', color: theme.textMuted, marginLeft: 6 },
+    filtroFooter: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.borderSubtle, alignItems: 'center', gap: 6 },
+    filtroPrimaryBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, borderRadius: 12, height: 48 },
+    filtroPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    filtroQuickStartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, paddingHorizontal: 12 },
+    filtroQuickStartBtnText: { fontSize: 12, fontWeight: '700', color: theme.primary },
+    filtroBtnDisabled: { opacity: 0.35 },
+    noThemesOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.65)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+    noThemesBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    noThemesCard: { width: '100%', maxWidth: 380, backgroundColor: theme.surface, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: theme.border, elevation: 0, shadowOpacity: 0 },
+    noThemesIconBox: { width: 60, height: 60, borderRadius: 30, backgroundColor: theme.primarySubtle, borderWidth: 1, borderColor: theme.primaryBorder, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    noThemesTitle: { fontSize: 20, fontWeight: '800', color: theme.text, textAlign: 'center', letterSpacing: -0.3, marginBottom: 8 },
+    noThemesDescription: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 21, marginBottom: 18 },
+    noThemesTipBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: theme.backgroundSecondary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: theme.border, marginBottom: 20, width: '100%' },
+    noThemesTipText: { flex: 1, fontSize: 13, color: theme.textSecondary, lineHeight: 18 },
+    noThemesPrimaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, height: 48, borderRadius: 14, width: '100%', marginBottom: 8, elevation: 0, shadowOpacity: 0 },
+    noThemesPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    noThemesCloseBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10, width: '100%' },
+    noThemesCloseBtnText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
+  });
+}

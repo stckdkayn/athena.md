@@ -1,6 +1,6 @@
 export type ThemeMode = 'dark' | 'light' | 'system';
 
-export type AccentColorKey = 'amarelo' | 'azul' | 'verde' | 'roxo' | 'coral';
+export type AccentColorKey = 'monocromatico' | 'amarelo' | 'azul' | 'verde' | 'roxo' | 'coral';
 
 export interface AccentOption {
   key: AccentColorKey;
@@ -11,6 +11,13 @@ export interface AccentOption {
 }
 
 export const ACCENT_PALETTE: Record<AccentColorKey, AccentOption> = {
+  monocromatico: {
+    key: 'monocromatico',
+    label: 'Notion Monocromático',
+    color: '#37352F',
+    subtle: 'rgba(55, 53, 47, 0.08)',
+    border: 'rgba(55, 53, 47, 0.16)',
+  },
   amarelo: {
     key: 'amarelo',
     label: 'Athena Dourado',
@@ -85,21 +92,21 @@ export const BASE_THEMES: Record<'dark' | 'light', ThemeTokens> = {
     warningSubtle: 'rgba(245, 158, 11, 0.15)',
   },
   light: {
-    background: '#F8F9FA',
-    backgroundSecondary: '#F1F3F5',
-    surface: '#FFFFFF',
-    surfaceCard: '#FFFFFF',
-    border: '#E2E5E9',
-    borderSubtle: '#ECEFF2',
-    text: '#111827',
-    textSecondary: '#4B5563',
-    textMuted: '#9CA3AF',
-    error: '#DC2626',
-    errorSubtle: 'rgba(220, 38, 38, 0.12)',
-    success: '#16A34A',
-    successSubtle: 'rgba(22, 163, 74, 0.12)',
+    background: '#FFFFFF',
+    backgroundSecondary: '#F7F7F5',
+    surface: '#F7F7F5',
+    surfaceCard: '#F7F7F5',
+    border: 'rgba(0, 0, 0, 0.06)',
+    borderSubtle: 'rgba(0, 0, 0, 0.04)',
+    text: '#37352F',
+    textSecondary: '#787774',
+    textMuted: '#9B9A97',
+    error: '#EB5757',
+    errorSubtle: 'rgba(235, 87, 87, 0.10)',
+    success: '#27AE60',
+    successSubtle: 'rgba(39, 174, 96, 0.10)',
     warning: '#D97706',
-    warningSubtle: 'rgba(217, 119, 6, 0.12)',
+    warningSubtle: 'rgba(217, 119, 6, 0.10)',
   },
 };
 
@@ -111,39 +118,46 @@ export interface ActiveThemeColors extends ThemeTokens {
 
 /**
  * Objeto legado para retrocompatibilidade imediata com telas existentes
+ * Padronizado agora com os valores Notion Light
  */
 export const Colors = {
-  background: '#141617',
-  surface: '#232628',
-  primary: '#EAE115',
-  text: '#FFFFFF',
-  textSecondary: '#A0A0A0',
-  error: '#FF4C4C',
-  success: '#4CAF50',
+  background: '#FFFFFF',
+  surface: '#F7F7F5',
+  primary: '#37352F',
+  text: '#37352F',
+  textSecondary: '#787774',
+  textMuted: '#9B9A97',
+  border: 'rgba(0, 0, 0, 0.06)',
+  error: '#EB5757',
+  success: '#27AE60',
   light: {
-    text: '#111827',
-    background: '#F8F9FA',
-    tint: '#EAE115',
-    tabIconDefault: '#9CA3AF',
-    tabIconSelected: '#EAE115',
+    text: '#37352F',
+    background: '#FFFFFF',
+    surface: '#F7F7F5',
+    tint: '#37352F',
+    tabIconDefault: '#787774',
+    tabIconSelected: '#37352F',
+    border: 'rgba(0, 0, 0, 0.06)',
   },
   dark: {
     text: '#FFFFFF',
     background: '#141617',
+    surface: '#232628',
     tint: '#EAE115',
     tabIconDefault: '#A0A0A0',
     tabIconSelected: '#EAE115',
+    border: '#2A2E33',
   },
 };
 
 export const CATEGORIA_CORES: Record<string, string> = {
-  'Estudos': '#3B82F6',   // Azul
-  'Estudo': '#3B82F6',    // Azul
-  'Faculdade': '#8B5CF6', // Roxo
-  'Saúde': '#10B981',     // Verde
-  'Pessoal': '#10B981',   // Verde
-  'Lazer': '#F59E0B',     // Amarelo
-  'default': '#9CA3AF',   // Cinza
+  'Estudos': '#37352F',
+  'Estudo': '#37352F',
+  'Faculdade': '#5A5955',
+  'Saúde': '#37352F',
+  'Pessoal': '#5A5955',
+  'Lazer': '#787774',
+  'default': '#787774',
 };
 
 /**

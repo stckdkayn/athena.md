@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
 import { storage } from '@/services/storage';
+import { useAppTheme } from '@/context/ThemeContext';
 
 interface NomeUsuarioModalProps {
   visible: boolean;
@@ -21,6 +21,7 @@ interface NomeUsuarioModalProps {
 }
 
 export function NomeUsuarioModal({ visible, onClose, onSave, initialName }: NomeUsuarioModalProps) {
+  const { theme, isDark } = useAppTheme();
   const [inputNome, setInputNome] = useState('');
 
   useEffect(() => {
@@ -53,29 +54,55 @@ export function NomeUsuarioModal({ visible, onClose, onSave, initialName }: Nome
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalOverlay}
+        style={[
+          styles.modalOverlay,
+          { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(0, 0, 0, 0.45)' },
+        ]}
       >
         <TouchableOpacity
           style={styles.modalBackdropTouch}
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.nameModalCard}>
+        <View
+          style={[
+            styles.nameModalCard,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           <View style={styles.nameModalHeader}>
-            <View style={styles.nameModalIconCircle}>
-              <Ionicons name="person-outline" size={24} color={Colors.primary} />
+            <View
+              style={[
+                styles.nameModalIconCircle,
+                { backgroundColor: theme.primarySubtle },
+              ]}
+            >
+              <Ionicons name="person-outline" size={24} color={theme.primary} />
             </View>
-            <Text style={styles.nameModalTitle}>Como prefere ser chamado(a)?</Text>
-            <Text style={styles.nameModalSubtitle}>
+            <Text style={[styles.nameModalTitle, { color: theme.text }]}>
+              Como prefere ser chamado(a)?
+            </Text>
+            <Text style={[styles.nameModalSubtitle, { color: theme.textSecondary }]}>
               Digite seu nome para personalizar a saudação na tela inicial.
             </Text>
           </View>
 
-          <View style={styles.nameInputContainer}>
+          <View
+            style={[
+              styles.nameInputContainer,
+              {
+                backgroundColor: isDark ? '#121416' : '#FFFFFF',
+                borderColor: theme.border,
+              },
+            ]}
+          >
             <TextInput
-              style={styles.nameInput}
+              style={[styles.nameInput, { color: theme.text }]}
               placeholder="Ex: Gabriel ou Dr. Gabriel"
-              placeholderTextColor="#71767b"
+              placeholderTextColor={theme.textSecondary}
               value={inputNome}
               onChangeText={setInputNome}
               autoFocus={true}
@@ -87,28 +114,47 @@ export function NomeUsuarioModal({ visible, onClose, onSave, initialName }: Nome
               <TouchableOpacity
                 onPress={() => setInputNome('')}
                 style={styles.nameInputClearBtn}
+                activeOpacity={0.7}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="close-circle" size={18} color="#71767b" />
+                <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.nameModalButtonsRow}>
             <TouchableOpacity
-              style={styles.nameModalCancelBtn}
+              style={[
+                styles.nameModalCancelBtn,
+                {
+                  backgroundColor: isDark ? '#26292d' : theme.background,
+                  borderColor: theme.border,
+                },
+              ]}
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <Text style={styles.nameModalCancelText}>Cancelar</Text>
+              <Text style={[styles.nameModalCancelText, { color: theme.textSecondary }]}>
+                Cancelar
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.nameModalSaveBtn}
+              style={[
+                styles.nameModalSaveBtn,
+                { backgroundColor: theme.primary },
+              ]}
               onPress={handleSalvar}
-              activeOpacity={0.85}
+              activeOpacity={0.7}
             >
-              <Text style={styles.nameModalSaveText}>Salvar</Text>
+              <Text
+                style={[
+                  styles.nameModalSaveText,
+                  { color: isDark ? '#000000' : '#FFFFFF' },
+                ]}
+              >
+                Salvar
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -117,11 +163,9 @@ export function NomeUsuarioModal({ visible, onClose, onSave, initialName }: Nome
   );
 }
 
-// Estilos extraídos do seu arquivo original
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
@@ -136,17 +180,12 @@ const styles = StyleSheet.create({
   nameModalCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#1A1D20',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#2E3338',
     padding: 22,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   nameModalHeader: {
     alignItems: 'center',
@@ -154,10 +193,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   nameModalIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -165,13 +203,11 @@ const styles = StyleSheet.create({
   nameModalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
   },
   nameModalSubtitle: {
     fontSize: 13,
-    color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 8,
@@ -180,18 +216,15 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121416',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#34383c',
+    borderRadius: 10,
+    borderWidth: 1,
     paddingHorizontal: 14,
     marginBottom: 22,
   },
   nameInput: {
     flex: 1,
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '600',
   },
   nameInputClearBtn: {
@@ -204,28 +237,25 @@ const styles = StyleSheet.create({
   },
   nameModalCancelBtn: {
     flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: '#26292d',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nameModalCancelText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#9ca3af',
   },
   nameModalSaveBtn: {
     flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nameModalSaveText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#000000',
   },
 });

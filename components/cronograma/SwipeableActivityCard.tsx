@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { AtividadeAgenda } from '@/services/database';
+import { useAppTheme } from '@/context/ThemeContext';
 
 interface SwipeableActivityCardProps {
   item: AtividadeAgenda;
@@ -29,6 +30,7 @@ export default function SwipeableActivityCard({
   onSwipeComplete,
   onStartQuiz,
 }: SwipeableActivityCardProps) {
+  const { colors: themeColors, isDark } = useAppTheme();
   const translateX = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
@@ -100,11 +102,9 @@ export default function SwipeableActivityCard({
     item.icone === 'document-text-outline' ||
     item.icone === 'check-square';
 
-  const isLightColor =
-    corBase?.toLowerCase() === Colors.primary.toLowerCase() ||
-    corBase?.toLowerCase() === '#eae119' ||
-    corBase?.toLowerCase() === '#facc15';
-  const playIconColor = isLightColor ? '#121214' : '#FFFFFF';
+  // No modo claro monocromático: ícones e destaques em preto/cinza Notion
+  const effectiveCorBase = isDark ? corBase : themeColors.text;
+  const playIconColor = '#FFFFFF';
 
   const isAulas =
     (item as any).passo_tipo === 'videoaula' ||
@@ -145,31 +145,32 @@ export default function SwipeableActivityCard({
       <Animated.View
         style={[
           styles.animatedCardContainer,
+          { backgroundColor: themeColors.surfaceCard },
+          item.concluida && styles.activityCardCompleted,
           { transform: [{ translateX }] },
         ]}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
           onPress={onPress}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
           style={{ flex: 1 }}
         >
-          <LinearGradient
-            colors={
-              item.concluida
-                ? [`${corBase}12`, '#1b1d1f', '#1b1d1f']
-                : [`${corBase}25`, Colors.surface, Colors.surface]
-            }
-            locations={[0, 0.55, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.activityCard, item.concluida && styles.activityCardCompleted]}
+          <View
+            style={[
+              styles.activityCard,
+              {
+                backgroundColor: themeColors.surfaceCard,
+                borderColor: item.concluida ? themeColors.borderSubtle : themeColors.border,
+              },
+            ]}
           >
             <View style={styles.cardContentRow}>
               <View style={styles.cardMainContent}>
                 <Text
                   style={[
                     styles.activityTitle,
+                    { color: themeColors.text },
                     item.concluida && styles.textStrikethrough,
                   ]}
                   numberOfLines={2}
@@ -180,37 +181,37 @@ export default function SwipeableActivityCard({
                 {/* Subtítulo: Label (Material / Tipo de Atividade) */}
                 {!!item.detalhes && (
                   <View style={styles.detailsRow}>
-                    <Text style={styles.detailsText} numberOfLines={2}>
+                    <Text style={[styles.detailsText, { color: themeColors.textSecondary }]} numberOfLines={2}>
                       {item.detalhes}
                     </Text>
                   </View>
                 )}
 
-                {/* Linha Meta: Horários, Indicador de Rotina e Botão Praticar */}
+                {/* Linha Meta: Horários, Indicador de Rotina */}
                 <View style={styles.metaRow}>
                   {item.hora_fim ? (
                     <View style={styles.timeRangeBox}>
                       <Ionicons
                         name="time-outline"
                         size={12}
-                        color={Colors.textSecondary}
+                        color={themeColors.textSecondary}
                         style={{ marginRight: 4 }}
                       />
-                      <Text style={styles.timeRangeText}>
+                      <Text style={[styles.timeRangeText, { color: themeColors.textSecondary }]}>
                         {item.hora_inicio} - {item.hora_fim}
                       </Text>
                     </View>
                   ) : null}
 
                   {item.isVirtual && (
-                    <View style={styles.routineBox}>
+                    <View style={[styles.routineBox, { backgroundColor: themeColors.primarySubtle }]}>
                       <Ionicons
                         name="repeat"
-                        size={11}
-                        color={Colors.primary}
+                        size={10}
+                        color={themeColors.text}
                         style={{ marginRight: 3 }}
                       />
-                      <Text style={styles.routineText}>Rotina</Text>
+                      <Text style={[styles.routineText, { color: themeColors.text }]}>ROTINA</Text>
                     </View>
                   )}
                 </View>
@@ -227,37 +228,37 @@ export default function SwipeableActivityCard({
                   activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <View style={[styles.playButtonCircle, { backgroundColor: corBase }]}>
+                  <View style={[styles.playButtonCircle, { backgroundColor: effectiveCorBase }]}>
                     <Ionicons
                       name="play"
-                      size={18}
+                      size={17}
                       color={playIconColor}
-                      style={{ marginLeft: 2.5 }}
+                      style={{ marginLeft: 2 }}
                     />
                   </View>
-                  <Text style={[styles.iniciarUnderText, { color: corBase }]}>iniciar</Text>
+                  <Text style={[styles.iniciarUnderText, { color: themeColors.textSecondary }]}>INICIAR</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.cardRightIconWrapper}>
                   {isAulas ? (
-                    <Ionicons name="laptop-outline" size={36} color={corBase} />
+                    <Ionicons name="laptop-outline" size={32} color={effectiveCorBase} />
                   ) : isApostila ? (
-                    <Ionicons name="library-outline" size={36} color={corBase} />
+                    <Ionicons name="library-outline" size={32} color={effectiveCorBase} />
                   ) : isFlashcards ? (
-                    <Ionicons name="flash-outline" size={36} color={corBase} />
+                    <Ionicons name="flash-outline" size={32} color={effectiveCorBase} />
                   ) : item.icone === 'calendar' ? (
-                    <Ionicons name="calendar-outline" size={34} color={corBase} />
+                    <Ionicons name="calendar-outline" size={30} color={effectiveCorBase} />
                   ) : (
                     <Feather
                       name={(item.icone as any) || 'circle'}
-                      size={34}
-                      color={corBase}
+                      size={30}
+                      color={effectiveCorBase}
                     />
                   )}
                 </View>
               )}
             </View>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -285,7 +286,6 @@ const styles = StyleSheet.create({
   },
   animatedCardContainer: {
     flex: 1,
-    backgroundColor: '#181a1c',
     borderRadius: 14,
   },
   activityCard: {
@@ -293,12 +293,11 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#2e3235',
+    borderColor: 'rgba(0, 0, 0, 0.06)',
     overflow: 'hidden',
   },
   activityCardCompleted: {
     opacity: 0.5,
-    borderColor: '#202325',
   },
   cardContentRow: {
     flexDirection: 'row',
@@ -319,11 +318,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.text,
   },
   textStrikethrough: {
     textDecorationLine: 'line-through',
-    color: Colors.textSecondary,
   },
   metaRow: {
     flexDirection: 'row',
@@ -338,21 +335,19 @@ const styles = StyleSheet.create({
   timeRangeText: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
   },
   routineBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: 4,
   },
   routineText: {
     fontSize: 10,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.primary,
+    letterSpacing: 0.4,
   },
   detailsRow: {
     marginTop: 4,
@@ -361,7 +356,6 @@ const styles = StyleSheet.create({
   detailsText: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
     lineHeight: 16,
   },
   cardRightQuestoesWrapper: {
@@ -372,22 +366,19 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   playButtonCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   iniciarUnderText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts.bold,
     fontWeight: '700',
     marginTop: 3,
-    letterSpacing: 0.2,
+    letterSpacing: 0.5,
   },
 });

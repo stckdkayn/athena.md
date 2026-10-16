@@ -725,9 +725,9 @@ export default function DesempenhoScreen() {
                   </View>
                   <View style={styles.reviewSm2Button}>
                     {gerandoSessaoSM2 ? (
-                      <ActivityIndicator size="small" color="#000000" />
+                      <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Ionicons name="play" size={14} color="#000000" />
+                      <Ionicons name="play" size={14} color="#FFFFFF" />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -1082,31 +1082,33 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     },
     cardBadge: {
       backgroundColor: theme.primarySubtle,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
       borderWidth: 1,
       borderColor: theme.primaryBorder,
     },
     cardBadgeText: {
-      fontSize: 10.5,
+      fontSize: 10,
       fontWeight: '700',
       color: theme.primary,
+      textTransform: 'uppercase',
     },
 
     /* Saúde da Memória (SM-2) */
     memoryTotalBadge: {
-      backgroundColor: 'rgba(59, 130, 246, 0.12)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
       borderWidth: 1,
-      borderColor: 'rgba(59, 130, 246, 0.25)',
+      borderColor: theme.primaryBorder,
     },
     memoryTotalBadgeText: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '700',
-      color: '#3B82F6',
+      color: theme.primary,
+      textTransform: 'uppercase',
     },
     memoryBarContainer: {
       flexDirection: 'row',

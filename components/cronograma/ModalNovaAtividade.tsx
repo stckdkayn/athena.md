@@ -15,6 +15,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
+import { useAppTheme } from '@/context/ThemeContext';
 import { criarNovaAtividade, atualizarAtividade, excluirAtividade } from '@/services/database';
 import { gerarPlanoDiario } from '@/services/schedulerService';
 
@@ -66,6 +67,7 @@ export default function ModalNovaAtividade({
   dataInicial,
   atividadeEmEdicao,
 }: Props) {
+  const { theme, isDark } = useAppTheme();
   const [titulo, setTitulo] = useState('');
   const [detalhes, setDetalhes] = useState('');
   const [tipo, setTipo] = useState('Pessoal');
@@ -239,18 +241,35 @@ export default function ModalNovaAtividade({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
+        style={[
+          styles.overlay,
+          { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.45)' },
+        ]}
       >
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.modalContent}>
+        <View
+          style={[
+            styles.modalContent,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
-              <Ionicons name="calendar" size={20} color={Colors.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.modalTitle}>{atividadeEmEdicao ? 'Editar Evento' : 'Novo Evento'}</Text>
+              <Ionicons name="calendar" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {atividadeEmEdicao ? 'Editar Evento' : 'Novo Evento'}
+              </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -262,29 +281,49 @@ export default function ModalNovaAtividade({
             {/* Input e Ícone Separados */}
             <View style={styles.mainInputContainer}>
               <TouchableOpacity 
-                style={styles.iconBox} 
+                style={[
+                  styles.iconBox,
+                  {
+                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    borderColor: theme.border,
+                  },
+                ]} 
                 onPress={() => setShowIconMenu(!showIconMenu)}
                 activeOpacity={0.7}
               >
-                <Feather name={iconeSelecionado as any} size={22} color={Colors.primary} />
+                <Feather name={iconeSelecionado as any} size={22} color={theme.primary} />
               </TouchableOpacity>
               
               <TextInput
-                style={styles.textInputBox}
+                style={[
+                  styles.textInputBox,
+                  {
+                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    borderColor: theme.border,
+                    color: theme.text,
+                  },
+                ]}
                 placeholder="Nome do evento..."
                 value={titulo}
                 onChangeText={setTitulo}
-                placeholderTextColor={Colors.textSecondary}
+                placeholderTextColor={theme.textSecondary}
               />
             </View>
 
             {/* NOVO CAMPO: Detalhes */}
             <TextInput
-              style={styles.detailsInputBox}
+              style={[
+                styles.detailsInputBox,
+                {
+                  backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
               placeholder="Detalhes..."
               value={detalhes}
               onChangeText={setDetalhes}
-              placeholderTextColor={Colors.textSecondary}
+              placeholderTextColor={theme.textSecondary}
               multiline={true}
               numberOfLines={4}
               textAlignVertical="top"
@@ -292,7 +331,7 @@ export default function ModalNovaAtividade({
 
             {/* SELETOR DE COR DO CARTÃO */}
             <View style={styles.colorSection}>
-              <Text style={styles.colorSectionTitle}>Cor do Cartão</Text>
+              <Text style={[styles.colorSectionTitle, { color: theme.textSecondary }]}>Cor do Cartão</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -302,16 +341,19 @@ export default function ModalNovaAtividade({
                 <TouchableOpacity
                   style={[
                     styles.colorCircle,
-                    { backgroundColor: '#2e3235', borderColor: '#4E5358' },
+                    {
+                      backgroundColor: isDark ? '#2e3235' : '#E9E9E7',
+                      borderColor: isDark ? '#4E5358' : '#D3D3D0',
+                    },
                     corSelecionada === null && styles.colorCircleSelected,
                   ]}
                   onPress={() => setCorSelecionada(null)}
                   activeOpacity={0.7}
                 >
                   {corSelecionada === null ? (
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={16} color={isDark ? '#FFFFFF' : '#37352F'} />
                   ) : (
-                    <Ionicons name="color-palette-outline" size={14} color="#A0A0A0" />
+                    <Ionicons name="color-palette-outline" size={14} color={theme.textSecondary} />
                   )}
                 </TouchableOpacity>
 
@@ -337,19 +379,51 @@ export default function ModalNovaAtividade({
             {/* Pop-up em Grelha para Seleção de Ícones */}
             {showIconMenu && (
               <Modal visible={showIconMenu} transparent animationType="fade" onRequestClose={() => setShowIconMenu(false)}>
-                <TouchableOpacity style={styles.gridOverlay} activeOpacity={1} onPress={() => setShowIconMenu(false)}>
-                  <View style={styles.gridContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.gridOverlay,
+                    { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.45)' },
+                  ]}
+                  activeOpacity={1}
+                  onPress={() => setShowIconMenu(false)}
+                >
+                  <View
+                    style={[
+                      styles.gridContainer,
+                      {
+                        backgroundColor: theme.surface,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
                     <ScrollView contentContainerStyle={styles.gridGrid} showsVerticalScrollIndicator={false}>
-                      {ICONES_DISPONIVEIS.map((ic) => (
-                        <TouchableOpacity 
-                          key={ic} 
-                          style={[styles.gridItem, iconeSelecionado === ic && styles.gridItemActive]} 
-                          onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
-                          activeOpacity={0.7}
-                        >
-                          <Feather name={ic as any} size={24} color={iconeSelecionado === ic ? '#000000' : Colors.textSecondary} />
-                        </TouchableOpacity>
-                      ))}
+                      {ICONES_DISPONIVEIS.map((ic) => {
+                        const isSelected = iconeSelecionado === ic;
+                        return (
+                          <TouchableOpacity 
+                            key={ic} 
+                            style={[
+                              styles.gridItem,
+                              {
+                                backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                                borderColor: theme.border,
+                              },
+                              isSelected && {
+                                backgroundColor: theme.primary,
+                                borderColor: theme.primary,
+                              },
+                            ]} 
+                            onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
+                            activeOpacity={0.7}
+                          >
+                            <Feather
+                              name={ic as any}
+                              size={24}
+                              color={isSelected ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary}
+                            />
+                          </TouchableOpacity>
+                        );
+                      })}
                     </ScrollView>
                   </View>
                 </TouchableOpacity>
@@ -360,18 +434,38 @@ export default function ModalNovaAtividade({
             <View style={styles.section}>
               <View style={styles.timeRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.subLabel}>Início</Text>
-                  <TouchableOpacity style={styles.nativeTimeButton} onPress={() => setShowPickerInicio(true)} activeOpacity={0.7}>
-                    <Text style={styles.nativeTimeText}>
+                  <Text style={[styles.subLabel, { color: theme.textSecondary }]}>Início</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.nativeTimeButton,
+                      {
+                        backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                        borderColor: theme.border,
+                      },
+                    ]}
+                    onPress={() => setShowPickerInicio(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.nativeTimeText, { color: theme.text }]}>
                       {horaInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </TouchableOpacity>
                 </View>
                 
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.subLabel}>Fim</Text>
-                  <TouchableOpacity style={styles.nativeTimeButton} onPress={() => setShowPickerFim(true)} activeOpacity={0.7}>
-                    <Text style={styles.nativeTimeText}>
+                  <Text style={[styles.subLabel, { color: theme.textSecondary }]}>Fim</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.nativeTimeButton,
+                      {
+                        backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                        borderColor: theme.border,
+                      },
+                    ]}
+                    onPress={() => setShowPickerFim(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.nativeTimeText, { color: theme.text }]}>
                       {horaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </TouchableOpacity>
@@ -382,18 +476,41 @@ export default function ModalNovaAtividade({
               {!atividadeEmEdicao && (
                 <>
                   <View style={styles.repetitionContainer}>
-                    {(['unica', 'diaria', 'semanal'] as const).map((freq) => (
-                      <TouchableOpacity 
-                        key={freq} 
-                        style={[styles.freqPill, frequencia === freq && styles.freqPillActive]} 
-                        onPress={() => setFrequencia(freq)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.freqPillText, frequencia === freq && styles.freqPillTextActive]}>
-                          {freq === 'unica' ? 'Hoje' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    {(['unica', 'diaria', 'semanal'] as const).map((freq) => {
+                      const isActive = frequencia === freq;
+                      return (
+                        <TouchableOpacity 
+                          key={freq} 
+                          style={[
+                            styles.freqPill,
+                            {
+                              backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                              borderColor: theme.border,
+                            },
+                            isActive && {
+                              backgroundColor: theme.primary,
+                              borderColor: theme.primary,
+                            },
+                          ]} 
+                          onPress={() => setFrequencia(freq)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.freqPillText,
+                              { color: theme.textSecondary },
+                              isActive && {
+                                color: isDark ? '#000000' : '#FFFFFF',
+                                fontWeight: '800',
+                                fontFamily: Fonts.extraBold,
+                              },
+                            ]}
+                          >
+                            {freq === 'unica' ? 'Hoje' : freq === 'diaria' ? 'Todos os dias' : 'Semanalmente'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
 
                   {/* Seletor de dias para frequência Semanal */}
@@ -404,14 +521,29 @@ export default function ModalNovaAtividade({
                         return (
                           <TouchableOpacity
                             key={d.id}
-                            style={[styles.weekDayCircle, isSelected && styles.weekDayCircleSelected]}
+                            style={[
+                              styles.weekDayCircle,
+                              {
+                                backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                                borderColor: theme.border,
+                              },
+                              isSelected && {
+                                backgroundColor: theme.primary,
+                                borderColor: theme.primary,
+                              },
+                            ]}
                             onPress={() => toggleDiaSemana(d.id)}
                             activeOpacity={0.7}
                           >
                             <Text
                               style={[
                                 styles.weekDayText,
-                                isSelected && styles.weekDayTextSelected,
+                                { color: theme.textSecondary },
+                                isSelected && {
+                                  color: isDark ? '#000000' : '#FFFFFF',
+                                  fontWeight: '800',
+                                  fontFamily: Fonts.extraBold,
+                                },
                               ]}
                             >
                               {d.label}
@@ -458,29 +590,62 @@ export default function ModalNovaAtividade({
 
             {/* Seletor de Categoria */}
             <View style={styles.categoryContainer}>
-              <Text style={styles.subLabel}>Categoria</Text>
+              <Text style={[styles.subLabel, { color: theme.textSecondary }]}>Categoria</Text>
               <TouchableOpacity
-                style={styles.dropdownButton}
+                style={[
+                  styles.dropdownButton,
+                  {
+                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    borderColor: theme.border,
+                  },
+                ]}
                 onPress={() => setShowCategoriaDrop(!showCategoriaDrop)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.dropdownButtonText}>{tipo}</Text>
-                <Feather name="chevron-down" size={16} color={Colors.textSecondary} />
+                <Text style={[styles.dropdownButtonText, { color: theme.text }]}>{tipo}</Text>
+                <Feather name="chevron-down" size={16} color={theme.textSecondary} />
               </TouchableOpacity>
               {showCategoriaDrop && (
-                <View style={styles.dropdownList}>
-                  {['Estudos', 'Faculdade', 'Saúde', 'Lazer', 'Outros'].map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.dropdownListItem, tipo === cat && styles.dropdownListItemActive]}
-                      onPress={() => {
-                        setTipo(cat);
-                        setShowCategoriaDrop(false);
-                      }}
-                    >
-                      <Text style={[styles.dropdownListItemText, tipo === cat && styles.dropdownListItemTextActive]}>{cat}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <View
+                  style={[
+                    styles.dropdownList,
+                    {
+                      backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  {['Estudos', 'Faculdade', 'Saúde', 'Lazer', 'Outros'].map((cat) => {
+                    const isCatSelected = tipo === cat;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.dropdownListItem,
+                          { borderBottomColor: theme.border },
+                          isCatSelected && { backgroundColor: theme.primarySubtle },
+                        ]}
+                        onPress={() => {
+                          setTipo(cat);
+                          setShowCategoriaDrop(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownListItemText,
+                            { color: theme.text },
+                            isCatSelected && [
+                              styles.dropdownListItemTextActive,
+                              { color: theme.primary },
+                            ],
+                          ]}
+                        >
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -489,14 +654,20 @@ export default function ModalNovaAtividade({
             <TouchableOpacity
               style={[
                 styles.saveButton,
+                { backgroundColor: theme.primary },
                 (!titulo.trim() || isChecking) && styles.saveButtonDisabled,
                 isChecking && { opacity: 0.7 },
               ]}
               onPress={handleSave}
               disabled={!titulo.trim() || isChecking}
-              activeOpacity={0.85}
+              activeOpacity={0.7}
             >
-              <Text style={styles.saveButtonText}>
+              <Text
+                style={[
+                  styles.saveButtonText,
+                  { color: isDark ? '#000000' : '#FFFFFF' },
+                ]}
+              >
                 {isChecking
                   ? 'Analisando...'
                   : atividadeEmEdicao
@@ -510,10 +681,10 @@ export default function ModalNovaAtividade({
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={handleExcluir}
-                activeOpacity={0.85}
+                activeOpacity={0.7}
               >
-                <Ionicons name="trash-outline" size={18} color="#EF4444" style={{ marginRight: 6 }} />
-                <Text style={styles.deleteButtonText}>Excluir Evento</Text>
+                <Ionicons name="trash-outline" size={18} color={theme.error} style={{ marginRight: 6 }} />
+                <Text style={[styles.deleteButtonText, { color: theme.error }]}>Excluir Evento</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -526,25 +697,24 @@ export default function ModalNovaAtividade({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
   backdrop: {
     flex: 1,
   },
   modalContent: {
-    backgroundColor: Colors.surface,
     width: '100%',
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: '#2e3235',
     minHeight: '50%',
     maxHeight: '90%',
+    elevation: 0,
+    shadowOpacity: 0,
   },
   header: {
     flexDirection: 'row',
@@ -560,14 +730,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     fontFamily: Fonts.extraBold,
-    color: Colors.text,
     letterSpacing: -0.3,
   },
   title: {
     fontSize: 18,
     fontWeight: '800',
     fontFamily: Fonts.extraBold,
-    color: Colors.text,
     letterSpacing: -0.3,
   },
   mainInputContainer: {
@@ -579,35 +747,27 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 46,
     height: 46,
-    borderRadius: 12,
-    backgroundColor: '#1b1d1f',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2e3235',
     justifyContent: 'center',
     alignItems: 'center',
   },
   textInputBox: {
     flex: 1,
     height: 46,
-    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#2e3235',
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: Fonts.medium,
-    color: Colors.text,
     fontWeight: '500',
   },
   detailsInputBox: {
     minHeight: 80,
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: Colors.text,
-    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#2e3235',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 12,
     marginBottom: 18,
   },
@@ -618,58 +778,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    backgroundColor: '#1b1d1f', 
     borderWidth: 1,
-    borderColor: '#2e3235',
     padding: 12, 
-    borderRadius: 12,
+    borderRadius: 10,
   },
   dropdownButtonText: {
     fontSize: 14,
     fontFamily: Fonts.medium,
-    color: Colors.text,
     fontWeight: '500',
   },
   dropdownList: { 
     marginTop: 6,
-    backgroundColor: '#1b1d1f', 
-    borderRadius: 12, 
+    borderRadius: 10, 
     borderWidth: 1, 
-    borderColor: '#2e3235',
     overflow: 'hidden',
   },
   dropdownListItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2e3235',
-  },
-  dropdownListItemActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
   },
   dropdownListItemText: {
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: Colors.text,
   },
   dropdownListItemTextActive: {
-    color: Colors.primary,
     fontWeight: '700',
     fontFamily: Fonts.bold,
   },
   gridOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   gridContainer: {
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
+    borderRadius: 16,
     width: '85%',
     maxHeight: '70%',
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2e3235',
+    elevation: 0,
+    shadowOpacity: 0,
   },
   gridGrid: {
     flexDirection: 'row',
@@ -680,16 +828,10 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '22%',
     aspectRatio: 1,
-    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#2e3235',
-    borderRadius: 16,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  gridItemActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   timeRow: {
     flexDirection: 'row',
@@ -699,7 +841,6 @@ const styles = StyleSheet.create({
   subLabel: {
     fontSize: 12,
     fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
     marginBottom: 6,
     fontWeight: '600',
   },
@@ -713,25 +854,13 @@ const styles = StyleSheet.create({
   freqPill: {
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: '#1b1d1f',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2e3235',
-  },
-  freqPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   freqPillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
     fontWeight: '600',
-  },
-  freqPillTextActive: {
-    color: '#000000',
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
   },
   nativeTimeButton: {
     flex: 1,
@@ -740,15 +869,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#1b1d1f',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2e3235',
   },
   nativeTimeText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: Fonts.semiBold,
-    color: Colors.text,
     fontWeight: '600',
   },
   section: {
@@ -763,41 +889,29 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1b1d1f',
     borderWidth: 1,
-    borderColor: '#2e3235',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  weekDayCircleSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
   weekDayText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-  },
-  weekDayTextSelected: {
-    color: '#000000',
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 10,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   saveButtonDisabled: {
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#000000',
     fontSize: 15,
     fontWeight: '800',
     fontFamily: Fonts.extraBold,
@@ -807,15 +921,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#EF444440',
-    backgroundColor: '#EF444415',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
     marginBottom: 10,
   },
   deleteButtonText: {
-    color: '#EF4444',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: Fonts.bold,
   },
@@ -823,10 +936,9 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   colorSectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -839,15 +951,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   colorCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
   },
   colorCircleSelected: {
-    borderColor: '#FFFFFF',
+    borderColor: '#37352F',
     transform: [{ scale: 1.15 }],
   },
 });

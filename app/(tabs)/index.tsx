@@ -722,6 +722,11 @@ export default function DashboardScreen() {
     const isCurrentHour = horaItemStr ? (isToday && timePassed >= 0 && timePassed < 60) : false;
 
     const getCardColor = (it: any): string => {
+      // No tema claro: monochrome Notion (#37352F)
+      if (!isDark) {
+        return themeColors.text;
+      }
+
       // 1. Cor personalizada salva pelo usuário no evento
       if (it.cor) return it.cor;
 
@@ -1300,10 +1305,10 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       borderWidth: 1,
       borderColor: theme.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.5,
-      shadowRadius: 12,
-      elevation: 20,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.4 : 0.05,
+      shadowRadius: 8,
+      elevation: isDark ? 8 : 1,
       zIndex: 9999,
       overflow: 'hidden',
     },
@@ -1326,9 +1331,9 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     },
     floatingWeekPill: {
       backgroundColor: theme.primarySubtle,
-      paddingHorizontal: 7,
+      paddingHorizontal: 6,
       paddingVertical: 2,
-      borderRadius: 6,
+      borderRadius: 4,
       borderWidth: 1,
       borderColor: theme.primaryBorder,
     },
@@ -1337,6 +1342,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       fontWeight: '700',
       color: theme.primary,
       fontFamily: Fonts.bold,
+      textTransform: 'uppercase',
     },
     floatingEspecialidadeText: {
       fontSize: 11,
@@ -1648,7 +1654,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       alignItems: 'center',
       backgroundColor: theme.primarySubtle,
       paddingHorizontal: 6,
-      paddingVertical: 1,
+      paddingVertical: 2,
       borderRadius: 4,
     },
     routineText: {
@@ -1656,6 +1662,8 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       fontWeight: '700',
       fontFamily: Fonts.bold,
       color: theme.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
     },
     detailsRow: {
       marginTop: 4,
@@ -1701,17 +1709,19 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       position: 'absolute',
       bottom: 24,
       right: 20,
-      width: 54,
-      height: 54,
-      borderRadius: 27,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       backgroundColor: theme.primary,
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 5,
-      elevation: 6,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.06,
+      shadowRadius: 4,
+      elevation: isDark ? 4 : 1,
+      borderWidth: isDark ? 0 : 1,
+      borderColor: theme.border,
     },
 
     /* AI Planner & Replan Styles */
@@ -1727,14 +1737,16 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       backgroundColor: theme.primary,
       paddingHorizontal: 8,
       paddingVertical: 3,
-      borderRadius: 6,
+      borderRadius: 4,
       gap: 4,
       marginLeft: 'auto',
     },
     praticarBtnText: {
       fontSize: 10,
       fontWeight: '800',
-      color: theme.primary === '#EAE115' ? '#000000' : '#FFFFFF',
+      color: '#FFFFFF',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
     },
   });
 }

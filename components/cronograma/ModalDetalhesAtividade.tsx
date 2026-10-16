@@ -11,6 +11,7 @@ import {
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors, CATEGORIA_CORES } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
+import { useAppTheme } from '@/context/ThemeContext';
 
 interface Props {
   visible: boolean;
@@ -45,6 +46,7 @@ export default function ModalDetalhesAtividade({
   onEditAtividade,
   onDeleteAtividade,
 }: Props) {
+  const { theme, isDark } = useAppTheme();
   const [showSeletorDia, setShowSeletorDia] = useState(false);
   const [showSeletorSemana, setShowSeletorSemana] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
@@ -96,82 +98,139 @@ export default function ModalDetalhesAtividade({
     }
   };
 
+  const primaryBtnTextColor = isDark ? '#000000' : '#FFFFFF';
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.45)' },
+        ]}
+      >
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-        <View style={styles.sheetContainer}>
+        <View
+          style={[
+            styles.sheetContainer,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1, marginRight: 12 }}>
               {(area || especialidade) && (
                 <View style={styles.tagsRow}>
                   {area && (
-                    <View style={styles.areaBadge}>
-                      <Text style={styles.areaBadgeText}>{area.toUpperCase()}</Text>
+                    <View
+                      style={[
+                        styles.areaBadge,
+                        {
+                          backgroundColor: theme.primarySubtle,
+                          borderColor: theme.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.areaBadgeText, { color: theme.primary }]}>
+                        {area.toUpperCase()}
+                      </Text>
                     </View>
                   )}
                   {especialidade && (
-                    <View style={styles.especialidadeBadge}>
-                      <Text style={styles.especialidadeBadgeText}>{especialidade}</Text>
+                    <View
+                      style={[
+                        styles.especialidadeBadge,
+                        {
+                          backgroundColor: theme.primarySubtle,
+                          borderColor: theme.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.especialidadeBadgeText, { color: theme.textSecondary }]}>
+                        {especialidade}
+                      </Text>
                     </View>
                   )}
                   {typeof semanaNumero === 'number' && semanaNumero > 0 && (
-                    <View style={styles.semanaBadge}>
-                      <Text style={styles.semanaBadgeText}>Semana {semanaNumero}</Text>
+                    <View
+                      style={[
+                        styles.semanaBadge,
+                        {
+                          backgroundColor: theme.primarySubtle,
+                          borderColor: theme.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.semanaBadgeText, { color: theme.primary }]}>
+                        Semana {semanaNumero}
+                      </Text>
                     </View>
                   )}
                 </View>
               )}
-              <Text style={styles.title} numberOfLines={2}>
+              <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
                 {topicoTitulo}
               </Text>
             </View>
 
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={onClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Box de Detalhes Ricos do Cronograma */}
-            <View style={styles.detailsBox}>
+            <View
+              style={[
+                styles.detailsBox,
+                {
+                  backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                  borderColor: theme.border,
+                },
+              ]}
+            >
               {/* Material / Label */}
               {!!label && (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIconBox}>
-                    <Feather name="bookmark" size={16} color={Colors.primary} />
+                <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
+                    <Feather name="bookmark" size={16} color={theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Material / Aula</Text>
-                    <Text style={styles.infoValue}>{label}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Material / Aula</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{label}</Text>
                   </View>
                 </View>
               )}
 
               {/* Capítulo / Subtema (Detalhe) */}
               {!!detalhe && (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIconBox}>
-                    <Feather name="file-text" size={16} color={Colors.primary} />
+                <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
+                    <Feather name="file-text" size={16} color={theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Capítulo / Assunto</Text>
-                    <Text style={styles.infoValue}>{detalhe}</Text>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Capítulo / Assunto</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{detalhe}</Text>
                   </View>
                 </View>
               )}
 
               {/* Meta de Questões e Banco */}
               {(!!metaQuestoes || !!temaQuestoes) && (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIconBox}>
-                    <Ionicons name="checkbox-outline" size={16} color={Colors.primary} />
+                <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
+                    <Ionicons name="checkbox-outline" size={16} color={theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Fixação de Questões</Text>
-                    <Text style={styles.infoValue}>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Fixação de Questões</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>
                       {metaQuestoes ? `Meta de ${metaQuestoes} questões` : ''}
                       {metaQuestoes && temaQuestoes ? ' • ' : ''}
                       {temaQuestoes || ''}
@@ -182,13 +241,13 @@ export default function ModalDetalhesAtividade({
 
               {/* Horário Agendado / Duração */}
               {item.hora_inicio ? (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIconBox}>
-                    <Feather name="clock" size={16} color={Colors.primary} />
+                <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
+                    <Feather name="clock" size={16} color={theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Horário Programado</Text>
-                    <Text style={styles.infoValue}>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Horário Programado</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>
                       {item.hora_inicio} {item.hora_fim ? `às ${item.hora_fim}` : ''}
                       {item.duracao_minutos ? ` (${item.duracao_minutos} min)` : ''}
                     </Text>
@@ -200,7 +259,14 @@ export default function ModalDetalhesAtividade({
               <View style={[styles.infoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
                 {item.concluida ? (
                   <TouchableOpacity
-                    style={[styles.infoIconBox, styles.statusIconBtnCompleted]}
+                    style={[
+                      styles.infoIconBox,
+                      {
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(16, 185, 129, 0.3)',
+                      },
+                    ]}
                     onPress={() => onToggleStatus?.(item)}
                     activeOpacity={0.7}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -208,15 +274,15 @@ export default function ModalDetalhesAtividade({
                     <Ionicons
                       name="checkmark-circle"
                       size={18}
-                      color={Colors.success}
+                      color={theme.success}
                     />
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles.infoIconBox}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
                     <Ionicons
                       name="ellipse-outline"
                       size={16}
-                      color={Colors.textSecondary}
+                      color={theme.textSecondary}
                     />
                   </View>
                 )}
@@ -226,20 +292,26 @@ export default function ModalDetalhesAtividade({
                     disabled={!item.concluida}
                     onPress={() => onToggleStatus?.(item)}
                   >
-                    <Text style={styles.infoLabel}>Status</Text>
-                    <Text style={[styles.infoValue, { color: item.concluida ? Colors.success : Colors.textSecondary }]}>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Status</Text>
+                    <Text style={[styles.infoValue, { color: item.concluida ? theme.success : theme.textSecondary }]}>
                       {item.concluida ? 'Concluída' : 'Pendente'}
                     </Text>
                   </TouchableOpacity>
 
                   {item.concluida && (
                     <TouchableOpacity
-                      style={styles.reabrirBadge}
+                      style={[
+                        styles.reabrirBadge,
+                        {
+                          backgroundColor: isDark ? '#202428' : theme.surface,
+                          borderColor: theme.border,
+                        },
+                      ]}
                       onPress={() => onToggleStatus?.(item)}
                       activeOpacity={0.7}
                     >
-                      <Feather name="rotate-ccw" size={11} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                      <Text style={styles.reabrirBadgeText}>Desmarcar</Text>
+                      <Feather name="rotate-ccw" size={11} color={theme.textSecondary} style={{ marginRight: 4 }} />
+                      <Text style={[styles.reabrirBadgeText, { color: theme.textSecondary }]}>Desmarcar</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -249,62 +321,126 @@ export default function ModalDetalhesAtividade({
             {/* Botão Praticar Questões (CTA Principal se for questões) */}
             {(item.icone === 'check-square' || item.passo_tipo === 'questoes' || !!metaQuestoes) && (
               <TouchableOpacity
-                style={styles.praticarCta}
+                style={[styles.praticarCta, { backgroundColor: theme.primary }]}
                 onPress={() => {
                   onClose();
                   onStartQuiz(item);
                 }}
-                activeOpacity={0.85}
+                activeOpacity={0.7}
               >
-                <Feather name="play-circle" size={18} color="#000" style={{ marginRight: 8 }} />
-                <Text style={styles.praticarCtaText}>Iniciar Treino de Questões</Text>
+                <Feather name="play-circle" size={18} color={primaryBtnTextColor} style={{ marginRight: 8 }} />
+                <Text style={[styles.praticarCtaText, { color: primaryBtnTextColor }]}>
+                  Iniciar Treino de Questões
+                </Text>
               </TouchableOpacity>
             )}
 
             {/* Seletor de Dia Expandido */}
             {showSeletorDia && (
-              <View style={styles.remanejarBox}>
-                <Text style={styles.remanejarHeaderTitle}>Escolha o novo dia da semana:</Text>
+              <View
+                style={[
+                  styles.remanejarBox,
+                  {
+                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.remanejarHeaderTitle, { color: theme.textSecondary }]}>
+                  Escolha o novo dia da semana:
+                </Text>
                 <View style={styles.diasGrid}>
-                  {DIAS_SEMANA_NOMES.map((d) => (
-                    <TouchableOpacity
-                      key={d.id}
-                      style={[
-                        styles.diaPill,
-                        diaSemana === d.id && styles.diaPillActive,
-                      ]}
-                      onPress={() => handleSelecionarDia(d.id)}
-                      disabled={isMoving}
-                    >
-                      <Text style={[styles.diaPillText, diaSemana === d.id && styles.diaPillTextActive]}>
-                        {d.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {DIAS_SEMANA_NOMES.map((d) => {
+                    const isActive = diaSemana === d.id;
+                    return (
+                      <TouchableOpacity
+                        key={d.id}
+                        style={[
+                          styles.diaPill,
+                          {
+                            backgroundColor: isDark ? '#232628' : theme.surface,
+                            borderColor: theme.border,
+                          },
+                          isActive && {
+                            backgroundColor: theme.primary,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                        onPress={() => handleSelecionarDia(d.id)}
+                        disabled={isMoving}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.diaPillText,
+                            { color: theme.textSecondary },
+                            isActive && {
+                              color: primaryBtnTextColor,
+                              fontWeight: '800',
+                              fontFamily: Fonts.extraBold,
+                            },
+                          ]}
+                        >
+                          {d.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
             )}
 
             {/* Seletor de Semana Expandido */}
             {showSeletorSemana && (
-              <View style={styles.remanejarBox}>
-                <Text style={styles.remanejarHeaderTitle}>Mover para qual semana?</Text>
+              <View
+                style={[
+                  styles.remanejarBox,
+                  {
+                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.remanejarHeaderTitle, { color: theme.textSecondary }]}>
+                  Mover para qual semana?
+                </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.semanasScroll}>
-                  {Array.from({ length: 45 }, (_, i) => i + 1).map((sNum) => (
-                    <TouchableOpacity
-                      key={sNum}
-                      style={[
-                        styles.semanaPill,
-                        semanaNumero === sNum && styles.semanaPillActive,
-                      ]}
-                      onPress={() => handleSelecionarSemana(sNum)}
-                      disabled={isMoving}
-                    >
-                      <Text style={[styles.semanaPillText, semanaNumero === sNum && styles.semanaPillTextActive]}>
-                        Semana {sNum}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {Array.from({ length: 45 }, (_, i) => i + 1).map((sNum) => {
+                    const isActive = semanaNumero === sNum;
+                    return (
+                      <TouchableOpacity
+                        key={sNum}
+                        style={[
+                          styles.semanaPill,
+                          {
+                            backgroundColor: isDark ? '#232628' : theme.surface,
+                            borderColor: theme.border,
+                          },
+                          isActive && {
+                            backgroundColor: theme.primary,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                        onPress={() => handleSelecionarSemana(sNum)}
+                        disabled={isMoving}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.semanaPillText,
+                            { color: theme.textSecondary },
+                            isActive && {
+                              color: primaryBtnTextColor,
+                              fontWeight: '800',
+                              fontFamily: Fonts.extraBold,
+                            },
+                          ]}
+                        >
+                          Semana {sNum}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -313,29 +449,69 @@ export default function ModalDetalhesAtividade({
             {isResidencia ? (
               <View style={styles.actionsRow}>
                 <TouchableOpacity
-                  style={[styles.remanejarBtn, showSeletorDia && styles.remanejarBtnActive]}
+                  style={[
+                    styles.remanejarBtn,
+                    {
+                      backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                      borderColor: theme.border,
+                    },
+                    showSeletorDia && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
+                  ]}
                   onPress={() => {
                     setShowSeletorDia(!showSeletorDia);
                     setShowSeletorSemana(false);
                   }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="calendar-outline" size={17} color={showSeletorDia ? '#000' : Colors.primary} style={{ marginRight: 6 }} />
-                  <Text style={[styles.remanejarBtnText, showSeletorDia && styles.remanejarBtnTextActive]}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={17}
+                    color={showSeletorDia ? primaryBtnTextColor : theme.primary}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.remanejarBtnText,
+                      { color: showSeletorDia ? primaryBtnTextColor : theme.primary },
+                    ]}
+                  >
                     Mover de Dia
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.remanejarBtn, showSeletorSemana && styles.remanejarBtnActive]}
+                  style={[
+                    styles.remanejarBtn,
+                    {
+                      backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                      borderColor: theme.border,
+                    },
+                    showSeletorSemana && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
+                  ]}
                   onPress={() => {
                     setShowSeletorSemana(!showSeletorSemana);
                     setShowSeletorDia(false);
                   }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="repeat-outline" size={17} color={showSeletorSemana ? '#000' : Colors.primary} style={{ marginRight: 6 }} />
-                  <Text style={[styles.remanejarBtnText, showSeletorSemana && styles.remanejarBtnTextActive]}>
+                  <Ionicons
+                    name="repeat-outline"
+                    size={17}
+                    color={showSeletorSemana ? primaryBtnTextColor : theme.primary}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.remanejarBtnText,
+                      { color: showSeletorSemana ? primaryBtnTextColor : theme.primary },
+                    ]}
+                  >
                     Mover de Semana
                   </Text>
                 </TouchableOpacity>
@@ -345,15 +521,21 @@ export default function ModalDetalhesAtividade({
               <View style={styles.actionsRow}>
                 {onEditAtividade && (
                   <TouchableOpacity
-                    style={styles.editBtn}
+                    style={[
+                      styles.editBtn,
+                      {
+                        backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                        borderColor: theme.border,
+                      },
+                    ]}
                     onPress={() => {
                       onClose();
                       onEditAtividade(item);
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={0.7}
                   >
-                    <Feather name="edit-2" size={16} color={Colors.text} style={{ marginRight: 6 }} />
-                    <Text style={styles.editBtnText}>Editar Evento</Text>
+                    <Feather name="edit-2" size={16} color={theme.text} style={{ marginRight: 6 }} />
+                    <Text style={[styles.editBtnText, { color: theme.text }]}>Editar Evento</Text>
                   </TouchableOpacity>
                 )}
 
@@ -364,10 +546,10 @@ export default function ModalDetalhesAtividade({
                       onClose();
                       onDeleteAtividade(item);
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" style={{ marginRight: 6 }} />
-                    <Text style={styles.deleteBtnText}>Excluir Evento</Text>
+                    <Ionicons name="trash-outline" size={16} color={theme.error} style={{ marginRight: 6 }} />
+                    <Text style={[styles.deleteBtnText, { color: theme.error }]}>Excluir Evento</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -382,22 +564,21 @@ export default function ModalDetalhesAtividade({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   backdrop: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: Colors.surface,
     width: '100%',
     maxHeight: '85%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
     borderWidth: 1,
-    borderColor: '#2e3235',
+    elevation: 0,
+    shadowOpacity: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -413,64 +594,52 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   areaBadge: {
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
   },
   areaBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
-    color: Colors.primary,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
     letterSpacing: 0.5,
   },
   especialidadeBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   especialidadeBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-    color: Colors.text,
+    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
   semanaBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   semanaBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: '#60A5FA',
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.text,
     lineHeight: 24,
   },
   scrollContent: {
     paddingBottom: 10,
   },
   detailsBox: {
-    backgroundColor: '#1b1d1f',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2e3235',
     marginBottom: 16,
   },
   infoRow: {
@@ -479,21 +648,18 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#282b2e',
     gap: 12,
   },
   infoIconBox: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#232628',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   infoLabel: {
     fontSize: 11,
-    color: Colors.textSecondary,
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
     marginBottom: 2,
@@ -502,7 +668,6 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 14,
-    color: Colors.text,
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
     lineHeight: 20,
@@ -515,54 +680,30 @@ const styles = StyleSheet.create({
   reabrirBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#202428',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#30353A',
   },
   reabrirBadgeText: {
     fontSize: 11,
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
-  },
-  toggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    gap: 4,
-  },
-  toggleBtnCompleted: {
-    backgroundColor: '#282b2e',
-  },
-  toggleBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
-    color: '#000',
-  },
-  toggleBtnTextCompleted: {
-    color: Colors.text,
   },
   praticarCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     marginBottom: 16,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   praticarCtaText: {
     fontSize: 15,
     fontWeight: '800',
     fontFamily: Fonts.extraBold,
-    color: '#000',
   },
   actionsRow: {
     flexDirection: 'row',
@@ -575,22 +716,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#1b1d1f',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  remanejarBtnActive: {
-    backgroundColor: Colors.primary,
   },
   remanejarBtnText: {
     fontSize: 13,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.primary,
-  },
-  remanejarBtnTextActive: {
-    color: '#000',
   },
   editBtn: {
     flex: 1,
@@ -598,16 +730,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#1b1d1f',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#383d42',
   },
   editBtnText: {
     fontSize: 13,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.text,
   },
   deleteBtn: {
     flex: 1,
@@ -615,30 +744,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#EF444415',
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
     borderWidth: 1,
-    borderColor: '#EF444440',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   deleteBtnText: {
     fontSize: 13,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: '#EF4444',
   },
   remanejarBox: {
-    backgroundColor: '#1b1d1f',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#2e3235',
   },
   remanejarHeaderTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
     marginBottom: 10,
     textTransform: 'uppercase',
   },
@@ -650,25 +775,13 @@ const styles = StyleSheet.create({
   diaPill: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#232628',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2e3235',
-  },
-  diaPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   diaPillText: {
     fontSize: 12,
-    color: Colors.textSecondary,
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
-  },
-  diaPillTextActive: {
-    color: '#000',
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
   },
   semanasScroll: {
     flexDirection: 'row',
@@ -677,24 +790,12 @@ const styles = StyleSheet.create({
   semanaPill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#232628',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2e3235',
-  },
-  semanaPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   semanaPillText: {
     fontSize: 12,
-    color: Colors.textSecondary,
     fontWeight: '600',
     fontFamily: Fonts.semiBold,
-  },
-  semanaPillTextActive: {
-    color: '#000',
-    fontWeight: '800',
-    fontFamily: Fonts.extraBold,
   },
 });

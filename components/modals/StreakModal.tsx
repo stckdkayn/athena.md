@@ -8,7 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import { StreakInfo } from '@/services/streakService';
 
 interface StreakModalProps {
@@ -22,6 +22,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({
   onClose,
   streakInfo,
 }) => {
+  const { colors: theme } = useAppTheme();
   if (!streakInfo) return null;
 
   const streak = streakInfo.streak;
@@ -38,47 +39,58 @@ export const StreakModal: React.FC<StreakModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
-            <View style={styles.modalContainer}>
+            <View style={[styles.modalContainer, { backgroundColor: theme.surfaceCard, borderColor: theme.border }]}>
               {/* Ícone de Fogo de Destaque */}
-              <View style={[styles.fireCircle, activeToday ? styles.fireCircleActive : styles.fireCirclePending]}>
+              <View
+                style={[
+                  styles.fireCircle,
+                  activeToday
+                    ? { backgroundColor: theme.primarySubtle, borderColor: theme.primaryBorder, borderWidth: 1 }
+                    : { backgroundColor: theme.backgroundSecondary, borderColor: theme.borderSubtle, borderWidth: 1 },
+                ]}
+              >
                 <Ionicons
                   name={activeToday ? 'flame' : 'flame-outline'}
                   size={46}
-                  color={activeToday ? Colors.primary : '#8E959E'}
+                  color={activeToday ? theme.primary : theme.textSecondary}
                 />
               </View>
 
               {/* Contagem de Dias */}
-              <Text style={styles.streakCountText}>
+              <Text style={[styles.streakCountText, { color: theme.text }]}>
                 {streak} {streak === 1 ? 'dia' : 'dias'}
               </Text>
-              <Text style={styles.streakTitleText}>
+              <Text style={[styles.streakTitleText, { color: theme.text }]}>
                 {activeToday ? 'Ofensiva ativa hoje! 🔥' : 'Mantenha sua chama acesa!'}
               </Text>
 
-              <Text style={styles.streakDescriptionText}>
+              <Text style={[styles.streakDescriptionText, { color: theme.textSecondary }]}>
                 {activeToday
                   ? 'Excelente constância, Dr.! Você já treinou hoje e garantiu mais um dia de ofensiva.'
                   : 'Resolva pelo menos 1 questão hoje para continuar sua sequência de estudos consecutivos.'}
               </Text>
 
               {/* Calendário dos Últimos 7 Dias */}
-              <View style={styles.calendarCard}>
-                <Text style={styles.calendarCardTitle}>ÚLTIMOS 7 DIAS</Text>
+              <View style={[styles.calendarCard, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <Text style={[styles.calendarCardTitle, { color: theme.textSecondary }]}>ÚLTIMOS 7 DIAS</Text>
                 <View style={styles.daysRow}>
                   {streakInfo.historyLast7Days.map((item, index) => (
                     <View key={`${item.date}-${index}`} style={styles.dayCol}>
-                      <Text style={styles.dayLabelText}>{item.dayLabel}</Text>
+                      <Text style={[styles.dayLabelText, { color: theme.textSecondary }]}>
+                        {item.dayLabel}
+                      </Text>
                       <View
                         style={[
                           styles.dayCheckCircle,
-                          item.active ? styles.dayCheckCircleActive : styles.dayCheckCircleInactive,
+                          item.active
+                            ? { backgroundColor: theme.primary }
+                            : { backgroundColor: theme.backgroundSecondary, borderColor: theme.borderSubtle, borderWidth: 1 },
                         ]}
                       >
                         {item.active ? (
-                          <Ionicons name="checkmark" size={15} color="#000000" />
+                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                         ) : (
-                          <View style={styles.dayDotEmpty} />
+                          <View style={[styles.dayDotEmpty, { backgroundColor: theme.textMuted }]} />
                         )}
                       </View>
                     </View>
@@ -86,17 +98,28 @@ export const StreakModal: React.FC<StreakModalProps> = ({
                 </View>
               </View>
 
-              {/* Dica de Médica / Frase de Impacto */}
-              <View style={styles.quoteBox}>
-                <Ionicons name="sparkles" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
-                <Text style={styles.quoteText}>
-                  "A excelência médica é um hábito diário, não um ato isolado."
+              {/* Frase Motivacional */}
+              <View style={[styles.quoteBox, { backgroundColor: theme.primarySubtle, borderColor: theme.primaryBorder }]}>
+                <Ionicons
+                  name="sparkles"
+                  size={16}
+                  color={theme.primary}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.quoteText, { color: theme.text }]}>
+                  {activeToday
+                    ? '"A disciplina é a ponte entre metas e conquistas."'
+                    : '"Grandes aprovações são construídas um dia de cada vez."'}
                 </Text>
               </View>
 
               {/* Botão de Fechar */}
-              <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
-                <Text style={styles.closeBtnText}>Entendi</Text>
+              <TouchableOpacity
+                style={[styles.closeBtn, { backgroundColor: theme.primary }]}
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.closeBtnText}>Entendido</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
@@ -109,20 +132,19 @@ export const StreakModal: React.FC<StreakModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   modalContainer: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#16181B',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#262A2E',
+    elevation: 0,
   },
   fireCircle: {
     width: 80,
@@ -132,32 +154,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  fireCircleActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(234, 225, 21, 0.35)',
-  },
-  fireCirclePending: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
   streakCountText: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#FFFFFF',
     letterSpacing: -0.5,
   },
   streakTitleText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.primary,
     marginTop: 4,
     marginBottom: 8,
   },
   streakDescriptionText: {
     fontSize: 13,
-    color: '#94A3B8',
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
@@ -165,21 +174,19 @@ const styles = StyleSheet.create({
   },
   calendarCard: {
     width: '100%',
-    backgroundColor: '#0F1012',
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#202327',
     marginBottom: 16,
   },
   calendarCardTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    color: '#64748B',
     textAlign: 'center',
     marginBottom: 12,
     letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   daysRow: {
     flexDirection: 'row',
@@ -193,7 +200,6 @@ const styles = StyleSheet.create({
   dayLabelText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
     marginBottom: 8,
   },
   dayCheckCircle: {
@@ -203,49 +209,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayCheckCircleActive: {
-    backgroundColor: Colors.primary,
-  },
-  dayCheckCircleInactive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
   dayDotEmpty: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#475569',
   },
   quoteBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(234, 225, 21, 0.06)',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.15)',
+    width: '100%',
   },
   quoteText: {
     flex: 1,
     fontSize: 12,
-    color: '#E2E8F0',
     fontStyle: 'italic',
     lineHeight: 16,
   },
   closeBtn: {
     width: '100%',
-    backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#000000',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
