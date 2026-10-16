@@ -27,6 +27,7 @@ import {
 import { GargaloDetalheModal, BottleneckTheme, FocoMetrica } from '@/components/modals/GargaloDetalheModal';
 import { TreinoFocadoModal, TargetTreinoGargalo, MicroFocoTreinoOption } from '@/components/modals/TreinoFocadoModal';
 import Heatmap from '@/components/Heatmap';
+import EvolucaoMensalChart from '@/components/EvolucaoMensalChart';
 import {
   classificarGrandeArea,
   GrandeAreaSimulado,
@@ -741,8 +742,11 @@ export default function DesempenhoScreen() {
               ) : null}
             </View>
 
-            {/* 4. Heatmap Interativo de Consistência (Estilo GitHub) */}
+            {/* 4. Heatmap Interativo de Consistência */}
             <Heatmap />
+
+            {/* 5. Evolução dos Últimos 6 Meses */}
+            <EvolucaoMensalChart />
 
             {/* 5. Raio-X das 5 Grandes Áreas da Residência Médica */}
             <View style={styles.sectionCard}>
