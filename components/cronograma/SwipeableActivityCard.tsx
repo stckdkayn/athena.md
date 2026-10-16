@@ -96,8 +96,15 @@ export default function SwipeableActivityCard({
 
   const isQuestoes =
     (item as any).passo_tipo === 'questoes' ||
+    item.tipo?.toLowerCase().includes('quest') ||
     item.icone === 'document-text-outline' ||
     item.icone === 'check-square';
+
+  const isLightColor =
+    corBase?.toLowerCase() === Colors.primary.toLowerCase() ||
+    corBase?.toLowerCase() === '#eae119' ||
+    corBase?.toLowerCase() === '#facc15';
+  const playIconColor = isLightColor ? '#121214' : '#FFFFFF';
 
   const isAulas =
     (item as any).passo_tipo === 'videoaula' ||
@@ -209,7 +216,7 @@ export default function SwipeableActivityCard({
                 </View>
               </View>
 
-              {/* Ícone maior posicionado à direita e centralizado */}
+              {/* Botão de Play para Questões ou Ícone da Atividade */}
               {isQuestoes ? (
                 <TouchableOpacity
                   style={styles.cardRightQuestoesWrapper}
@@ -220,12 +227,15 @@ export default function SwipeableActivityCard({
                   activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons
-                    name="document-text-outline"
-                    size={28}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.praticarUnderText}>Praticar</Text>
+                  <View style={[styles.playButtonCircle, { backgroundColor: corBase }]}>
+                    <Ionicons
+                      name="play"
+                      size={14}
+                      color={playIconColor}
+                      style={{ marginLeft: 2 }}
+                    />
+                  </View>
+                  <Text style={[styles.iniciarUnderText, { color: corBase }]}>iniciar</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.cardRightIconWrapper}>
@@ -361,12 +371,23 @@ const styles = StyleSheet.create({
     paddingLeft: 6,
     paddingVertical: 2,
   },
-  praticarUnderText: {
+  playButtonCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
+  },
+  iniciarUnderText: {
     fontSize: 10,
     fontFamily: Fonts.bold,
-    fontWeight: '800',
-    color: Colors.primary,
-    marginTop: 2,
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    marginTop: 3,
+    letterSpacing: 0.2,
   },
 });

@@ -84,19 +84,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="questoes"
         options={{
-          title: 'Praticar',
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '700',
-            fontFamily: Fonts.bold,
-            color: Colors.primary,
-            marginTop: 2,
-          },
-          tabBarIcon: ({ focused }) => (
+          title: 'Questões',
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'document-text' : 'document-text-outline'}
               size={26}
-              color={Colors.primary}
+              color={color}
             />
           ),
         }}
