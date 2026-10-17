@@ -367,14 +367,15 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
 
   /**
    * Extrai a próxima tarefa de teoria:
-   * - Quando o tempo livre for grande (>= 45 min), prioriza videoaulas.
-   * - Quando a janela for menor (< 45 min), prioriza pela correspondência entre tempo disponível x duração da atividade.
+   * - Videoaulas SÓ são recomendadas se o tempo livre for > 59 minutos.
+   * - Quando o tempo livre for > 59 minutos, prioriza videoaulas primeiro.
+   * - Quando o tempo livre for <= 59 minutos, nunca recomenda videoaulas (apenas leitura/apostila).
    */
   const extrairProximaTeoria = (minutosDisponiveis: number): TarefaPlanejada | null => {
     if (tarefasTeoria.length === 0) return null;
 
-    // Se o tempo livre for amplo (>= 45 min), prioriza videoaulas primeiro
-    if (minutosDisponiveis >= 45) {
+    // Se o tempo livre for > 59 min, videoaulas podem ser recomendadas e têm prioridade máxima
+    if (minutosDisponiveis > 59) {
       const idxVideo = tarefasTeoria.findIndex((t) => t.tipo === 'videoaula');
       if (idxVideo !== -1) {
         return tarefasTeoria.splice(idxVideo, 1)[0];
@@ -382,21 +383,34 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
       return tarefasTeoria.shift()!;
     }
 
-    // Se o tempo livre for menor (< 45 min), respeita tempo disponível x tempo gasto
-    // Prioriza tarefas cuja duração sugerida caiba no tempo disponível
-    const idxQueCabe = tarefasTeoria.findIndex((t) => t.duracaoSugerida <= minutosDisponiveis);
+    // Se o tempo livre for <= 59 min, videoaulas NÃO devem ser recomendadas
+    const tarefasTeoriaSemVideo = tarefasTeoria.filter((t) => t.tipo !== 'videoaula');
+    if (tarefasTeoriaSemVideo.length === 0) {
+      return null;
+    }
+
+    // Entre as tarefas de teoria restantes (que não são videoaulas), prioriza as que cabem no tempo disponível
+    const idxQueCabe = tarefasTeoria.findIndex(
+      (t) => t.tipo !== 'videoaula' && t.duracaoSugerida <= minutosDisponiveis
+    );
     if (idxQueCabe !== -1) {
       return tarefasTeoria.splice(idxQueCabe, 1)[0];
     }
 
-    // Se nenhuma cabe sem ajuste, pega a de menor duração para minimizar estouro
-    let menorIdx = 0;
-    for (let i = 1; i < tarefasTeoria.length; i++) {
-      if (tarefasTeoria[i].duracaoSugerida < tarefasTeoria[menorIdx].duracaoSugerida) {
-        menorIdx = i;
+    // Se nenhuma cabe sem ajuste, pega a de menor duração (desde que não seja videoaula)
+    let menorIdx = -1;
+    for (let i = 0; i < tarefasTeoria.length; i++) {
+      if (tarefasTeoria[i].tipo !== 'videoaula') {
+        if (menorIdx === -1 || tarefasTeoria[i].duracaoSugerida < tarefasTeoria[menorIdx].duracaoSugerida) {
+          menorIdx = i;
+        }
       }
     }
-    return tarefasTeoria.splice(menorIdx, 1)[0];
+    if (menorIdx !== -1) {
+      return tarefasTeoria.splice(menorIdx, 1)[0];
+    }
+
+    return null;
   };
 
   const obterProximaTarefa = (minutosDisponiveis: number, isManha: boolean): TarefaPlanejada | null => {
@@ -537,7 +551,15 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
       let minutosDisponiveis = jState.fim - tempoAtual;
 
       while (minutosDisponiveis >= 15 && tarefasRestantes.length > 0) {
-        const tarefa = tarefasRestantes.shift()!;
+        // Encontra uma tarefa compatível com a janela (videoaulas só são permitidas se minutosDisponiveis > 59)
+        const idxCandidato = tarefasRestantes.findIndex(
+          (t) => t.tipo !== 'videoaula' || minutosDisponiveis > 59
+        );
+        if (idxCandidato === -1) {
+          // Só restam videoaulas e a janela é <= 59 min; não aloca videoaulas nesta janela
+          break;
+        }
+        const tarefa = tarefasRestantes.splice(idxCandidato, 1)[0];
         let duracaoBloco = Math.min(tarefa.duracaoSugerida, minutosDisponiveis);
         const novoId = Math.random().toString(36).substring(2, 15);
 
