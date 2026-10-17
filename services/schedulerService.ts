@@ -102,18 +102,20 @@ export async function calcularTempoLivreLiquido(dataYYYYMMDD: string): Promise<J
   intervalosOcupados.push({ inicio: 0, fim: 420 });       // 00:00 - 07:00 (sono / fora do horário útil)
   intervalosOcupados.push({ inicio: 1320, fim: 1440 });   // 22:00 - 24:00 (sono / fora do horário útil)
 
-  // Proteção Sagrada do Horário de Almoço (12:00 às 13:00 / 720 a 780 min):
+  // Proteção Sagrada do Horário de Almoço (12:00 às 13:15 / 720 a 795 min):
   // Garante que nenhum bloco de estudo seja sobreposto durante o intervalo de refeição do meio-dia
-  intervalosOcupados.push({ inicio: 720, fim: 780 });
+  intervalosOcupados.push({ inicio: 720, fim: 795 });
 
-  // E. Se for o dia de HOJE e já passou das 07:00, bloqueia o tempo decorrido
-  // para que o replanejamento não tente agendar tarefas no passado
+  // E. Se for o dia de HOJE e já passou das 07:00, bloqueia o tempo decorrido até o "próximo gancho"
+  // de 30 minutos ou hora cheia (ex: 13:07 -> 13:30, 14:14 -> 14:30), para que o replanejamento
+  // aloque sempre no próximo horário redondo
   const hoje = new Date();
   const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
   if (dataYYYYMMDD === hojeStr) {
     const minutoAtual = hoje.getHours() * 60 + hoje.getMinutes();
     if (minutoAtual > 420) {
-      intervalosOcupados.push({ inicio: 0, fim: minutoAtual });
+      const proximoGancho = Math.ceil(minutoAtual / 30) * 30;
+      intervalosOcupados.push({ inicio: 0, fim: proximoGancho });
     }
   }
 
@@ -361,7 +363,41 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
   const PAUSA_ENTRE_BLOCOS_MIN = 15;
 
   const temJanelaManha = janelasLivres.some((j) => j.inicio < 720);
-  const temJanelaTardeNoite = janelasLivres.some((j) => j.inicio >= 780 || j.fim > 780);
+  const temJanelaTardeNoite = janelasLivres.some((j) => j.inicio >= 795 || j.fim > 795);
+
+  /**
+   * Extrai a próxima tarefa de teoria:
+   * - Quando o tempo livre for grande (>= 45 min), prioriza videoaulas.
+   * - Quando a janela for menor (< 45 min), prioriza pela correspondência entre tempo disponível x duração da atividade.
+   */
+  const extrairProximaTeoria = (minutosDisponiveis: number): TarefaPlanejada | null => {
+    if (tarefasTeoria.length === 0) return null;
+
+    // Se o tempo livre for amplo (>= 45 min), prioriza videoaulas primeiro
+    if (minutosDisponiveis >= 45) {
+      const idxVideo = tarefasTeoria.findIndex((t) => t.tipo === 'videoaula');
+      if (idxVideo !== -1) {
+        return tarefasTeoria.splice(idxVideo, 1)[0];
+      }
+      return tarefasTeoria.shift()!;
+    }
+
+    // Se o tempo livre for menor (< 45 min), respeita tempo disponível x tempo gasto
+    // Prioriza tarefas cuja duração sugerida caiba no tempo disponível
+    const idxQueCabe = tarefasTeoria.findIndex((t) => t.duracaoSugerida <= minutosDisponiveis);
+    if (idxQueCabe !== -1) {
+      return tarefasTeoria.splice(idxQueCabe, 1)[0];
+    }
+
+    // Se nenhuma cabe sem ajuste, pega a de menor duração para minimizar estouro
+    let menorIdx = 0;
+    for (let i = 1; i < tarefasTeoria.length; i++) {
+      if (tarefasTeoria[i].duracaoSugerida < tarefasTeoria[menorIdx].duracaoSugerida) {
+        menorIdx = i;
+      }
+    }
+    return tarefasTeoria.splice(menorIdx, 1)[0];
+  };
 
   const obterProximaTarefa = (minutosDisponiveis: number, isManha: boolean): TarefaPlanejada | null => {
     // 1. Se a janela for muito curta (< 30 min), prioriza flashcard
@@ -384,8 +420,9 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
     // 2. Se for de MANHÃ e temos janelas também à tarde/noite:
     // Prioriza alocar TEORIA de manhã!
     if (isManha && temJanelaTardeNoite) {
-      if (tarefasTeoria.length > 0) {
-        return tarefasTeoria.shift()!;
+      const tarefaTeoria = extrairProximaTeoria(minutosDisponiveis);
+      if (tarefaTeoria) {
+        return tarefaTeoria;
       }
       // Se não há mais teoria para a manhã e a tarde/noite já tem janelas livres,
       // reserva as práticas para a tarde/noite para manter o equilíbrio cognitivo
@@ -398,8 +435,9 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
       if (tarefasPratica.length > 0) {
         return tarefasPratica.shift()!;
       }
-      if (tarefasTeoria.length > 0) {
-        return tarefasTeoria.shift()!;
+      const tarefaTeoria = extrairProximaTeoria(minutosDisponiveis);
+      if (tarefaTeoria) {
+        return tarefaTeoria;
       }
       if (gargalos.length > 0) {
         return proximoGargalo();
@@ -408,8 +446,9 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
     }
 
     // 4. Caso geral (ex: só tem janela de manhã, ou só janela de tarde):
-    if (tarefasTeoria.length > 0) {
-      return tarefasTeoria.shift()!;
+    const tarefaTeoria = extrairProximaTeoria(minutosDisponiveis);
+    if (tarefaTeoria) {
+      return tarefaTeoria;
     }
     if (tarefasPratica.length > 0) {
       return tarefasPratica.shift()!;
@@ -439,17 +478,13 @@ export async function gerarPlanoDiario(dataYYYYMMDD: string): Promise<number> {
 
   for (const janela of janelasLivres) {
     const isManha = janela.inicio < 720;
-    let tempoAtual = janela.inicio;
+    // Alinha o início da janela ao próximo gancho de 30 minutos (ex: 13:15 pós almoço -> 13:30, 08:00 -> 08:00)
+    let tempoAtual = Math.ceil(janela.inicio / 30) * 30;
 
     // Se a janela da manhã começar às 07:00 (420) e tiver ampla folga (>= 4h),
     // inicia confortavelmente às 08:00 (480) em vez de forçar às 07:00
     if (isManha && janela.inicio === 420 && janela.fim - janela.inicio >= 240) {
       tempoAtual = 480;
-    }
-    // Se a janela da tarde começar logo após o almoço (13:00) e tiver folga,
-    // inicia confortavelmente às 14:00 (840) para permitir digestão e descanso
-    if (!isManha && janela.inicio >= 720 && janela.inicio <= 780 && janela.fim - janela.inicio >= 240) {
-      tempoAtual = 840;
     }
 
     let minutosDisponiveis = janela.fim - tempoAtual;
@@ -736,7 +771,7 @@ export async function sincronizarLimitesHorarioUtil(force: boolean = false): Pro
     const rowsLimites = await database.getAllAsync<{ data_agendada: string }>(
       `SELECT DISTINCT data_agendada FROM blocos_estudo 
        WHERE status = 'pendente' 
-         AND (hora_inicio < '07:00' OR hora_fim > '22:00');`
+         AND (hora_inicio < '07:00' OR hora_fim > '22:00' OR (hora_inicio < '13:15' AND hora_fim > '12:00'));`
     );
 
     for (const r of rowsLimites) {

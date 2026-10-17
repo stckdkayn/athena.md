@@ -115,6 +115,7 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         estimativa_minutos INTEGER DEFAULT 0,
         assigned_day TEXT,
         concluido INTEGER DEFAULT 0,
+        ordem INTEGER DEFAULT 0,
         FOREIGN KEY (semana_id) REFERENCES Semanas(id) ON DELETE CASCADE
       );
       CREATE INDEX IF NOT EXISTS idx_topicos_semana ON Topicos (semana_id);
@@ -131,6 +132,7 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         meta_questoes INTEGER,
         tema_questoes TEXT,
         concluido INTEGER DEFAULT 0,
+        ordem INTEGER DEFAULT 0,
         FOREIGN KEY (topico_id) REFERENCES Topicos(id) ON DELETE CASCADE
       );
       CREATE INDEX IF NOT EXISTS idx_passos_topico ON Passos (topico_id);
@@ -247,6 +249,12 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
     } catch {}
     try {
       database.execSync(`ALTER TABLE AtividadesAgenda ADD COLUMN is_user_modified INTEGER DEFAULT 0;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE Topicos ADD COLUMN ordem INTEGER DEFAULT 0;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE Passos ADD COLUMN ordem INTEGER DEFAULT 0;`);
     } catch {}
 
     // Migração para recuperar campos 'local' que estavam concatenados como 'Local: ...' em detalhes
@@ -1775,6 +1783,7 @@ export interface PassoDB {
   meta_questoes?: number | null;
   tema_questoes?: string | null;
   concluido: number; // 0 ou 1
+  ordem?: number;
 }
 
 export interface PassoComTopicoDB extends PassoDB {
@@ -1782,6 +1791,7 @@ export interface PassoComTopicoDB extends PassoDB {
   topico_area?: string | null;
   topico_especialidade?: string | null;
   semana_id: number;
+  topico_ordem?: number;
 }
 
 /**
@@ -1798,9 +1808,21 @@ export async function getPassosPorTopico(topicoId: string): Promise<PassoDB[]> {
 /**
  * Retorna passos associados a um dia da semana (ex: 'segunda'), com dados do tópico.
  * Opcionalmente filtra por uma semana específica.
+ * Preserva tópicos originais primeiro (COALESCE(t.ordem, 0) ASC) e prioriza videoaulas antes de apostila.
  */
 export async function getPassosPorDiaSemana(diaSemana: string, semanaId?: number): Promise<PassoComTopicoDB[]> {
   const database = getDatabase();
+  const caseTipoOrder = `
+    CASE p.tipo 
+      WHEN 'aulas' THEN 1 
+      WHEN 'aulas_bonus' THEN 2 
+      WHEN 'apostila' THEN 3 
+      WHEN 'questoes' THEN 4 
+      WHEN 'flashcards' THEN 5 
+      ELSE 6 
+    END ASC
+  `;
+
   if (typeof semanaId === 'number') {
     return await database.getAllAsync<PassoComTopicoDB>(
       `SELECT 
@@ -1813,14 +1835,16 @@ export async function getPassosPorDiaSemana(diaSemana: string, semanaId?: number
         p.meta_questoes,
         p.tema_questoes,
         p.concluido,
+        p.ordem,
         t.titulo as topico_titulo,
         t.area as topico_area,
         t.especialidade as topico_especialidade,
-        t.semana_id
+        t.semana_id,
+        t.ordem as topico_ordem
        FROM Passos p
        JOIN Topicos t ON p.topico_id = t.id
        WHERE p.dia_semana = ? AND t.semana_id = ?
-       ORDER BY p.id ASC;`,
+       ORDER BY COALESCE(t.ordem, 0) ASC, ${caseTipoOrder}, COALESCE(p.ordem, 0) ASC, p.id ASC;`,
       [diaSemana, semanaId]
     );
   }
@@ -1836,14 +1860,16 @@ export async function getPassosPorDiaSemana(diaSemana: string, semanaId?: number
       p.meta_questoes,
       p.tema_questoes,
       p.concluido,
+      p.ordem,
       t.titulo as topico_titulo,
       t.area as topico_area,
       t.especialidade as topico_especialidade,
-      t.semana_id
+      t.semana_id,
+      t.ordem as topico_ordem
      FROM Passos p
      JOIN Topicos t ON p.topico_id = t.id
      WHERE p.dia_semana = ?
-     ORDER BY p.id ASC;`,
+     ORDER BY COALESCE(t.ordem, 0) ASC, ${caseTipoOrder}, COALESCE(p.ordem, 0) ASC, p.id ASC;`,
     [diaSemana]
   );
 }
@@ -2155,9 +2181,26 @@ export async function moverPassoOuTopicoDeDiaNoBanco(
 ): Promise<void> {
   try {
     const database = getDatabase();
-    // Move todos os passos do tópico juntos para manter o conjunto íntegro
-    await database.runAsync(`UPDATE Passos SET dia_semana = ? WHERE topico_id = ?;`, [novoDia, topicoId]);
-    await database.runAsync(`UPDATE Topicos SET assigned_day = ? WHERE id = ?;`, [novoDia, topicoId]);
+    // Busca a semana do tópico para calcular o maior ordem dos tópicos daquele dia
+    const topico = await database.getFirstAsync<{ semana_id: number }>(
+      `SELECT semana_id FROM Topicos WHERE id = ?;`,
+      [topicoId]
+    );
+    const semanaId = topico?.semana_id;
+    let novaOrdem = 1;
+    if (typeof semanaId === 'number') {
+      const maxRow = await database.getFirstAsync<{ max_ordem: number | null }>(
+        `SELECT MAX(t.ordem) as max_ordem 
+         FROM Topicos t
+         WHERE t.semana_id = ? AND t.assigned_day = ?;`,
+        [semanaId, novoDia]
+      );
+      novaOrdem = ((maxRow?.max_ordem) ?? 0) + 1;
+    }
+
+    // Move todos os passos do tópico juntos para manter o conjunto íntegro no fim da fila
+    await database.runAsync(`UPDATE Passos SET dia_semana = ?, ordem = ? WHERE topico_id = ?;`, [novoDia, novaOrdem, topicoId]);
+    await database.runAsync(`UPDATE Topicos SET assigned_day = ?, ordem = ? WHERE id = ?;`, [novoDia, novaOrdem, topicoId]);
 
     // Limpa blocos pendentes gerados no dia anterior para que sejam gerados no novo dia
     await database.runAsync(
@@ -2180,6 +2223,7 @@ export async function moverPassoOuTopicoDeDiaNoBanco(
 
 /**
  * Move um tópico para outra semana no SQLite e no MMKV.
+ * Aloca o tópico no final da fila da semana de destino (ordem = max_ordem + 1).
  */
 export async function moverTopicoDeSemanaNoBanco(
   topicoId: string,
@@ -2187,7 +2231,21 @@ export async function moverTopicoDeSemanaNoBanco(
 ): Promise<void> {
   try {
     const database = getDatabase();
-    await database.runAsync(`UPDATE Topicos SET semana_id = ? WHERE id = ?;`, [novaSemanaNumero, topicoId]);
+    // Obtém o maior valor de ordem na semana de destino para colocar este tópico e seus passos no final da fila
+    const maxRow = await database.getFirstAsync<{ max_ordem: number | null }>(
+      `SELECT MAX(ordem) as max_ordem FROM Topicos WHERE semana_id = ?;`,
+      [novaSemanaNumero]
+    );
+    const novaOrdem = ((maxRow?.max_ordem) ?? 0) + 1;
+
+    await database.runAsync(
+      `UPDATE Topicos SET semana_id = ?, ordem = ? WHERE id = ?;`,
+      [novaSemanaNumero, novaOrdem, topicoId]
+    );
+    await database.runAsync(
+      `UPDATE Passos SET ordem = ? WHERE topico_id = ?;`,
+      [novaOrdem, topicoId]
+    );
 
     // Limpa blocos pendentes gerados na semana anterior para que sejam reagendados na nova semana
     await database.runAsync(

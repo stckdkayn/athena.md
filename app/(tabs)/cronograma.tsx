@@ -31,6 +31,8 @@ import {
   getCronogramaFromSQLite,
   getPassosPorTopico,
   togglePassoConcluido,
+  moverPassoOuTopicoDeDiaNoBanco,
+  moverTopicoDeSemanaNoBanco,
   PassoDB,
 } from '@/services/database';
 import {
@@ -502,14 +504,8 @@ export default function CronogramaScreen() {
         const topicProgress = total > 0 ? Math.round((concluidos / total) * 100) : calcularProgressoTopico(topico, progresso);
 
         let passosOrdenados = [...passosDoDia];
-        const aulasIdx = passosOrdenados.findIndex((p) => p.tipo === 'aulas');
-        const bonusIdx = passosOrdenados.findIndex((p) => p.tipo === 'aulas_bonus');
-
-        if (aulasIdx !== -1 && bonusIdx !== -1 && bonusIdx !== aulasIdx + 1) {
-          const [bonusStep] = passosOrdenados.splice(bonusIdx, 1);
-          const newAulasIdx = passosOrdenados.findIndex((p) => p.tipo === 'aulas');
-          passosOrdenados.splice(newAulasIdx + 1, 0, bonusStep);
-        }
+        const ordemTipo: Record<string, number> = { aulas: 1, aulas_bonus: 2, apostila: 3, questoes: 4, flashcards: 5 };
+        passosOrdenados.sort((a, b) => (ordemTipo[a.tipo] ?? 99) - (ordemTipo[b.tipo] ?? 99));
 
         list.push({
           cardKey: `${topico.id}_${diaAtivo}`,
@@ -540,6 +536,9 @@ export default function CronogramaScreen() {
         });
       }
     });
+
+    // Mantém tópicos originais primeiro (ordem = 0) e tópicos movidos no fim da fila (ordem > 0)
+    list.sort((a, b) => (a.topico.ordem ?? 0) - (b.topico.ordem ?? 0));
 
     return list;
   }, [semanaAtual, daysMap, diaAtivo, progresso, revisoesDaSemana]);
@@ -739,9 +738,10 @@ export default function CronogramaScreen() {
     }
   };
 
-  const handleMoveToDay = (topicoId: string, targetDay: DiaSemana) => {
+  const handleMoveToDay = async (topicoId: string, targetDay: DiaSemana) => {
     try {
       if (showMoveDayModal?.currentDay && !showMoveDayModal.topico.isRevisao) {
+        await moverPassoOuTopicoDeDiaNoBanco(topicoId, targetDay);
         const res = moverPassosDoTopicoDeDia(topicoId, showMoveDayModal.currentDay, targetDay);
         if (res.success && res.data) setCronograma(res.data);
       }
@@ -857,10 +857,11 @@ export default function CronogramaScreen() {
     }
   };
 
-  const handleConfirmMoverSemana = (semanaDestinoNum: number) => {
+  const handleConfirmMoverSemana = async (semanaDestinoNum: number) => {
     if (!showEscolherSemanaModal) return;
     const targetTopicoId = showEscolherSemanaModal.topico.id;
     try {
+      await moverTopicoDeSemanaNoBanco(targetTopicoId, semanaDestinoNum);
       const res = moverTopicoDeSemana(targetTopicoId, semanaDestinoNum);
       if (res.success && res.data) {
         setCronograma(res.data);

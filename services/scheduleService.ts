@@ -457,7 +457,8 @@ export const moverPassosDoTopicoDeDia = (
           return p;
         });
 
-        return { ...t, passos: newPassos, assignedDay: diaDestino };
+        const maxOrdem = s.topicos.reduce((max, item) => Math.max(max, item.ordem ?? 0), 0);
+        return { ...t, passos: newPassos, assignedDay: diaDestino, ordem: maxOrdem + 1 };
       }
       return t;
     });
@@ -583,17 +584,22 @@ export const moverTopicoDeSemana = (topicoId: string, novaSemanaNumero: number) 
     return { ...s, topicos: topicosFiltrados };
   });
 
-  if (!topicoMovido) return { success: false, error: 'Tópico não encontrado.' };
+  const alvo = topicoMovido as unknown as CronogramaTopico;
+  if (!alvo) return { success: false, error: 'Tópico não encontrado.' };
 
   // Insere na nova semana
   const semanaDestinoIndex = semanasProcessadas.findIndex((s) => s.numero === novaSemanaNumero);
   if (semanaDestinoIndex !== -1) {
-    semanasProcessadas[semanaDestinoIndex].topicos.push(topicoMovido);
+    const semanaDest = semanasProcessadas[semanaDestinoIndex];
+    const maxOrdem = semanaDest.topicos.reduce((max, item) => Math.max(max, item.ordem ?? 0), 0);
+    alvo.ordem = maxOrdem + 1;
+    semanaDest.topicos.push(alvo);
   } else {
+    alvo.ordem = 1;
     semanasProcessadas.push({
       numero: novaSemanaNumero,
       titulo: `Semana ${novaSemanaNumero}`,
-      topicos: [topicoMovido],
+      topicos: [alvo],
     });
   }
 
