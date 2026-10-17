@@ -5,19 +5,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
   StyleProp,
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { Fonts } from '@/constants/Typography';
 import { useAppTheme } from '@/context/ThemeContext';
 import { storage } from '@/services/storage';
 import { getStreakInfo, StreakInfo } from '@/services/streakService';
 import { NomeUsuarioModal } from '@/components/modals/NomeUsuarioModal';
 import { StreakModal } from '@/components/modals/StreakModal';
+import { PersonalizacaoModal } from '@/components/modals/PersonalizacaoModal';
 
 interface AppHeaderProps {
   children?: React.ReactNode;
@@ -32,6 +31,7 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [modalNomeVisible, setModalNomeVisible] = useState<boolean>(false);
   const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
+  const [modalPersonalizacaoVisible, setModalPersonalizacaoVisible] = useState<boolean>(false);
 
   const carregarDadosUsuario = useCallback(async () => {
     const savedName = storage.getString('@athena_user_name') || '';
@@ -61,77 +61,8 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
   };
   const greeting = getGreeting();
 
-  const handlePickPhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permissão necessária',
-          'Precisamos de acesso às suas fotos para atualizar sua imagem de perfil.'
-        );
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setUserPhoto(uri);
-        storage.set('@athena_user_photo', uri);
-      }
-    } catch (e) {
-      console.error('[AppHeader] Erro ao selecionar foto:', e);
-      Alert.alert('Erro', 'Não foi possível selecionar a foto.');
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permissão necessária',
-          'Precisamos de acesso à câmera para tirar sua foto de perfil.'
-        );
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setUserPhoto(uri);
-        storage.set('@athena_user_photo', uri);
-      }
-    } catch (e) {
-      console.error('[AppHeader] Erro ao tirar foto:', e);
-      Alert.alert('Erro', 'Não foi possível tirar a foto.');
-    }
-  };
-
   const handleAvatarPress = () => {
-    const buttons: any[] = [
-      { text: 'Escolher da Galeria', onPress: handlePickPhoto },
-      { text: 'Tirar Foto', onPress: handleTakePhoto },
-    ];
-    if (userPhoto) {
-      buttons.push({
-        text: 'Remover Foto',
-        style: 'destructive',
-        onPress: () => {
-          setUserPhoto(null);
-          storage.remove('@athena_user_photo');
-        },
-      });
-    }
-    buttons.push({ text: 'Cancelar', style: 'cancel' });
-
-    Alert.alert('Foto de Perfil', 'Escolha como deseja alterar sua foto:', buttons);
+    setModalPersonalizacaoVisible(true);
   };
 
   return (
@@ -163,7 +94,7 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setModalNomeVisible(true)}
+            onPress={() => setModalPersonalizacaoVisible(true)}
             activeOpacity={0.7}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             style={styles.greetingContainer}
@@ -215,7 +146,17 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
         streakInfo={streakInfo}
       />
 
-      {/* Modal para Editar Nome do Usuário */}
+      {/* Modal Unificado de Personalização (Foto, Nome, Tema Claro/Escuro) */}
+      <PersonalizacaoModal
+        visible={modalPersonalizacaoVisible}
+        onClose={() => setModalPersonalizacaoVisible(false)}
+        currentName={userName}
+        currentPhoto={userPhoto}
+        onSaveName={(novoNome) => setUserName(novoNome)}
+        onSavePhoto={(novaFoto) => setUserPhoto(novaFoto)}
+      />
+
+      {/* Modal legado para Editar Nome do Usuário */}
       <NomeUsuarioModal
         visible={modalNomeVisible}
         onClose={() => setModalNomeVisible(false)}
