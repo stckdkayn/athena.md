@@ -20,7 +20,6 @@ import * as FileSystem from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { unzip } from 'react-native-zip-archive';
-import JSZip from 'jszip';
 import { useNavigation } from 'expo-router';
 import Colors, { ActiveThemeColors } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -993,61 +992,30 @@ export default function ConfiguracoesScreen() {
       } catch {}
     }
 
-    let unzippedViaNative = false;
     try {
-      if (localZipPath) {
-        try { await unzip(localZipPath.replace(/^file:\/\//, ''), targetDir.replace(/^file:\/\//, '')); unzippedViaNative = true; } catch {}
+      if (!localZipPath) {
+        throw new Error('Não foi possível localizar o arquivo ZIP para descompactação.');
+      }
+      try {
+        await unzip(localZipPath.replace(/^file:\/\//, ''), targetDir.replace(/^file:\/\//, ''));
+      } catch (unzipErr: any) {
+        throw new Error(`Falha ao descompactar nativamente o arquivo ZIP: ${unzipErr?.message || 'erro no arquivo'}`);
       }
 
-      if (!unzippedViaNative) {
-        const pathToRead = localZipPath || zipUri;
-        let zipBuffer: ArrayBuffer | Uint8Array | string | null = null;
-        let isBase64 = false;
-
-        try { zipBuffer = await new FileSystem.File(pathToRead).arrayBuffer(); }
-        catch {
-          try { zipBuffer = await new FileSystem.File(pathToRead).bytes(); }
-          catch {
-            try { zipBuffer = await FileSystemLegacy.readAsStringAsync(pathToRead, { encoding: FileSystemLegacy.EncodingType.Base64 }); isBase64 = true; }
-            catch {
-              try { zipBuffer = await (await fetch(pathToRead)).arrayBuffer(); } catch {}
+      // Reorganiza imagens se estiverem em subpastas internas do zip
+      try {
+        const rootItems = await FileSystemLegacy.readDirectoryAsync(targetDir);
+        for (const item of rootItems) {
+          if (item === '__MACOSX' || item.startsWith('.')) continue;
+          const itemPath = `${targetDir}${item}`;
+          if ((await FileSystemLegacy.getInfoAsync(itemPath)).isDirectory) {
+            const subItems = await FileSystemLegacy.readDirectoryAsync(itemPath);
+            for (const sub of subItems) {
+              if (sub.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) await FileSystemLegacy.moveAsync({ from: `${itemPath}/${sub}`, to: `${targetDir}${sub}` });
             }
           }
         }
-
-        if (!zipBuffer) throw new Error('Não foi possível ler os dados do arquivo ZIP.');
-
-        let zip = await JSZip.loadAsync(zipBuffer, isBase64 ? { base64: true } : undefined);
-        let extractedCount = 0;
-        for (const [filename, fileObj] of Object.entries(zip.files)) {
-          if (fileObj.dir || filename.includes('__MACOSX') || filename.startsWith('.')) continue;
-          const cleanName = filename.split('/').pop();
-          if (!cleanName || !cleanName.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) continue;
-
-          try {
-            const fileBase64 = await fileObj.async('base64');
-            await FileSystemLegacy.writeAsStringAsync(`${targetDir}${cleanName}`, fileBase64, { encoding: FileSystemLegacy.EncodingType.Base64 });
-            extractedCount++;
-          } catch {}
-        }
-        if (extractedCount === 0) throw new Error('O arquivo ZIP foi lido, mas não contém imagens válidas.');
-      }
-
-      if (unzippedViaNative) {
-        try {
-          const rootItems = await FileSystemLegacy.readDirectoryAsync(targetDir);
-          for (const item of rootItems) {
-            if (item === '__MACOSX' || item.startsWith('.')) continue;
-            const itemPath = `${targetDir}${item}`;
-            if ((await FileSystemLegacy.getInfoAsync(itemPath)).isDirectory) {
-              const subItems = await FileSystemLegacy.readDirectoryAsync(itemPath);
-              for (const sub of subItems) {
-                if (sub.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) await FileSystemLegacy.moveAsync({ from: `${itemPath}/${sub}`, to: `${targetDir}${sub}` });
-              }
-            }
-          }
-        } catch {}
-      }
+      } catch {}
 
       return (await FileSystemLegacy.readDirectoryAsync(targetDir)).filter((f) => /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(f)).length;
     } finally {

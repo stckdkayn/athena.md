@@ -2,7 +2,6 @@ import { storage } from './storage';
 import * as FileSystem from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { unzip } from 'react-native-zip-archive';
-import JSZip from 'jszip';
 import { getQuestoesCache, setQuestoesCache, saveQuestoesStorage } from './questionService';
 import { invalidateImageCache } from './imageService';
 import {
@@ -775,72 +774,41 @@ export async function downloadAndExtractZip(
 
     if (onProgressDetail) onProgressDetail('Extraindo imagens...');
 
-    let unzippedViaNative = false;
-
-    // 1. Tenta descompactar nativamente
+    // 1. Descompacta nativamente (react-native-zip-archive)
+    // Sem fallback para JSZip em memória para prevenir OutOfMemory (OOM) com arquivos grandes de centenas de MBs
     try {
       const nativeSource = tempZipLocalPath.replace(/^file:\/\//, '');
       const nativeTarget = targetDir.replace(/^file:\/\//, '');
       await unzip(nativeSource, nativeTarget);
-      unzippedViaNative = true;
-    } catch {
-      // Normal em ambientes sem compilação nativa (Expo Go)
+    } catch (unzipErr: any) {
+      console.error('[githubSync] Erro na descompactação nativa do ZIP:', unzipErr);
+      throw new Error(`Falha ao descompactar pacote de imagens nativamente: ${unzipErr?.message || 'erro no arquivo'}`);
     }
 
-    if (unzippedViaNative) {
-      // Se o ZIP continha subpastas internas, move as imagens para a raiz de targetDir
-      try {
-        const items = await FileSystemLegacy.readDirectoryAsync(targetDir);
-        for (const item of items) {
-          if (item === '__MACOSX' || item.startsWith('.')) continue;
-          const itemPath = `${targetDir}${item}`;
-          const itemInfo = await FileSystemLegacy.getInfoAsync(itemPath);
-          if (itemInfo.isDirectory) {
-            const nested = await FileSystemLegacy.readDirectoryAsync(itemPath);
-            for (const n of nested) {
-              if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(n)) {
-                await FileSystemLegacy.moveAsync({
-                  from: `${itemPath}/${n}`,
-                  to: `${targetDir}${n}`,
-                });
-                extractedCount++;
-              }
+    // Se o ZIP continha subpastas internas, move as imagens para a raiz de targetDir
+    try {
+      const items = await FileSystemLegacy.readDirectoryAsync(targetDir);
+      for (const item of items) {
+        if (item === '__MACOSX' || item.startsWith('.')) continue;
+        const itemPath = `${targetDir}${item}`;
+        const itemInfo = await FileSystemLegacy.getInfoAsync(itemPath);
+        if (itemInfo.isDirectory) {
+          const nested = await FileSystemLegacy.readDirectoryAsync(itemPath);
+          for (const n of nested) {
+            if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(n)) {
+              await FileSystemLegacy.moveAsync({
+                from: `${itemPath}/${n}`,
+                to: `${targetDir}${n}`,
+              });
+              extractedCount++;
             }
-          } else if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item)) {
-            extractedCount++;
           }
-        }
-      } catch {}
-    } else {
-      // 2. Fallback JSZip
-      let zipBuffer: any = null;
-      let isBase64 = false;
-      try {
-        zipBuffer = await FileSystemLegacy.readAsStringAsync(tempZipLocalPath, {
-          encoding: FileSystemLegacy.EncodingType.Base64,
-        });
-        isBase64 = true;
-      } catch {
-        const res = await fetch(tempZipLocalPath);
-        zipBuffer = await res.arrayBuffer();
-      }
-
-      const zip = await JSZip.loadAsync(zipBuffer, isBase64 ? { base64: true } : undefined);
-      for (const [filename, fileObj] of Object.entries(zip.files)) {
-        if (fileObj.dir || filename.includes('__MACOSX') || filename.startsWith('.')) continue;
-        const cleanName = filename.split('/').pop();
-        if (!cleanName || !cleanName.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) continue;
-
-        try {
-          const fileBase64 = await fileObj.async('base64');
-          await FileSystemLegacy.writeAsStringAsync(`${targetDir}${cleanName}`, fileBase64, {
-            encoding: FileSystemLegacy.EncodingType.Base64,
-          });
+        } else if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item)) {
           extractedCount++;
-        } catch (writeErr) {
-          console.warn(`Erro ao extrair imagem ${cleanName}:`, writeErr);
         }
       }
+    } catch (moveErr) {
+      console.warn('[githubSync] Aviso ao organizar arquivos extraídos:', moveErr);
     }
   } finally {
     // Remove SEMPRE o arquivo zip temporário do armazenamento interno

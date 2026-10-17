@@ -426,22 +426,47 @@ export async function salvarEventosICSNoBanco(eventos: EventoICS[], feedId?: str
 
       await txn.runAsync(
         `INSERT INTO AtividadesAgenda (
-          id, id_recorrente, titulo, tipo, icone, detalhes, local, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+          id, id_recorrente, titulo, tipo, icone, detalhes, local, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, is_user_modified, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
         ON CONFLICT(id) DO UPDATE SET
-          titulo = COALESCE(?, excluded.titulo),
-          tipo = excluded.tipo,
+          titulo = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.titulo
+            ELSE COALESCE(?, excluded.titulo)
+          END,
+          tipo = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.tipo
+            ELSE excluded.tipo
+          END,
           icone = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.icone
             WHEN ? IS NOT NULL THEN ?
             WHEN AtividadesAgenda.icone IS NOT NULL AND AtividadesAgenda.icone NOT IN ('calendar', 'book', 'calendar-outline', 'book-outline') THEN AtividadesAgenda.icone
             ELSE excluded.icone
           END,
-          detalhes = COALESCE(AtividadesAgenda.detalhes, excluded.detalhes),
-          local = COALESCE(?, excluded.local, AtividadesAgenda.local),
-          cor = COALESCE(?, AtividadesAgenda.cor),
-          data_agendada = excluded.data_agendada,
-          hora_inicio = excluded.hora_inicio,
-          hora_fim = excluded.hora_fim,
+          detalhes = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.detalhes
+            ELSE COALESCE(AtividadesAgenda.detalhes, excluded.detalhes)
+          END,
+          local = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.local
+            ELSE COALESCE(?, excluded.local, AtividadesAgenda.local)
+          END,
+          cor = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.cor
+            ELSE COALESCE(?, AtividadesAgenda.cor)
+          END,
+          data_agendada = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.data_agendada
+            ELSE excluded.data_agendada
+          END,
+          hora_inicio = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.hora_inicio
+            ELSE excluded.hora_inicio
+          END,
+          hora_fim = CASE
+            WHEN AtividadesAgenda.is_user_modified = 1 THEN AtividadesAgenda.hora_fim
+            ELSE excluded.hora_fim
+          END,
           timestamp = excluded.timestamp;`,
         [
           ev.id,
@@ -469,10 +494,14 @@ export async function salvarEventosICSNoBanco(eventos: EventoICS[], feedId?: str
     }
 
     // Se vier de um feed registrado, remove eventos pendentes do banco que foram apagados no Google Calendar
+    // PROTEÇÃO: Preserva eventos que foram customizados pelo usuário (is_user_modified = 1)
     if (feedRecorrenteId) {
       const idsValidos = new Set(eventos.map((e) => e.id));
       const eventosAtuais = await txn.getAllAsync<{ id: string }>(
-        `SELECT id FROM AtividadesAgenda WHERE id_recorrente = ? AND concluida = 0;`,
+        `SELECT id FROM AtividadesAgenda 
+         WHERE id_recorrente = ? 
+           AND concluida = 0 
+           AND (is_user_modified = 0 OR is_user_modified IS NULL);`,
         [feedRecorrenteId]
       );
 

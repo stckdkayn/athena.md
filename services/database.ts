@@ -73,6 +73,7 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         hora_fim TEXT,
         feedback_cansaco INTEGER DEFAULT 0,
         concluida INTEGER DEFAULT 0,
+        is_user_modified INTEGER DEFAULT 0,
         timestamp INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_agenda_data ON AtividadesAgenda (data_agendada);
@@ -243,6 +244,9 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
     } catch {}
     try {
       database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN local TEXT;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE AtividadesAgenda ADD COLUMN is_user_modified INTEGER DEFAULT 0;`);
     } catch {}
 
     // Migração para recuperar campos 'local' que estavam concatenados como 'Local: ...' em detalhes
@@ -1217,6 +1221,7 @@ export interface AtividadeAgenda {
   hora_fim?: string | null;
   feedback_cansaco?: number;
   concluida: boolean;
+  is_user_modified?: number | boolean;
   timestamp?: number;
   isVirtual?: boolean; // Flag para UI saber se é um "molde" que ainda não foi alterado/concluído
   passo_meta_questoes?: number | null;
@@ -1565,7 +1570,13 @@ export async function atualizarAtividade(id: string, dados: Partial<AtividadeAge
       await database.runAsync(`UPDATE AtividadesRecorrentes SET ${recFields} WHERE id = ?;`, recValues);
     }
   } else {
-    await database.runAsync(`UPDATE AtividadesAgenda SET ${fields} WHERE id = ?;`, values);
+    const dadosComModificacao = { ...dados, is_user_modified: 1 };
+    const updateKeys = Object.keys(dadosComModificacao).filter((k) => k !== 'id' && k !== 'isVirtual');
+    const updateFields = updateKeys.map((k) => `${k} = ?`).join(', ');
+    const updateValues = updateKeys.map((k) => (dadosComModificacao as any)[k]);
+    updateValues.push(id);
+
+    await database.runAsync(`UPDATE AtividadesAgenda SET ${updateFields} WHERE id = ?;`, updateValues);
     try {
       const recKeys = keys.filter((k) =>
         ['titulo', 'tipo', 'icone', 'detalhes', 'local', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
@@ -1650,11 +1661,13 @@ export async function atualizarSerieEventos(
   );
   if (keys.length === 0) return;
 
-  const fields = keys.map((k) => `${k} = ?`).join(', ');
-  const values = keys.map((k) => (dados as any)[k]);
+  const dadosComFlag = { ...dados, is_user_modified: 1 };
+  const updateKeys = [...keys, 'is_user_modified'];
+  const fields = updateKeys.map((k) => `${k} = ?`).join(', ');
+  const values = updateKeys.map((k) => (dadosComFlag as any)[k]);
   values.push(`${seriePrefix}_%`);
 
-  // 1. Atualiza todas as ocorrências existentes no banco para essa série
+  // 1. Atualiza todas as ocorrências existentes no banco para essa série marcando como modificada pelo usuário
   await database.runAsync(
     `UPDATE AtividadesAgenda SET ${fields} WHERE id LIKE ?;`,
     values

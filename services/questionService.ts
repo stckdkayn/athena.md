@@ -433,28 +433,35 @@ export function getActiveSessionFilePath(): string {
   return `${cleanBase}${ACTIVE_SESSION_FILENAME}`;
 }
 
-export async function saveActiveQuizSession(session: any): Promise<void> {
+let lastDiskSaveTime = 0;
+const MIN_DISK_SAVE_INTERVAL_MS = 5000; // Máximo 1 escrita em disco a cada 5 segundos
+
+export async function saveActiveQuizSession(session: any, persistToDisk: boolean = false): Promise<void> {
   if (!session || !Array.isArray(session.questions) || session.questions.length === 0) {
     return;
   }
   const jsonStr = JSON.stringify(session);
 
-  // 1. MMKV Storage (acesso instantâneo síncrono C++)
+  // 1. MMKV Storage (acesso instantâneo síncrono C++ em memória, 0ms sem desgaste de disco)
   try {
     storage.set(ACTIVE_SESSION_KEY, jsonStr);
   } catch (err) {
     console.warn('[questionService] Falha ao salvar sessão ativa no MMKV:', err);
   }
 
-  // 2. Arquivo no disco (persistência garantida mesmo se o app for encerrado)
-  try {
-    const filePath = getActiveSessionFilePath();
-    const tempPath = `${filePath}.tmp`;
-    await FileSystemLegacy.writeAsStringAsync(tempPath, jsonStr);
-    await FileSystemLegacy.deleteAsync(filePath, { idempotent: true });
-    await FileSystemLegacy.moveAsync({ from: tempPath, to: filePath });
-  } catch (fileErr) {
-    console.warn('[questionService] Falha ao salvar sessão ativa no disco:', fileErr);
+  // 2. Arquivo no disco (apenas se persistToDisk for true OU se decorrido intervalo mínimo de 5s)
+  const now = Date.now();
+  if (persistToDisk || now - lastDiskSaveTime >= MIN_DISK_SAVE_INTERVAL_MS) {
+    lastDiskSaveTime = now;
+    try {
+      const filePath = getActiveSessionFilePath();
+      const tempPath = `${filePath}.tmp`;
+      await FileSystemLegacy.writeAsStringAsync(tempPath, jsonStr);
+      await FileSystemLegacy.deleteAsync(filePath, { idempotent: true });
+      await FileSystemLegacy.moveAsync({ from: tempPath, to: filePath });
+    } catch (fileErr) {
+      console.warn('[questionService] Falha ao salvar sessão ativa no disco:', fileErr);
+    }
   }
 }
 

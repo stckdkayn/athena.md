@@ -636,7 +636,7 @@ export default function QuizScreen() {
     isSimulado,
   ]);
 
-  // Auto-save contínuo resiliente (debounced 250ms) para persistência segura mesmo ao fechar o app
+  // Auto-save contínuo resiliente (debounced 5000ms) para persistência segura sem superaquecer o celular
   useEffect(() => {
     if (loading || isReviewMode || questions.length === 0) return;
 
@@ -645,7 +645,7 @@ export default function QuizScreen() {
         ...sessionRef.current,
         timestamp: Date.now(),
       }).catch((e) => console.warn('[Athena Quiz] Erro no auto-save periódico:', e));
-    }, 250);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [
@@ -662,15 +662,18 @@ export default function QuizScreen() {
     isReviewMode,
   ]);
 
-  // Sincronização imediata ao minimizar ou fechar o app em segundo plano via AppState
+  // Sincronização imediata ao minimizar ou fechar o app em segundo plano via AppState (força escrita no disco)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState.match(/inactive|background/)) {
         if (!loading && !isReviewMode && sessionRef.current.questions.length > 0) {
-          saveActiveQuizSession({
-            ...sessionRef.current,
-            timestamp: Date.now(),
-          }).catch((e) => console.warn('[Athena Quiz] Erro ao salvar no AppState background:', e));
+          saveActiveQuizSession(
+            {
+              ...sessionRef.current,
+              timestamp: Date.now(),
+            },
+            true
+          ).catch((e) => console.warn('[Athena Quiz] Erro ao salvar no AppState background:', e));
         }
       }
     });
@@ -686,7 +689,7 @@ export default function QuizScreen() {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(-24)).current;
   const toastScale = useRef(new Animated.Value(0.9)).current;
-  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dicionário de Frases (Milestones) de Streak de Acertos
   const getStreakMilestoneMessage = (streak: number): string | null => {
@@ -1793,7 +1796,7 @@ export default function QuizScreen() {
         discardedAlts,
         timestamp: Date.now(),
       };
-      await saveActiveQuizSession(session);
+      await saveActiveQuizSession(session, true);
     } catch (err) {
       console.error('Erro ao salvar sessão de questões:', err);
     }
