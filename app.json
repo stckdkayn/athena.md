@@ -2,7 +2,7 @@
   "expo": {
     "name": "Athena.md",
     "slug": "athena-md",
-    "version": "1.0.0",
+    "version": "2.5.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "athenamd",
@@ -16,6 +16,7 @@
     },
     "android": {
       "package": "com.athena.md",
+      "versionCode": 25,
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
