@@ -26,11 +26,14 @@ import {
 } from '@/services/database';
 import { GargaloDetalheModal, BottleneckTheme, FocoMetrica } from '@/components/modals/GargaloDetalheModal';
 import { TreinoFocadoModal, TargetTreinoGargalo, MicroFocoTreinoOption } from '@/components/modals/TreinoFocadoModal';
-import Heatmap from '@/components/Heatmap';
+import { AthenaDialogModal, AthenaDialogVariant } from '@/components/modals/AthenaDialogModal';
+import { MetaDiariaModal } from '@/components/modals/MetaDiariaModal';
 import EvolucaoMensalChart from '@/components/EvolucaoMensalChart';
+import CircularProgressRing from '@/components/CircularProgressRing';
+import MemoryDonutChart from '@/components/MemoryDonutChart';
+import ThemeDonutChart, { ThemeDistributionSegment } from '@/components/ThemeDonutChart';
+import { TemasDetalheModal, TemaDetalhadoItem } from '@/components/modals/TemasDetalheModal';
 import {
-  classificarGrandeArea,
-  GrandeAreaSimulado,
   getQuestoesCache,
   getQuestionsByThemes,
   saveActiveQuizSession,
@@ -40,24 +43,6 @@ import { generateDailySession } from '@/services/studyAgentService';
 import { storage } from '@/services/storage';
 
 export type TimeRangeOption = 'hoje' | '7dias' | '30dias' | 'geral';
-
-interface GrandeAreaMetrica {
-  key: GrandeAreaSimulado;
-  label: string;
-  icone: string;
-  cor: string;
-  total: number;
-  acertos: number;
-  taxa: number;
-}
-
-const GRANDES_AREAS_INFO: Record<GrandeAreaSimulado, { label: string; icone: string; cor: string }> = {
-  clinica_medica: { label: 'Clínica Médica', icone: 'stethoscope', cor: '#3B82F6' },
-  cirurgia: { label: 'Cirurgia Geral', icone: 'scalpel', cor: '#EF4444' },
-  pediatria: { label: 'Pediatria', icone: 'baby-carriage', cor: '#10B981' },
-  ginecologia_obstetricia: { label: 'Ginecologia & Obstetrícia', icone: 'mother-nurse', cor: '#EC4899' },
-  medicina_preventiva: { label: 'Medicina Preventiva & SUS', icone: 'shield-account', cor: '#F59E0B' },
-};
 
 function getAproveitamentoCor(taxa: number): string {
   if (taxa <= 25) return '#EF4444';
@@ -93,6 +78,15 @@ function getQuestionId(q: any, idx: number): string {
   return `q_${idx}`;
 }
 
+const PALETA_TEMAS = [
+  '#EAE115', // Amarelo de destaque padrão Athena
+  '#3B82F6', // Azul
+  '#10B981', // Verde Esmeralda
+  '#8B5CF6', // Roxo
+  '#F97316', // Laranja
+  '#EC4899', // Rosa
+];
+
 export default function DesempenhoScreen() {
   const { colors: themeColors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
@@ -100,12 +94,17 @@ export default function DesempenhoScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [timeRange, setTimeRange] = useState<TimeRangeOption>('7dias');
+  const [timeRange, setTimeRange] = useState<TimeRangeOption>('hoje');
 
   // Métricas gerais
   const [totalQuestoes, setTotalQuestoes] = useState<number>(0);
   const [totalAcertos, setTotalAcertos] = useState<number>(0);
   const [aproveitamento, setAproveitamento] = useState<number>(0);
+
+  // Distribuição de questões por temas (Gráfico em Anel)
+  const [temasDistribuicao, setTemasDistribuicao] = useState<ThemeDistributionSegment[]>([]);
+  const [todosTemasDetalhados, setTodosTemasDetalhados] = useState<TemaDetalhadoItem[]>([]);
+  const [modalTemasVisible, setModalTemasVisible] = useState<boolean>(false);
 
   // Telemetria de tempo
   const [timeStats, setTimeStats] = useState<QuestionTimeStats>({
@@ -122,9 +121,6 @@ export default function DesempenhoScreen() {
     consolidando: 0,
   });
 
-  // Grandes Áreas
-  const [grandesAreas, setGrandesAreas] = useState<GrandeAreaMetrica[]>([]);
-
   // Gargalos e Treino Focado
   const [gargalos, setGargalos] = useState<BottleneckTheme[]>([]);
   const [selectedGargalo, setSelectedGargalo] = useState<BottleneckTheme | null>(null);
@@ -135,6 +131,34 @@ export default function DesempenhoScreen() {
 
   // Sessão diária do SM-2
   const [gerandoSessaoSM2, setGerandoSessaoSM2] = useState<boolean>(false);
+
+  // Meta de Questões (Diária, Semanal, Mensal)
+  const [metaDiaria, setMetaDiaria] = useState<number>(() => {
+    const saved = storage.getString('@athena_meta_questoes_diaria');
+    return saved ? parseInt(saved, 10) || 0 : 0;
+  });
+  const [modalMetaVisible, setModalMetaVisible] = useState<boolean>(false);
+
+  // Diálogo unificado no padrão Athena/Notion
+  const [dialogConfig, setDialogConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message?: string;
+    variant?: AthenaDialogVariant;
+    icon?: keyof typeof Ionicons.glyphMap;
+  }>({
+    visible: false,
+    title: '',
+  });
+
+  const showDialog = useCallback((
+    title: string,
+    message?: string,
+    variant: AthenaDialogVariant = 'info',
+    icon?: keyof typeof Ionicons.glyphMap
+  ) => {
+    setDialogConfig({ visible: true, title, message, variant, icon });
+  }, []);
 
   // Calcula o timestamp de início de acordo com o timeRange selecionado
   const getSinceTimestamp = useCallback((range: TimeRangeOption): number => {
@@ -183,22 +207,14 @@ export default function DesempenhoScreen() {
         setTotalQuestoes(0);
         setTotalAcertos(0);
         setAproveitamento(0);
-        setGrandesAreas([]);
         setGargalos([]);
+        setTemasDistribuicao([]);
+        setTodosTemasDetalhados([]);
         return;
       }
 
       let acertosCount = 0;
       const totalQ = rows.length;
-
-      // Mapas auxiliares para as 5 Grandes Áreas e Gargalos
-      const areasAccumulator: Record<GrandeAreaSimulado, { total: number; acertos: number }> = {
-        clinica_medica: { total: 0, acertos: 0 },
-        cirurgia: { total: 0, acertos: 0 },
-        pediatria: { total: 0, acertos: 0 },
-        ginecologia_obstetricia: { total: 0, acertos: 0 },
-        medicina_preventiva: { total: 0, acertos: 0 },
-      };
 
       const temasMap: Record<string, any> = {};
 
@@ -206,17 +222,7 @@ export default function DesempenhoScreen() {
         const isOk = r.correta === 1 || r.correta === true;
         if (isOk) acertosCount++;
 
-        // Classificação na Grande Área
-        const ga = classificarGrandeArea({
-          tema: r.tema,
-          especialidade: r.especialidade,
-        });
-        if (areasAccumulator[ga]) {
-          areasAccumulator[ga].total += 1;
-          if (isOk) areasAccumulator[ga].acertos += 1;
-        }
-
-        // Agrupamento para Gargalos
+        // Agrupamento para Gargalos e Temas
         const tNome = String(r.tema || 'Geral').trim();
         if (!temasMap[tNome]) {
           temasMap[tNome] = {
@@ -256,23 +262,6 @@ export default function DesempenhoScreen() {
       const taxaGlobal = totalQ > 0 ? Math.round((acertosCount / totalQ) * 100) : 0;
       setAproveitamento(taxaGlobal);
 
-      // Formata as 5 Grandes Áreas
-      const gaList: GrandeAreaMetrica[] = (Object.keys(areasAccumulator) as GrandeAreaSimulado[]).map((key) => {
-        const item = areasAccumulator[key];
-        const info = GRANDES_AREAS_INFO[key];
-        const taxa = item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0;
-        return {
-          key,
-          label: info.label,
-          icone: info.icone,
-          cor: info.cor,
-          total: item.total,
-          acertos: item.acertos,
-          taxa,
-        };
-      });
-      setGrandesAreas(gaList);
-
       // Formata a lista de Gargalos
       const listaGargalos: BottleneckTheme[] = Object.entries(temasMap)
         .map(([tema, dados]: [string, any]) => {
@@ -308,6 +297,64 @@ export default function DesempenhoScreen() {
         .slice(0, 5);
 
       setGargalos(listaGargalos);
+
+      // Distribuição de questões feitas por temas (Top 3 ou 4 + Outros)
+      const sortedTemas = Object.entries(temasMap)
+        .map(([tema, dados]: [string, any]) => ({ nome: tema, count: dados.total as number }))
+        .sort((a, b) => b.count - a.count);
+
+      let temasAgrupados: { nome: string; count: number }[] = [];
+      if (sortedTemas.length > 4) {
+        const top3 = sortedTemas.slice(0, 3);
+        const outrosCount = sortedTemas.slice(3).reduce((sum, item) => sum + item.count, 0);
+        temasAgrupados = top3.map((item) => ({ nome: item.nome, count: item.count }));
+        if (outrosCount > 0) temasAgrupados.push({ nome: 'Outros', count: outrosCount });
+      } else {
+        temasAgrupados = sortedTemas;
+      }
+
+      const segmentosTemas: ThemeDistributionSegment[] = temasAgrupados.map((item, idx) => {
+        const percent = totalQ > 0 ? Math.round((item.count / totalQ) * 100) : 0;
+        return {
+          name: item.nome,
+          count: item.count,
+          percent,
+          color: item.nome === 'Outros' ? '#64748B' : PALETA_TEMAS[idx % PALETA_TEMAS.length],
+        };
+      });
+      setTemasDistribuicao(segmentosTemas);
+
+      // Lista completa e ordenada de todos os temas para o modal detalhado
+      const PALETA_TEMAS_EXTENDIDA = [
+        '#EAE115', // Amarelo Athena
+        '#3B82F6', // Azul
+        '#10B981', // Verde Esmeralda
+        '#8B5CF6', // Roxo
+        '#F97316', // Laranja
+        '#EC4899', // Rosa
+        '#06B6D4', // Cyan
+        '#6366F1', // Indigo
+        '#14B8A6', // Teal
+        '#A855F7', // Purple
+      ];
+
+      const listaCompletaTemas: TemaDetalhadoItem[] = Object.entries(temasMap)
+        .map(([tema, dados]: [string, any], idx: number) => {
+          const taxa = dados.total > 0 ? Math.round((dados.acertos / dados.total) * 100) : 0;
+          const pctVolume = totalQ > 0 ? Math.round((dados.total / totalQ) * 100) : 0;
+          return {
+            nome: tema,
+            especialidade: dados.especialidade,
+            total: dados.total as number,
+            acertos: dados.acertos as number,
+            taxa,
+            percentualVolume: pctVolume,
+            color: PALETA_TEMAS_EXTENDIDA[idx % PALETA_TEMAS_EXTENDIDA.length],
+          };
+        })
+        .sort((a, b) => b.total - a.total || a.taxa - b.taxa);
+
+      setTodosTemasDetalhados(listaCompletaTemas);
     } catch (err) {
       console.error('[DesempenhoScreen] Erro ao carregar métricas:', err);
     } finally {
@@ -328,7 +375,7 @@ export default function DesempenhoScreen() {
     try {
       const questoesHoje = await generateDailySession(15);
       if (!questoesHoje || questoesHoje.length === 0) {
-        Alert.alert('Tudo em dia! 🎉', 'Você não possui questões com revisão vencida no SM-2 para hoje.');
+        showDialog('Tudo em dia! 🎉', 'Você não possui questões com revisão vencida no SM-2 para hoje.', 'success');
         return;
       }
       await saveActiveQuizSession({
@@ -341,7 +388,7 @@ export default function DesempenhoScreen() {
       });
     } catch (err) {
       console.error('Erro ao gerar sessão SM-2:', err);
-      Alert.alert('Erro', 'Não foi possível gerar a revisão no momento.');
+      showDialog('Erro', 'Não foi possível gerar a revisão no momento.', 'error');
     } finally {
       setGerandoSessaoSM2(false);
     }
@@ -361,7 +408,7 @@ export default function DesempenhoScreen() {
         parsed = await getQuestoesCache();
       }
       if (!Array.isArray(parsed) || parsed.length === 0) {
-        Alert.alert('Aviso', 'Nenhuma questão cadastrada para este tema.');
+        showDialog('Aviso', 'Nenhuma questão cadastrada para este tema.', 'warning');
         return;
       }
 
@@ -494,7 +541,7 @@ export default function DesempenhoScreen() {
     const allowedQuestionIds = Array.from(ids);
 
     if (allowedQuestionIds.length === 0) {
-      Alert.alert('Sem Questões', 'Marque ao menos um micro-foco com questões disponíveis para iniciar o treino.');
+      showDialog('Sem Questões', 'Marque ao menos um micro-foco com questões disponíveis para iniciar o treino.', 'warning');
       return;
     }
 
@@ -540,6 +587,43 @@ export default function DesempenhoScreen() {
 
   const corAproveitamento = getAproveitamentoCor(aproveitamento);
 
+  // Meta ajustada ao filtro temporal selecionado
+  const metaCalculada = useMemo(() => {
+    if (!metaDiaria || metaDiaria <= 0) return 0;
+    if (timeRange === 'hoje') return metaDiaria;
+    if (timeRange === '7dias') return metaDiaria * 7;
+    if (timeRange === '30dias') return metaDiaria * 30;
+    return metaDiaria * 30; // base mensal para visualização geral
+  }, [metaDiaria, timeRange]);
+
+  const timeRangeLabel = useMemo(() => {
+    switch (timeRange) {
+      case 'hoje': return 'Hoje';
+      case '7dias': return 'Últimos 7 dias';
+      case '30dias': return 'Últimos 30 dias';
+      default: return 'Todo o período';
+    }
+  }, [timeRange]);
+
+  const getPeriodoLabel = useCallback((): string => {
+    if (timeRange === 'hoje') return 'QUESTÕES HOJE';
+    if (timeRange === '7dias') return 'ÚLTIMOS 7 DIAS';
+    if (timeRange === '30dias') return 'ÚLTIMOS 30 DIAS';
+    return 'QUESTÕES TOTAL';
+  }, [timeRange]);
+
+  const getMetaSucessoTexto = useCallback((): string => {
+    if (timeRange === '7dias') return '🎯 Meta semanal concluída!';
+    if (timeRange === '30dias') return '🎯 Meta mensal concluída!';
+    return '🎯 Meta diária concluída!';
+  }, [timeRange]);
+
+  // Taxa de retenção do algoritmo SM-2 (questões retidas / total no algoritmo)
+  const taxaRetencaoSM2 = useMemo(() => {
+    if (!memoryHealth.total || memoryHealth.total === 0) return 0;
+    return Math.round((memoryHealth.longoPrazo / memoryHealth.total) * 100);
+  }, [memoryHealth]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
@@ -583,74 +667,172 @@ export default function DesempenhoScreen() {
           </View>
         ) : (
           <>
-            {/* 2. Card Unificado de Aproveitamento & Tempo Médio */}
-            <View style={styles.heroUnifiedCard}>
-              <View style={styles.heroCardTopRow}>
-                <View style={styles.heroCardTopLeft}>
-                  <MaterialCommunityIcons name="lightning-bolt" size={17} color={themeColors.primary} />
-                  <Text style={styles.heroCardTopTitle}>Rendimento Geral</Text>
-                </View>
-                <View style={styles.questoesCountBadge}>
-                  <Text style={styles.questoesCountText}>
-                    {totalQuestoes === 1 ? '1 questão feita' : `${totalQuestoes} questões feitas`}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.heroColumnsRow}>
-                {/* Coluna A: Aproveitamento */}
-                <View style={styles.heroCol}>
-                  <View style={styles.heroColHeader}>
-                    <Text style={styles.heroColLabel}>APROVEITAMENTO</Text>
-                    <MaterialCommunityIcons name="target" size={15} color={corAproveitamento} />
-                  </View>
-                  <Text style={[styles.heroColValue, { color: corAproveitamento }]}>
-                    {aproveitamento}%
-                  </Text>
-                  <View style={styles.progressBarTrack}>
-                    <View style={[styles.progressBarFill, { width: `${aproveitamento}%`, backgroundColor: corAproveitamento }]} />
-                  </View>
-                  <Text style={styles.heroColSub}>
-                    {totalAcertos} {totalAcertos === 1 ? 'acerto' : 'acertos'} de {totalQuestoes}
-                  </Text>
+            {/* 1. Linha Superior: Quantidade de Questões Feitas + Desempenho (Estilo Main) */}
+            <View style={styles.metricsRow}>
+              {/* Card 1: Quantidade de Questões Feitas */}
+              <TouchableOpacity
+                style={styles.metricCard}
+                activeOpacity={0.7}
+                onPress={() => setModalMetaVisible(true)}
+              >
+                <View style={styles.metricIconRow}>
+                  <Ionicons name="flash-outline" size={17} color={themeColors.primary} />
+                  <Text style={styles.metricCardLabel}>{getPeriodoLabel()}</Text>
+                  {metaCalculada <= 0 && (
+                    <View style={styles.metaBadge}>
+                      <Ionicons name="flag-outline" size={10} color={themeColors.primary} style={{ marginRight: 2 }} />
+                      <Text style={styles.metaBadgeText}>DEFINIR META</Text>
+                    </View>
+                  )}
                 </View>
 
-                {/* Divisor Vertical */}
-                <View style={styles.heroColDivider} />
-
-                {/* Coluna B: Tempo Médio & Ritmo */}
-                <View style={styles.heroCol}>
-                  <View style={styles.heroColHeader}>
-                    <Text style={styles.heroColLabel}>TEMPO MÉDIO</Text>
-                    <Ionicons name="stopwatch-outline" size={15} color={themeColors.primary} />
-                  </View>
-                  <Text style={styles.heroColValue}>
-                    {timeStats.totalQuestoesComTempo > 0
-                      ? formatSegundosEmTempo(timeStats.tempoMedioSegundos)
-                      : '--'}
-                  </Text>
-                  <View style={styles.ritmoBadge}>
-                    <Ionicons name={ritmoBadge.icone as any} size={11} color={ritmoBadge.cor} style={{ marginRight: 4 }} />
-                    <Text style={[styles.ritmoBadgeText, { color: ritmoBadge.cor }]} numberOfLines={1}>
-                      {ritmoBadge.text}
+                {metaCalculada > 0 ? (
+                  <View style={styles.metaValueContainer}>
+                    <Text style={styles.metricCardValue}>
+                      {totalQuestoes}
+                      <Text style={styles.metricCardValueMeta}>/{metaCalculada}</Text>
                     </Text>
                   </View>
-                  <Text style={styles.heroColSub}>
-                    {formatSegundosEmHoras(timeStats.tempoTotalSegundos)} de foco ativo
+                ) : (
+                  <Text style={styles.metricCardValue}>{totalQuestoes}</Text>
+                )}
+
+                {metaCalculada > 0 && (
+                  <View style={styles.metaProgressBarBg}>
+                    <View
+                      style={[
+                        styles.metaProgressBarFill,
+                        {
+                          width: `${Math.min(100, Math.round((totalQuestoes / metaCalculada) * 100))}%`,
+                          backgroundColor: totalQuestoes >= metaCalculada ? '#10B981' : themeColors.primary,
+                        },
+                      ]}
+                    />
+                  </View>
+                )}
+
+                <Text style={styles.metricCardSubtext} numberOfLines={1}>
+                  {metaCalculada > 0 ? (
+                    totalQuestoes >= metaCalculada ? getMetaSucessoTexto() : `Faltam ${metaCalculada - totalQuestoes} para a meta`
+                  ) : (
+                    'Toque para definir meta'
+                  )}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Card 2: Desempenho / Aproveitamento */}
+              {(() => {
+                const hasData = totalQuestoes > 0;
+                const corAprov = hasData ? getAproveitamentoCor(aproveitamento) : themeColors.textSecondary;
+                return (
+                  <View style={styles.metricCard}>
+                    <View style={styles.metricIconRow}>
+                      <Ionicons
+                        name="trending-up-outline"
+                        size={17}
+                        color={corAprov}
+                      />
+                      <Text style={styles.metricCardLabel}>APROVEITAMENTO</Text>
+                    </View>
+                    <Text style={[styles.metricCardValue, { color: corAprov }]}>
+                      {hasData ? `${aproveitamento}%` : '--'}
+                    </Text>
+                    <Text style={styles.metricCardSubtext} numberOfLines={1}>
+                      {hasData ? `${totalAcertos} de ${totalQuestoes} certas` : 'Sem questões no período'}
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
+
+            {/* 2. Linha Inferior: Temas de Questões Feitas (Gráfico em Anel) + Tempo Médio */}
+            <View style={styles.metricsRow}>
+              {/* Card 3: Temas de Questões Feitas (Gráfico em Anel) */}
+              <TouchableOpacity
+                style={styles.metricCard}
+                activeOpacity={0.7}
+                onPress={() => setModalTemasVisible(true)}
+              >
+                <View style={styles.metricIconRow}>
+                  <Ionicons name="pie-chart-outline" size={17} color="#EAE115" />
+                  <Text style={styles.metricCardLabel}>TEMAS ESTUDADOS</Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={13}
+                    color={themeColors.textSecondary}
+                    style={{ marginLeft: 'auto' }}
+                  />
+                </View>
+
+                {totalQuestoes > 0 && temasDistribuicao.length > 0 ? (
+                  <View style={styles.temaCardContent}>
+                    <View style={styles.temaDonutWrapper}>
+                      <ThemeDonutChart
+                        segments={temasDistribuicao}
+                        total={totalQuestoes}
+                        size={56}
+                        strokeWidth={6}
+                        showCenterText={true}
+                        centerLabel=""
+                      />
+                    </View>
+                    <View style={styles.temaCardLegendCol}>
+                      {temasDistribuicao.slice(0, 3).map((item, idx) => (
+                        <View key={`tema-leg-${item.name}-${idx}`} style={styles.temaCardLegendItem}>
+                          <View style={[styles.temaLegendDot, { backgroundColor: item.color }]} />
+                          <Text style={styles.temaCardLegendName} numberOfLines={1} ellipsizeMode="tail">
+                            {item.name}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.emptyTemaMiniBox}>
+                    <ThemeDonutChart
+                      segments={[]}
+                      total={0}
+                      size={48}
+                      strokeWidth={5}
+                      showCenterText={false}
+                    />
+                    <Text style={styles.emptyTemaMiniText}>Sem dados no período</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Card 4: Tempo Médio */}
+              <View style={styles.metricCard}>
+                <View style={styles.metricIconRow}>
+                  <Ionicons name="stopwatch-outline" size={17} color={themeColors.primary} />
+                  <Text style={styles.metricCardLabel}>TEMPO MÉDIO</Text>
+                </View>
+
+                <Text style={styles.metricCardValue}>
+                  {timeStats.totalQuestoesComTempo > 0
+                    ? formatSegundosEmTempo(timeStats.tempoMedioSegundos)
+                    : '--'}
+                </Text>
+
+                <View style={styles.ritmoBadge}>
+                  <Ionicons name={ritmoBadge.icone as any} size={11} color={ritmoBadge.cor} style={{ marginRight: 4 }} />
+                  <Text style={[styles.ritmoBadgeText, { color: ritmoBadge.cor }]} numberOfLines={1}>
+                    {ritmoBadge.text}
                   </Text>
                 </View>
+
+                <Text style={styles.metricCardSubtext} numberOfLines={1}>
+                  Total: {formatSegundosEmHoras(timeStats.tempoTotalSegundos)} de foco ativo
+                </Text>
               </View>
             </View>
 
-            {/* 3. Card de Saúde da Memória & Curva de Esquecimento (SM-2) */}
+            {/* 2. Card de Algoritmo de Retenção (SM-2) */}
             <View style={styles.sectionCard}>
-              <View style={styles.cardHeaderRow}>
+              <View style={styles.sectionHeaderRow}>
                 <View style={styles.titleWithIcon}>
                   <Ionicons name="sparkles" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
-                  <Text style={styles.sectionTitle}>Saúde da Memória (SM-2)</Text>
-                </View>
-                <View style={styles.memoryTotalBadge}>
-                  <Text style={styles.memoryTotalBadgeText}>{memoryHealth.total} no algoritmo</Text>
+                  <Text style={styles.sectionTitle}>Algoritmo de Retenção</Text>
                 </View>
               </View>
 
@@ -658,216 +840,141 @@ export default function DesempenhoScreen() {
                 Distribuição da retenção de longo prazo e revisões agendadas.
               </Text>
 
-              {/* Barra Tripla Segmentada de Retenção */}
-              <View style={styles.memoryBarContainer}>
-                {memoryHealth.total > 0 ? (
-                  <>
-                    <View
-                      style={[
-                        styles.memoryBarSegment,
-                        {
-                          backgroundColor: '#10B981',
-                          flex: Math.max(1, memoryHealth.longoPrazo),
-                          borderTopLeftRadius: 6,
-                          borderBottomLeftRadius: 6,
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.memoryBarSegment,
-                        {
-                          backgroundColor: '#F59E0B',
-                          flex: Math.max(1, memoryHealth.consolidando),
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.memoryBarSegment,
-                        {
-                          backgroundColor: '#EF4444',
-                          flex: Math.max(1, memoryHealth.pendentes),
-                          borderTopRightRadius: 6,
-                          borderBottomRightRadius: 6,
-                        },
-                      ]}
-                    />
-                  </>
-                ) : (
-                  <View style={[styles.memoryBarSegment, { backgroundColor: isDark ? '#2E3236' : 'rgba(0, 0, 0, 0.06)', flex: 1, borderRadius: 6 }]} />
-                )}
-              </View>
-
-              {/* Legenda dos 3 Estados */}
-              <View style={styles.memoryLegendRow}>
-                <View style={styles.memoryLegendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                  <Text style={styles.memoryLegendText}>Retidas ({memoryHealth.longoPrazo})</Text>
+              {/* Layout Donut + Legenda ao Lado */}
+              <View style={styles.memoryBodyRow}>
+                {/* Gráfico de Anel Multi-Segmento */}
+                <View style={styles.memoryDonutWrapper}>
+                  <MemoryDonutChart
+                    longoPrazo={memoryHealth.longoPrazo}
+                    consolidando={memoryHealth.consolidando}
+                    pendentes={memoryHealth.pendentes}
+                    size={88}
+                    strokeWidth={8.5}
+                  />
                 </View>
-                <View style={styles.memoryLegendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                  <Text style={styles.memoryLegendText}>Em Treino ({memoryHealth.consolidando})</Text>
-                </View>
-                <View style={styles.memoryLegendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                  <Text style={styles.memoryLegendText}>Vencidas ({memoryHealth.pendentes})</Text>
-                </View>
-              </View>
 
-              {/* Call-to-action para Iniciar Revisão do SM-2 se houver pendências */}
-              {memoryHealth.pendentes > 0 ? (
-                <TouchableOpacity
-                  style={styles.reviewSm2Banner}
-                  activeOpacity={0.85}
-                  onPress={iniciarRevisaoSM2}
-                  disabled={gerandoSessaoSM2}
-                >
-                  <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={styles.reviewSm2Title}>
-                      {memoryHealth.pendentes} {memoryHealth.pendentes === 1 ? 'questão venceu' : 'questões venceram'} hoje
-                    </Text>
-                    <Text style={styles.reviewSm2Subtitle}>
-                      {gerandoSessaoSM2 ? 'Preparando caderno de revisão...' : 'Revise agora antes que caia no esquecimento.'}
-                    </Text>
-                  </View>
-                  <View style={styles.reviewSm2Button}>
-                    {gerandoSessaoSM2 ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Ionicons name="play" size={14} color="#FFFFFF" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            {/* 4. Heatmap Interativo de Consistência */}
-            <Heatmap />
-
-            {/* 5. Evolução dos Últimos 6 Meses */}
-            <EvolucaoMensalChart />
-
-            {/* 5. Raio-X das 5 Grandes Áreas da Residência Médica */}
-            <View style={styles.sectionCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.titleWithIcon}>
-                  <MaterialCommunityIcons name="view-grid-outline" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
-                  <Text style={styles.sectionTitle}>Raio-X das 5 Grandes Áreas</Text>
-                </View>
-                <Text style={styles.cardBadge}>Provas de R1</Text>
-              </View>
-
-              <Text style={styles.sectionDesc}>
-                Distribuição e aproveitamento nos pilares do ciclo clínico.
-              </Text>
-
-              <View style={styles.areasContainer}>
-                {grandesAreas.map((area) => {
-                  const corBarra = getAproveitamentoCor(area.taxa);
-                  return (
-                    <View key={area.key} style={styles.areaRow}>
-                      <View style={styles.areaHeader}>
-                        <View style={styles.areaTitleRow}>
-                          <View style={[styles.areaIconBox, { backgroundColor: `${area.cor}20` }]}>
-                            <MaterialCommunityIcons name={area.icone as any} size={15} color={area.cor} />
-                          </View>
-                          <Text style={styles.areaName}>{area.label}</Text>
-                        </View>
-                        <View style={styles.areaStatsRow}>
-                          <Text style={styles.areaCountText}>
-                            {area.total} {area.total === 1 ? 'questão' : 'questões'}
-                          </Text>
-                          <Text style={[styles.areaTaxaText, { color: corBarra }]}>
-                            {area.total > 0 ? `${area.taxa}%` : '--'}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Barra de Aproveitamento por Área */}
-                      <View style={styles.areaProgressTrack}>
-                        <View
-                          style={[
-                            styles.areaProgressFill,
-                            {
-                              width: `${area.total > 0 ? area.taxa : 0}%`,
-                              backgroundColor: corBarra,
-                            },
-                          ]}
-                        />
-                      </View>
+                {/* Legenda Vertical ao Lado */}
+                <View style={styles.memoryLegendSideCol}>
+                  {/* 1. Retidas */}
+                  <View style={styles.memoryLegendSideRow}>
+                    <View style={[styles.memoryLegendBullet, { backgroundColor: '#10B981' }]} />
+                    <View style={styles.memoryLegendTextBox}>
+                      <Text style={styles.memoryLegendName}>Retidas</Text>
+                      <Text style={styles.memoryLegendValue}>
+                        {memoryHealth.longoPrazo}{memoryHealth.total > 0 ? ` (${Math.round((memoryHealth.longoPrazo / memoryHealth.total) * 100)}%)` : ''}
+                      </Text>
                     </View>
-                  );
-                })}
+                  </View>
+
+                  {/* 2. Em Treino */}
+                  <View style={styles.memoryLegendSideRow}>
+                    <View style={[styles.memoryLegendBullet, { backgroundColor: '#F59E0B' }]} />
+                    <View style={styles.memoryLegendTextBox}>
+                      <Text style={styles.memoryLegendName}>Em Treino</Text>
+                      <Text style={styles.memoryLegendValue}>
+                        {memoryHealth.consolidando}{memoryHealth.total > 0 ? ` (${Math.round((memoryHealth.consolidando / memoryHealth.total) * 100)}%)` : ''}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 3. Vencidas */}
+                  <View style={styles.memoryLegendSideRow}>
+                    <View style={[styles.memoryLegendBullet, { backgroundColor: '#EF4444' }]} />
+                    <View style={styles.memoryLegendTextBox}>
+                      <Text style={styles.memoryLegendName}>Vencidas</Text>
+                      <Text style={[styles.memoryLegendValue, memoryHealth.pendentes > 0 && { color: '#EF4444', fontWeight: '800' }]}>
+                        {memoryHealth.pendentes}{memoryHealth.total > 0 ? ` (${Math.round((memoryHealth.pendentes / memoryHealth.total) * 100)}%)` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               </View>
+
+              {/* Botão Amarelo de Iniciar Questões Vencidas em Baixo */}
+              <TouchableOpacity
+                style={[
+                  styles.btnIniciarVencidas,
+                  memoryHealth.pendentes === 0 && styles.btnIniciarVencidasZero,
+                ]}
+                activeOpacity={0.85}
+                onPress={iniciarRevisaoSM2}
+                disabled={gerandoSessaoSM2}
+              >
+                {gerandoSessaoSM2 ? (
+                  <ActivityIndicator size="small" color="#18181B" />
+                ) : (
+                  <>
+                    <Ionicons name="play" size={15} color="#18181B" style={{ marginRight: 6 }} />
+                    <Text style={styles.btnIniciarVencidasText}>
+                      Iniciar questões vencidas{memoryHealth.pendentes > 0 ? ` (${memoryHealth.pendentes})` : ''}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
 
-            {/* 6. Top Gargalos & Pontos Fracos com Treino Focado */}
+            {/* 3. Gargalos Críticos - Versão Original da branch main */}
             <View style={styles.sectionCard}>
-              <View style={styles.cardHeaderRow}>
+              <View style={styles.sectionHeaderRow}>
                 <View style={styles.titleWithIcon}>
                   <Ionicons name="alert-circle-outline" size={19} color="#EF4444" style={{ marginRight: 8 }} />
-                  <Text style={styles.sectionTitle}>Gargalos Clínicos</Text>
+                  <Text style={styles.sectionTitle}>Desempenhos Críticos</Text>
                 </View>
-                <View style={[styles.cardBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                  <Text style={[styles.cardBadgeText, { color: '#EF4444' }]}>Abaixo de 75%</Text>
+                <View style={[styles.cardBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                  <Text style={[styles.cardBadgeText, { color: '#EF4444' }]}>Taxa &lt; 75%</Text>
                 </View>
               </View>
 
               <Text style={styles.sectionDesc}>
-                Temas com menor taxa de acerto no período. Toque para ver o raio-x e treinar.
+                Assuntos com rendimento abaixo de 75% para reforçar e revisar
               </Text>
 
               {gargalos.length > 0 ? (
                 <View style={styles.gargalosList}>
-                  {gargalos.map((g, idx) => {
-                    const corTaxa = getAproveitamentoCor(g.taxa);
+                  {gargalos.map((item, idx) => {
+                    const isVeryLow = item.taxa < 50;
+                    const accentColor = isVeryLow ? '#EF4444' : '#F59E0B';
                     return (
                       <TouchableOpacity
-                        key={`gargalo-${g.tema}-${idx}`}
-                        style={styles.gargaloItemCard}
-                        activeOpacity={0.8}
-                        onPress={() => setSelectedGargalo(g)}
+                        key={`gargalo-${item.tema}-${idx}`}
+                        style={styles.gargaloItem}
+                        activeOpacity={0.7}
+                        onPress={() => setSelectedGargalo(item)}
                       >
-                        <View style={styles.gargaloItemHeader}>
-                          <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={styles.gargaloItemTitle} numberOfLines={1}>
-                              {g.tema}
-                            </Text>
-                            <Text style={styles.gargaloItemSub} numberOfLines={1}>
-                              {g.especialidade || 'Clínica Médica'} • {g.total} resoluções
-                            </Text>
-                          </View>
-                          <View style={[styles.gargaloTaxaBadge, { borderColor: `${corTaxa}50`, backgroundColor: `${corTaxa}15` }]}>
-                            <Text style={[styles.gargaloTaxaText, { color: corTaxa }]}>
-                              {g.taxa}%
-                            </Text>
-                          </View>
+                        <View style={styles.gargaloIndexBadge}>
+                          <Text style={styles.gargaloIndexText}>{idx + 1}º</Text>
                         </View>
-
-                        <View style={styles.gargaloFooterRow}>
-                          <Text style={styles.gargaloAcertosText}>
-                            {g.acertos} acertos de {g.total}
+                        <View style={styles.gargaloInfo}>
+                          <Text style={styles.gargaloTema} numberOfLines={1}>{item.tema}</Text>
+                          <Text style={styles.gargaloEspecialidade} numberOfLines={1}>
+                            {item.especialidade || 'Clínica Médica'} • {item.acertos}/{item.total} acertos
                           </Text>
-                          <View style={styles.gargaloActionBtn}>
-                            <Text style={styles.gargaloActionBtnText}>Raio-X & Treino</Text>
-                            <Ionicons name="chevron-forward" size={13} color={themeColors.primary} />
-                          </View>
                         </View>
+                        <View style={[styles.gargaloRateBadge, { borderColor: accentColor }]}>
+                          <Text style={[styles.gargaloRateText, { color: accentColor }]}>{item.taxa}%</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color={themeColors.textSecondary} style={{ marginLeft: 6 }} />
                       </TouchableOpacity>
                     );
                   })}
                 </View>
               ) : (
                 <View style={styles.emptyGargaloBox}>
-                  <Ionicons name="shield-checkmark-outline" size={36} color="#10B981" />
-                  <Text style={styles.emptyGargaloTitle}>Nenhum gargalo crítico detectado!</Text>
+                  <Ionicons name="checkmark-done-circle-outline" size={38} color="#10B981" style={{ marginBottom: 8 }} />
+                  <Text style={styles.emptyGargaloTitle}>
+                    {totalQuestoes > 0 ? 'Excelente! Nenhum gargalo crítico' : 'Sem histórico registrado'}
+                  </Text>
                   <Text style={styles.emptyGargaloSub}>
-                    Seu aproveitamento está acima de 75% nos temas respondidos neste período. Excelente domínio!
+                    {totalQuestoes > 0
+                      ? 'Todos os temas praticados no período estão com aproveitamento acima de 75%.'
+                      : 'Resolva questões para identificar os temas que precisam de reforço nos seus estudos.'}
                   </Text>
                 </View>
               )}
             </View>
+
+            {/* 4. Evolução dos Últimos 6 Meses */}
+            <EvolucaoMensalChart />
 
           </>
         )}
@@ -896,6 +1003,37 @@ export default function DesempenhoScreen() {
         onUserEditLimit={() => { userEditedLimitRef.current = true; }}
         onExecutarTreino={executarTreinoGargalo}
         carregandoTreino={false}
+      />
+
+      {/* Diálogo Unificado no Padrão Athena/Notion */}
+      <AthenaDialogModal
+        visible={dialogConfig.visible}
+        onClose={() => setDialogConfig((prev) => ({ ...prev, visible: false }))}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        variant={dialogConfig.variant}
+        icon={dialogConfig.icon}
+        primaryButtonText="Entendi"
+        onPrimaryPress={() => setDialogConfig((prev) => ({ ...prev, visible: false }))}
+      />
+
+      {/* Modal de Meta de Questões (Diária, Semanal e Mensal) */}
+      <MetaDiariaModal
+        visible={modalMetaVisible}
+        onClose={() => setModalMetaVisible(false)}
+        onSave={(novaMeta) => setMetaDiaria(novaMeta)}
+        initialMeta={metaDiaria}
+      />
+
+      {/* Modal de Detalhe Completo dos Temas Estudados */}
+      <TemasDetalheModal
+        visible={modalTemasVisible}
+        onClose={() => setModalTemasVisible(false)}
+        temas={todosTemasDetalhados}
+        totalQuestoes={totalQuestoes}
+        totalAcertos={totalAcertos}
+        taxaGlobal={aproveitamento}
+        timeRangeLabel={timeRangeLabel}
       />
     </SafeAreaView>
   );
@@ -976,113 +1114,153 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       marginTop: 12,
     },
 
-    /* Hero Metrics Unificado */
-    heroUnifiedCard: {
+    /* Linhas de Métricas (Estilo Main) */
+    metricsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 12,
+    },
+    metricCard: {
+      flex: 1,
       backgroundColor: theme.surfaceCard || theme.surface,
       borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.border,
+      padding: 14,
+      justifyContent: 'space-between',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: isDark ? 0.25 : 0.05,
       shadowRadius: 8,
       elevation: 2,
     },
-    heroCardTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingBottom: 12,
-      marginBottom: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.borderSubtle,
-    },
-    heroCardTopLeft: {
+    metricIconRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
+      marginBottom: 6,
     },
-    heroCardTopTitle: {
-      fontSize: 13,
-      fontWeight: '800',
-      color: theme.text,
-      letterSpacing: -0.2,
-      textTransform: 'uppercase',
-    },
-    questoesCountBadge: {
-      backgroundColor: theme.primarySubtle,
-      paddingHorizontal: 9,
-      paddingVertical: 3.5,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.primaryBorder,
-    },
-    questoesCountText: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: theme.primary,
-    },
-    heroColumnsRow: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-    },
-    heroCol: {
-      flex: 1,
-    },
-    heroColDivider: {
-      width: 1,
-      backgroundColor: theme.borderSubtle,
-      marginHorizontal: 12,
-    },
-    heroColHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 4,
-    },
-    heroColLabel: {
+    metricCardLabel: {
       fontSize: 10,
       fontWeight: '800',
       color: theme.textSecondary,
       letterSpacing: 0.5,
     },
-    heroColValue: {
-      fontSize: 24,
+    metaBadge: {
+      marginLeft: 'auto',
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(234, 225, 21, 0.1)' : 'rgba(234, 179, 8, 0.12)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(234, 225, 21, 0.25)' : 'rgba(234, 179, 8, 0.25)',
+    },
+    metaBadgeText: {
+      fontSize: 8.5,
+      fontWeight: '800',
+      color: theme.primary,
+      letterSpacing: 0.3,
+    },
+    metaValueContainer: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+    },
+    metricCardValue: {
+      fontSize: 26,
       fontWeight: '900',
       color: theme.text,
-      marginBottom: 6,
+      marginBottom: 2,
+      letterSpacing: -0.4,
     },
-    progressBarTrack: {
-      height: 5,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-      borderRadius: 2.5,
+    metricCardValueMeta: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    metaProgressBarBg: {
+      height: 4,
+      backgroundColor: isDark ? '#26292d' : 'rgba(0, 0, 0, 0.06)',
+      borderRadius: 2,
+      marginVertical: 4,
       overflow: 'hidden',
-      marginBottom: 6,
+      width: '100%',
     },
-    progressBarFill: {
+    metaProgressBarFill: {
       height: '100%',
-      borderRadius: 2.5,
+      borderRadius: 2,
+    },
+    metricCardSubtext: {
+      fontSize: 11.5,
+      color: theme.textSecondary,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+
+    /* Card de Temas em Anel (ao lado de Tempo Médio) */
+    temaCardContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 4,
+    },
+    temaDonutWrapper: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    temaCardLegendCol: {
+      flex: 1,
+      gap: 4,
+      justifyContent: 'center',
+    },
+    temaCardLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    temaLegendDot: {
+      width: 6.5,
+      height: 6.5,
+      borderRadius: 3.25,
+    },
+    temaCardLegendName: {
+      flex: 1,
+      fontSize: 10.5,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    temaCardLegendPct: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    emptyTemaMiniBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 6,
+      gap: 6,
+    },
+    emptyTemaMiniText: {
+      fontSize: 11,
+      color: theme.textMuted,
+      textAlign: 'center',
     },
     ritmoBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
       paddingHorizontal: 6,
-      paddingVertical: 2,
+      paddingVertical: 2.5,
       borderRadius: 6,
       alignSelf: 'flex-start',
-      marginBottom: 6,
+      marginTop: 2,
+      marginBottom: 4,
+      maxWidth: '100%',
     },
     ritmoBadgeText: {
-      fontSize: 10,
+      fontSize: 9.5,
       fontWeight: '700',
-    },
-    heroColSub: {
-      fontSize: 11,
-      color: theme.textMuted,
-      lineHeight: 14,
     },
 
     /* Seção Padrão de Card */
@@ -1099,7 +1277,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       shadowRadius: 8,
       elevation: 2,
     },
-    cardHeaderRow: {
+    sectionHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -1150,180 +1328,130 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       color: theme.primary,
       textTransform: 'uppercase',
     },
-    memoryBarContainer: {
-      flexDirection: 'row',
-      height: 8,
-      marginBottom: 10,
-    },
-    memoryBarSegment: {
-      height: '100%',
-    },
-    memoryLegendRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    memoryLegendItem: {
+    memoryBodyRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      paddingVertical: 4,
     },
-    legendDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
-      marginRight: 5,
-    },
-    memoryLegendText: {
-      fontSize: 11,
-      color: theme.textSecondary,
-      fontWeight: '600',
-    },
-    reviewSm2Banner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.backgroundSecondary,
-      borderRadius: 12,
-      padding: 12,
-      borderWidth: 1,
-      borderColor: theme.primaryBorder,
-      marginTop: 4,
-    },
-    reviewSm2Title: {
-      fontSize: 13,
-      fontWeight: '800',
-      color: theme.text,
-    },
-    reviewSm2Subtitle: {
-      fontSize: 11,
-      color: theme.textSecondary,
-      marginTop: 2,
-    },
-    reviewSm2Button: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.primary,
+    memoryDonutWrapper: {
       alignItems: 'center',
       justifyContent: 'center',
+      paddingRight: 16,
     },
-
-    /* As 5 Grandes Áreas */
-    areasContainer: {
-      gap: 12,
-    },
-    areaRow: {
-      marginBottom: 4,
-    },
-    areaHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 6,
-    },
-    areaTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    areaIconBox: {
-      width: 26,
-      height: 26,
-      borderRadius: 6,
-      alignItems: 'center',
+    memoryLegendSideCol: {
+      flex: 1,
+      gap: 10,
       justifyContent: 'center',
-      marginRight: 8,
     },
-    areaName: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: theme.text,
-    },
-    areaStatsRow: {
+    memoryLegendSideRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
     },
-    areaCountText: {
-      fontSize: 11,
-      color: theme.textMuted,
+    memoryLegendBullet: {
+      width: 9,
+      height: 9,
+      borderRadius: 4.5,
     },
-    areaTaxaText: {
-      fontSize: 13,
+    memoryLegendTextBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flex: 1,
+    },
+    memoryLegendName: {
+      fontSize: 12.5,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    memoryLegendValue: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    btnIniciarVencidas: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#EAE115',
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginTop: 14,
+      shadowColor: '#EAE115',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    btnIniciarVencidasZero: {
+      opacity: 0.8,
+    },
+    btnIniciarVencidasText: {
+      fontSize: 13.5,
       fontWeight: '800',
-    },
-    areaProgressTrack: {
-      height: 5,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
-      borderRadius: 3,
-      overflow: 'hidden',
-    },
-    areaProgressFill: {
-      height: '100%',
-      borderRadius: 3,
+      color: '#18181B',
+      letterSpacing: -0.2,
     },
 
-    /* Gargalos Clínicos */
+    /* Gargalos Críticos */
     gargalosList: {
       gap: 10,
     },
-    gargaloItemCard: {
+    gargaloItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: isDark ? theme.backgroundSecondary : '#FAFAF9',
       borderRadius: 12,
-      padding: 12,
       borderWidth: 1,
       borderColor: theme.border,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: isDark ? 0.2 : 0.03,
       shadowRadius: 4,
       elevation: 1,
     },
-    gargaloItemHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+    gargaloIndexBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
       alignItems: 'center',
-      marginBottom: 8,
+      justifyContent: 'center',
+      marginRight: 10,
     },
-    gargaloItemTitle: {
+    gargaloIndexText: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#EF4444',
+    },
+    gargaloInfo: {
+      flex: 1,
+      marginRight: 10,
+    },
+    gargaloTema: {
       fontSize: 13.5,
       fontWeight: '700',
       color: theme.text,
+      marginBottom: 2,
     },
-    gargaloItemSub: {
+    gargaloEspecialidade: {
       fontSize: 11,
       color: theme.textSecondary,
-      marginTop: 2,
+      fontWeight: '500',
     },
-    gargaloTaxaBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+    gargaloRateBadge: {
+      borderWidth: 1.5,
       borderRadius: 8,
-      borderWidth: 1,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.8)',
     },
-    gargaloTaxaText: {
-      fontSize: 12,
+    gargaloRateText: {
+      fontSize: 12.5,
       fontWeight: '800',
-    },
-    gargaloFooterRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingTop: 8,
-      borderTopWidth: 1,
-      borderTopColor: theme.borderSubtle,
-    },
-    gargaloAcertosText: {
-      fontSize: 11,
-      color: theme.textMuted,
-    },
-    gargaloActionBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    gargaloActionBtnText: {
-      fontSize: 11.5,
-      fontWeight: '700',
-      color: theme.primary,
     },
     emptyGargaloBox: {
       alignItems: 'center',

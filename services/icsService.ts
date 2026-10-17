@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
-import { getDatabase } from '@/services/database';
+import { getDatabase, getIcalSeriesOverrides, extrairSeriePrefix } from '@/services/database';
 import { storage } from '@/services/storage';
 
 export interface EventoICS {
@@ -10,6 +10,7 @@ export interface EventoICS {
   tipo: string;
   icone: string;
   detalhes?: string | null;
+  local?: string | null;
   data_agendada: string; // YYYY-MM-DD
   hora_inicio: string | null; // HH:MM
   hora_fim: string | null; // HH:MM
@@ -301,12 +302,8 @@ export function parseICSContent(
         if (start) {
           const horaFimCalculada = end?.timeStr || (start.timeStr ? somarUmaHora(start.timeStr) : null);
           const tituloLimpo = unescapeIcsText(currentSummary) || 'Aula / Evento';
-          const detalhesLimpos = [
-            currentLocation ? `Local: ${unescapeIcsText(currentLocation)}` : '',
-            currentDescription ? unescapeIcsText(currentDescription) : '',
-          ]
-            .filter(Boolean)
-            .join('\n\n') || null;
+          const localLimpo = currentLocation ? unescapeIcsText(currentLocation).trim() : null;
+          const detalhesLimpos = currentDescription ? unescapeIcsText(currentDescription).trim() : null;
 
           const baseUid = currentUid ? currentUid.replace(/[^a-zA-Z0-9_-]/g, '_') : generateUUID();
 
@@ -329,7 +326,8 @@ export function parseICSContent(
                 titulo: tituloLimpo,
                 tipo: defaultTipo,
                 icone: defaultTipo === 'Estudos' ? 'book' : 'calendar',
-                detalhes: detalhesLimpos,
+                detalhes: detalhesLimpos || null,
+                local: localLimpo || null,
                 data_agendada: dStr,
                 hora_inicio: start.timeStr,
                 hora_fim: horaFimCalculada,
@@ -346,7 +344,8 @@ export function parseICSContent(
               titulo: tituloLimpo,
               tipo: defaultTipo,
               icone: defaultTipo === 'Estudos' ? 'book' : 'calendar',
-              detalhes: detalhesLimpos,
+              detalhes: detalhesLimpos || null,
+              local: localLimpo || null,
               data_agendada: start.dateStr,
               hora_inicio: start.timeStr,
               hora_fim: horaFimCalculada,
@@ -412,18 +411,34 @@ export async function salvarEventosICSNoBanco(eventos: EventoICS[], feedId?: str
     ? (feedId === 'manual' ? 'ics_manual' : `ical_${feedId}`)
     : 'ics_manual';
 
+  const seriesOverrides = await getIcalSeriesOverrides();
+
   let inseridos = 0;
   await database.withExclusiveTransactionAsync(async (txn) => {
     for (const ev of eventos) {
+      const prefix = extrairSeriePrefix(ev.id);
+      const override = prefix ? seriesOverrides[prefix] : null;
+
+      const tituloFinal = override?.titulo || ev.titulo;
+      const iconeFinal = override?.icone || ev.icone;
+      const localFinal = override?.local || ev.local || null;
+      const corFinal = override?.cor || null;
+
       await txn.runAsync(
         `INSERT INTO AtividadesAgenda (
-          id, id_recorrente, titulo, tipo, icone, detalhes, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+          id, id_recorrente, titulo, tipo, icone, detalhes, local, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
         ON CONFLICT(id) DO UPDATE SET
-          titulo = excluded.titulo,
+          titulo = COALESCE(?, excluded.titulo),
           tipo = excluded.tipo,
-          icone = excluded.icone,
-          detalhes = excluded.detalhes,
+          icone = CASE
+            WHEN ? IS NOT NULL THEN ?
+            WHEN AtividadesAgenda.icone IS NOT NULL AND AtividadesAgenda.icone NOT IN ('calendar', 'book', 'calendar-outline', 'book-outline') THEN AtividadesAgenda.icone
+            ELSE excluded.icone
+          END,
+          detalhes = COALESCE(AtividadesAgenda.detalhes, excluded.detalhes),
+          local = COALESCE(?, excluded.local, AtividadesAgenda.local),
+          cor = COALESCE(?, AtividadesAgenda.cor),
           data_agendada = excluded.data_agendada,
           hora_inicio = excluded.hora_inicio,
           hora_fim = excluded.hora_fim,
@@ -431,15 +446,23 @@ export async function salvarEventosICSNoBanco(eventos: EventoICS[], feedId?: str
         [
           ev.id,
           feedRecorrenteId,
-          ev.titulo,
+          tituloFinal,
           ev.tipo,
-          ev.icone,
+          iconeFinal,
           ev.detalhes || null,
+          localFinal,
+          corFinal,
           ev.data_agendada,
           ev.hora_inicio,
           ev.hora_fim,
           ev.feedback_cansaco,
           ts,
+          // Parâmetros para o ON CONFLICT
+          override?.titulo || null,
+          override?.icone || null,
+          override?.icone || null,
+          override?.local || null,
+          override?.cor || null,
         ]
       );
       inseridos++;

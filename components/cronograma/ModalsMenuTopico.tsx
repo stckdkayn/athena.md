@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+import { ActiveThemeColors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   CronogramaTopico,
   DiaSemana,
@@ -67,6 +68,9 @@ export function ModalsMenuTopico({
   onRequestDeleteTopico,
   onRequestEditLembrete,
 }: ModalsMenuTopicoProps) {
+  const { colors: theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <>
       {/* 1. Modal: Menu Principal de Opções (3 Pontos) */}
@@ -96,7 +100,7 @@ export function ModalsMenuTopico({
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setTopicoMenuAberto(null)}>
-                <Ionicons name="close" size={22} color="#8E959E" />
+                <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -113,8 +117,8 @@ export function ModalsMenuTopico({
                 }}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionMenuIconCircle, { backgroundColor: 'rgba(234, 225, 21, 0.15)' }]}>
-                  <Ionicons name="pencil-outline" size={18} color={Colors.primary} />
+                <View style={[styles.actionMenuIconCircle, { backgroundColor: theme.primarySubtle }]}>
+                  <Ionicons name="pencil-outline" size={18} color={theme.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.actionMenuTitle}>Editar Lembrete</Text>
@@ -150,7 +154,7 @@ export function ModalsMenuTopico({
                 <Ionicons
                   name={topicoMenuAberto?.topico.isRevisao ? 'calendar-outline' : 'swap-horizontal'}
                   size={18}
-                  color={topicoMenuAberto?.topico.isRevisao ? '#A78BFA' : Colors.primary}
+                  color={topicoMenuAberto?.topico.isRevisao ? '#A78BFA' : theme.primary}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -207,11 +211,11 @@ export function ModalsMenuTopico({
                 }}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionMenuIconCircle, { backgroundColor: '#3A181C' }]}>
-                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                <View style={[styles.actionMenuIconCircle, { backgroundColor: isDark ? 'rgba(255, 76, 76, 0.15)' : 'rgba(239, 68, 68, 0.12)' }]}>
+                  <Ionicons name="trash-outline" size={18} color={theme.error} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.actionMenuTitle, { color: '#EF4444' }]}>Remover do Cronograma</Text>
+                  <Text style={[styles.actionMenuTitle, { color: theme.error }]}>Remover do Cronograma</Text>
                   <Text style={styles.actionMenuDesc}>Apagar este tema e limpar seu histórico</Text>
                 </View>
               </TouchableOpacity>
@@ -243,7 +247,7 @@ export function ModalsMenuTopico({
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setShowMoveDayModal(null)}>
-                <Ionicons name="close" size={22} color="#8E959E" />
+                <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -270,8 +274,8 @@ export function ModalsMenuTopico({
                           isCurrent
                             ? showMoveDayModal?.topico.isRevisao
                               ? '#A78BFA'
-                              : Colors.primary
-                            : '#8E959E'
+                              : theme.primary
+                            : theme.textSecondary
                         }
                       />
                       <Text style={[styles.dayOptionLabel, isCurrent && styles.dayOptionLabelCurrent]}>
@@ -288,7 +292,7 @@ export function ModalsMenuTopico({
                         Atual
                       </Text>
                     ) : (
-                      <Ionicons name="arrow-forward" size={16} color="#68707B" />
+                      <Ionicons name="arrow-forward" size={16} color={theme.textSecondary} />
                     )}
                   </TouchableOpacity>
                 );
@@ -329,7 +333,7 @@ export function ModalsMenuTopico({
                   setShowEscolherSemanaModal(null);
                 }}
               >
-                <Ionicons name="close" size={22} color="#8E959E" />
+                <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -351,7 +355,7 @@ export function ModalsMenuTopico({
                     disabled={isCurrent}
                   >
                     <View style={styles.weekOverviewLeft}>
-                      <Text style={[styles.weekOverviewTitle, isCurrent && { color: Colors.primary }]}>
+                      <Text style={[styles.weekOverviewTitle, isCurrent && { color: theme.primary }]}>
                         Semana {s.numero}
                       </Text>
                       <Text style={styles.weekOverviewTopicsCount}>
@@ -364,7 +368,7 @@ export function ModalsMenuTopico({
                       {isCurrent ? (
                         <Text style={[styles.currentDayTag, { marginLeft: 8 }]}>Atual</Text>
                       ) : (
-                        <Ionicons name="arrow-forward" size={16} color="#8E959E" style={{ marginLeft: 8 }} />
+                        <Ionicons name="arrow-forward" size={16} color={theme.textSecondary} style={{ marginLeft: 8 }} />
                       )}
                     </View>
                   </TouchableOpacity>
@@ -378,135 +382,146 @@ export function ModalsMenuTopico({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-end',
-  },
-  modalSheetBox: {
-    backgroundColor: '#16191E',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderColor: '#262B33',
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#22262E',
-  },
-  modalSheetTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  modalSheetSub: {
-    fontSize: 12,
-    color: '#8E959E',
-    marginTop: 2,
-  },
-  actionMenuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#20242B',
-    gap: 14,
-  },
-  actionMenuIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1E232B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionMenuTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  actionMenuDesc: {
-    fontSize: 11,
-    color: '#8E959E',
-  },
-  dayOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#1B1E24',
-    marginBottom: 8,
-  },
-  dayOptionRowCurrent: {
-    borderColor: Colors.primary,
-    borderWidth: 1,
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
-  },
-  dayOptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dayOptionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  dayOptionLabelCurrent: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  currentDayTag: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
-    backgroundColor: 'rgba(234, 225, 21, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  weekOverviewCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1B1E24',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#262B32',
-  },
-  weekOverviewCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
-  },
-  weekOverviewLeft: {
-    flex: 1,
-  },
-  weekOverviewTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 3,
-  },
-  weekOverviewTopicsCount: {
-    fontSize: 12,
-    color: '#8E959E',
-  },
-  weekOverviewRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-});
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    modalSheetBox: {
+      backgroundColor: theme.surfaceCard || theme.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      paddingBottom: 32,
+      borderTopWidth: 1,
+      borderColor: theme.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: isDark ? 0.35 : 0.08,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderSubtle,
+    },
+    modalSheetTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    modalSheetSub: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    actionMenuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderSubtle,
+      gap: 14,
+    },
+    actionMenuIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionMenuTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 2,
+    },
+    actionMenuDesc: {
+      fontSize: 11,
+      color: theme.textSecondary,
+    },
+    dayOptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginBottom: 8,
+    },
+    dayOptionRowCurrent: {
+      borderColor: theme.primaryBorder,
+      borderWidth: 1,
+      backgroundColor: theme.primarySubtle,
+    },
+    dayOptionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    dayOptionLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+    },
+    dayOptionLabelCurrent: {
+      color: theme.primary,
+      fontWeight: '700',
+    },
+    currentDayTag: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.primary,
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    weekOverviewCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.surface,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    weekOverviewCardSelected: {
+      borderColor: theme.primaryBorder,
+      backgroundColor: theme.primarySubtle,
+    },
+    weekOverviewLeft: {
+      flex: 1,
+    },
+    weekOverviewTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.text,
+      marginBottom: 3,
+    },
+    weekOverviewTopicsCount: {
+      fontSize: 12,
+      color: theme.textSecondary,
+    },
+    weekOverviewRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+  });
+}
 

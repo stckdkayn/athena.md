@@ -13,10 +13,10 @@ export interface AccentOption {
 export const ACCENT_PALETTE: Record<AccentColorKey, AccentOption> = {
   monocromatico: {
     key: 'monocromatico',
-    label: 'Notion Monocromático',
-    color: '#37352F',
-    subtle: 'rgba(55, 53, 47, 0.08)',
-    border: 'rgba(55, 53, 47, 0.16)',
+    label: 'Notion Padrão',
+    color: '#2383E2',
+    subtle: 'rgba(35, 131, 226, 0.10)',
+    border: 'rgba(35, 131, 226, 0.25)',
   },
   amarelo: {
     key: 'amarelo',
@@ -27,10 +27,10 @@ export const ACCENT_PALETTE: Record<AccentColorKey, AccentOption> = {
   },
   azul: {
     key: 'azul',
-    label: 'Azul Clínico',
-    color: '#3B82F6',
-    subtle: 'rgba(59, 130, 246, 0.12)',
-    border: 'rgba(59, 130, 246, 0.35)',
+    label: 'Azul Notion',
+    color: '#2383E2',
+    subtle: 'rgba(35, 131, 226, 0.10)',
+    border: 'rgba(35, 131, 226, 0.25)',
   },
   verde: {
     key: 'verde',
@@ -75,19 +75,19 @@ export interface ThemeTokens {
 
 export const BASE_THEMES: Record<'dark' | 'light', ThemeTokens> = {
   dark: {
-    background: '#141617',
-    backgroundSecondary: '#0E1011',
-    surface: '#1E2124',
-    surfaceCard: '#232628',
-    border: '#2A2E33',
-    borderSubtle: '#222528',
-    text: '#FFFFFF',
-    textSecondary: '#9CA3AF',
-    textMuted: '#64748B',
-    error: '#EF4444',
-    errorSubtle: 'rgba(239, 68, 68, 0.15)',
-    success: '#10B981',
-    successSubtle: 'rgba(16, 185, 129, 0.15)',
+    background: '#191919',
+    backgroundSecondary: '#141414',
+    surface: '#202020',
+    surfaceCard: '#242424',
+    border: '#2E2E2E',
+    borderSubtle: '#262626',
+    text: '#EBEBEB',
+    textSecondary: '#9B9A97',
+    textMuted: '#73726E',
+    error: '#FF4C4C',
+    errorSubtle: 'rgba(255, 76, 76, 0.15)',
+    success: '#4CAF50',
+    successSubtle: 'rgba(76, 175, 80, 0.15)',
     warning: '#F59E0B',
     warningSubtle: 'rgba(245, 158, 11, 0.15)',
   },
@@ -123,7 +123,7 @@ export interface ActiveThemeColors extends ThemeTokens {
 export const Colors = {
   background: '#F7F7F5',
   surface: '#FFFFFF',
-  primary: '#37352F',
+  primary: '#2383E2',
   text: '#37352F',
   textSecondary: '#787774',
   textMuted: '#9B9A97',
@@ -140,24 +140,24 @@ export const Colors = {
     border: 'rgba(0, 0, 0, 0.08)',
   },
   dark: {
-    text: '#FFFFFF',
-    background: '#141617',
-    surface: '#232628',
+    text: '#EBEBEB',
+    background: '#191919',
+    surface: '#242424',
     tint: '#EAE115',
-    tabIconDefault: '#A0A0A0',
+    tabIconDefault: '#9B9A97',
     tabIconSelected: '#EAE115',
-    border: '#2A2E33',
+    border: '#2E2E2E',
   },
 };
 
 export const CATEGORIA_CORES: Record<string, string> = {
-  'Estudos': '#37352F',
-  'Estudo': '#37352F',
-  'Faculdade': '#5A5955',
-  'Saúde': '#37352F',
-  'Pessoal': '#5A5955',
-  'Lazer': '#787774',
-  'default': '#787774',
+  'Estudos': '#3B82F6',   // Azul
+  'Estudo': '#3B82F6',    // Azul
+  'Faculdade': '#8B5CF6', // Roxo
+  'Saúde': '#10B981',     // Verde
+  'Pessoal': '#10B981',   // Verde
+  'Lazer': '#F59E0B',     // Amarelo
+  'default': '#9CA3AF',   // Cinza
 };
 
 /**
@@ -229,6 +229,28 @@ export function getTopicColor(area?: string, especialidade?: string, grandeArea?
   }
 
   return Colors.primary;
+}
+
+/**
+ * Converte cor hex (#RGB ou #RRGGBB) para rgba com opacidade configurável
+ */
+export function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || typeof hex !== 'string') return 'transparent';
+  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+  const cleanHex = hex.replace('#', '');
+  if (cleanHex.length === 6) {
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  if (cleanHex.length === 3) {
+    const r = parseInt(cleanHex.charAt(0) + cleanHex.charAt(0), 16);
+    const g = parseInt(cleanHex.charAt(1) + cleanHex.charAt(1), 16);
+    const b = parseInt(cleanHex.charAt(2) + cleanHex.charAt(2), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return hex;
 }
 
 export default Colors;

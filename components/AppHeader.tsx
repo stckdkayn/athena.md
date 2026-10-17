@@ -14,7 +14,6 @@ import { Fonts } from '@/constants/Typography';
 import { useAppTheme } from '@/context/ThemeContext';
 import { storage } from '@/services/storage';
 import { getStreakInfo, StreakInfo } from '@/services/streakService';
-import { NomeUsuarioModal } from '@/components/modals/NomeUsuarioModal';
 import { StreakModal } from '@/components/modals/StreakModal';
 import { PersonalizacaoModal } from '@/components/modals/PersonalizacaoModal';
 
@@ -29,7 +28,6 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
   const [userName, setUserName] = useState<string>('');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
-  const [modalNomeVisible, setModalNomeVisible] = useState<boolean>(false);
   const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
   const [modalPersonalizacaoVisible, setModalPersonalizacaoVisible] = useState<boolean>(false);
 
@@ -154,14 +152,6 @@ export default function AppHeader({ children, style }: AppHeaderProps) {
         currentPhoto={userPhoto}
         onSaveName={(novoNome) => setUserName(novoNome)}
         onSavePhoto={(novaFoto) => setUserPhoto(novaFoto)}
-      />
-
-      {/* Modal legado para Editar Nome do Usuário */}
-      <NomeUsuarioModal
-        visible={modalNomeVisible}
-        onClose={() => setModalNomeVisible(false)}
-        initialName={userName}
-        onSave={(novoNome) => setUserName(novoNome)}
       />
     </View>
   );

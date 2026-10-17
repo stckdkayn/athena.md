@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { storage } from '@/services/storage';
 import { useAppTheme } from '@/context/ThemeContext';
+import { AthenaDialogModal, AthenaDialogVariant } from './AthenaDialogModal';
 
 interface PersonalizacaoModalProps {
   visible: boolean;
@@ -39,6 +40,20 @@ export function PersonalizacaoModal({
   const [inputNome, setInputNome] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
 
+  const [dialogConfig, setDialogConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message?: string;
+    variant?: AthenaDialogVariant;
+  }>({
+    visible: false,
+    title: '',
+  });
+
+  const showDialog = (title: string, message?: string, variant: AthenaDialogVariant = 'warning') => {
+    setDialogConfig({ visible: true, title, message, variant });
+  };
+
   useEffect(() => {
     if (visible) {
       setInputNome(currentName);
@@ -50,9 +65,10 @@ export function PersonalizacaoModal({
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
+        showDialog(
           'Permissão necessária',
-          'Precisamos de acesso às suas fotos para atualizar sua imagem de perfil.'
+          'Precisamos de acesso às suas fotos para atualizar sua imagem de perfil.',
+          'warning'
         );
         return;
       }
@@ -70,7 +86,7 @@ export function PersonalizacaoModal({
       }
     } catch (e) {
       console.error('[PersonalizacaoModal] Erro ao selecionar foto:', e);
-      Alert.alert('Erro', 'Não foi possível selecionar a foto.');
+      showDialog('Erro', 'Não foi possível selecionar a foto.', 'error');
     }
   };
 
@@ -78,9 +94,10 @@ export function PersonalizacaoModal({
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
+        showDialog(
           'Permissão necessária',
-          'Precisamos de acesso à câmera para tirar sua foto de perfil.'
+          'Precisamos de acesso à câmera para tirar sua foto de perfil.',
+          'warning'
         );
         return;
       }
@@ -97,7 +114,7 @@ export function PersonalizacaoModal({
       }
     } catch (e) {
       console.error('[PersonalizacaoModal] Erro ao tirar foto:', e);
-      Alert.alert('Erro', 'Não foi possível tirar a foto.');
+      showDialog('Erro', 'Não foi possível tirar a foto.', 'error');
     }
   };
 
@@ -375,6 +392,17 @@ export function PersonalizacaoModal({
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Diálogo Estilizado de Feedback / Alerta */}
+        <AthenaDialogModal
+          visible={dialogConfig.visible}
+          onClose={() => setDialogConfig((prev) => ({ ...prev, visible: false }))}
+          title={dialogConfig.title}
+          message={dialogConfig.message}
+          variant={dialogConfig.variant}
+          primaryButtonText="Entendi"
+          onPrimaryPress={() => setDialogConfig((prev) => ({ ...prev, visible: false }))}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );

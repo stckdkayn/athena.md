@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -11,7 +11,8 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import { ActiveThemeColors } from '../../constants/Colors';
+import { useAppTheme } from '../../context/ThemeContext';
 import {
   CronogramaSemana,
   CronogramaTopico,
@@ -51,6 +52,9 @@ export function ModalNovoTopico({
   topicoParaEditar = null,
   onSalvar,
 }: ModalNovoTopicoProps) {
+  const { colors: theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [diaEscolhido, setDiaEscolhido] = useState<DiaSemana>(diaSugerido);
@@ -140,7 +144,7 @@ export function ModalNovoTopico({
           {/* Cabeçalho */}
           <View style={styles.header}>
             <View style={styles.headerIconCircle}>
-              <Ionicons name="bookmark-outline" size={20} color={Colors.primary} />
+              <Ionicons name="bookmark-outline" size={20} color={theme.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.headerTitle}>
@@ -152,7 +156,7 @@ export function ModalNovoTopico({
               style={styles.closeBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={20} color="#8E959E" />
+              <Ionicons name="close" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -161,14 +165,14 @@ export function ModalNovoTopico({
             {/* Campo Lembrete */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                Lembrete: <Text style={{ color: Colors.primary }}>*</Text>
+                Lembrete: <Text style={{ color: theme.primary }}>*</Text>
               </Text>
               <TextInput
                 style={styles.textInput}
                 value={titulo}
                 onChangeText={setTitulo}
                 placeholder="Ex: Prescrição de sepse, Checar PCR..."
-                placeholderTextColor="#5A616B"
+                placeholderTextColor={theme.textMuted}
                 autoFocus={true}
                 returnKeyType="next"
               />
@@ -182,7 +186,7 @@ export function ModalNovoTopico({
                 value={descricao}
                 onChangeText={setDescricao}
                 placeholder="Ex: Checar dose de ataque e gasometria arterial"
-                placeholderTextColor="#5A616B"
+                placeholderTextColor={theme.textMuted}
                 multiline={true}
                 numberOfLines={3}
                 textAlignVertical="top"
@@ -235,7 +239,12 @@ export function ModalNovoTopico({
               disabled={saving}
               activeOpacity={0.85}
             >
-              <Ionicons name="checkmark" size={18} color="#0D0E11" style={{ marginRight: 6 }} />
+              <Ionicons
+                name="checkmark"
+                size={18}
+                color={isDark ? '#000000' : '#FFFFFF'}
+                style={{ marginRight: 6 }}
+              />
               <Text style={styles.saveBtnText}>
                 {saving ? 'Salvando...' : isEdicao ? 'Salvar Lembrete' : 'Adicionar Lembrete'}
               </Text>
@@ -247,163 +256,167 @@ export function ModalNovoTopico({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    paddingHorizontal: 20,
-  },
-  backdropDismiss: {
-    ...StyleSheet.absoluteFill,
-  },
-  modalContainer: {
-    width: '100%',
-    maxWidth: 440,
-    backgroundColor: '#16181B',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#262A30',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#202429',
-    gap: 12,
-  },
-  headerIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#1E2126',
-  },
-  formContent: {
-    padding: 20,
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 7,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#D1D5DB',
-  },
-  textInput: {
-    backgroundColor: '#1E2227',
-    borderWidth: 1,
-    borderColor: '#2E333B',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-  textAreaInput: {
-    minHeight: 74,
-    paddingTop: 12,
-  },
-  daysCirclesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  dayCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#1E2227',
-    borderWidth: 1.5,
-    borderColor: '#2E333B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCircleSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  dayCircleText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#8E959E',
-  },
-  dayCircleTextSelected: {
-    color: '#0D0E11',
-    fontWeight: '800',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#121416',
-    borderTopWidth: 1,
-    borderTopColor: '#202429',
-    gap: 10,
-  },
-  cancelBtn: {
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#1B1E22',
-  },
-  cancelBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9CA3AF',
-  },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveBtnDisabled: {
-    opacity: 0.6,
-  },
-  saveBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0D0E11',
-  },
-});
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(0, 0, 0, 0.45)',
+      paddingHorizontal: 20,
+    },
+    backdropDismiss: {
+      ...StyleSheet.absoluteFill,
+    },
+    modalContainer: {
+      width: '100%',
+      maxWidth: 440,
+      backgroundColor: theme.surfaceCard || theme.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: isDark ? 0.45 : 0.08,
+      shadowRadius: 16,
+      elevation: 6,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderSubtle,
+      gap: 12,
+    },
+    headerIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: theme.primarySubtle,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.3,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+    },
+    formContent: {
+      padding: 20,
+      gap: 16,
+    },
+    inputGroup: {
+      gap: 7,
+    },
+    inputLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    textInput: {
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: theme.text,
+    },
+    textAreaInput: {
+      minHeight: 74,
+      paddingTop: 12,
+    },
+    daysCirclesRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    dayCircle: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.surface,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayCircleSelected: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.35,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    dayCircleText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    dayCircleTextSelected: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontWeight: '800',
+    },
+    footerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      backgroundColor: theme.surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.borderSubtle,
+      gap: 10,
+    },
+    cancelBtn: {
+      paddingVertical: 11,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    cancelBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    saveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 11,
+      paddingHorizontal: 18,
+      borderRadius: 10,
+      backgroundColor: theme.primary,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    saveBtnDisabled: {
+      opacity: 0.5,
+    },
+    saveBtnText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: isDark ? '#000000' : '#FFFFFF',
+    },
+  });
+}

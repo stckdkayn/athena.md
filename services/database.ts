@@ -67,6 +67,7 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         tipo TEXT NOT NULL,
         icone TEXT,
         detalhes TEXT,
+        local TEXT,
         data_agendada TEXT NOT NULL,
         hora_inicio TEXT,
         hora_fim TEXT,
@@ -83,6 +84,7 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         tipo TEXT NOT NULL,
         icone TEXT,
         detalhes TEXT,
+        local TEXT,
         frequencia TEXT NOT NULL, -- 'diaria', 'dias_uteis', 'semanal'
         dias_semana TEXT, -- Ex: '[1,3,5]' (0=Dom, 1=Seg...)
         data_inicio TEXT NOT NULL,
@@ -197,6 +199,15 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
         nextReviewDate INTEGER
       );
       CREATE INDEX IF NOT EXISTS idx_topic_progress_nextDate ON TopicProgress (nextReviewDate);
+
+      CREATE TABLE IF NOT EXISTS ical_series_overrides (
+        serie_prefix TEXT PRIMARY KEY,
+        icone TEXT,
+        cor TEXT,
+        local TEXT,
+        titulo TEXT,
+        timestamp INTEGER NOT NULL
+      );
     `);
 
     // Migração transparente de colunas caso as tabelas já existissem
@@ -226,6 +237,29 @@ function initSchema(database: SQLite.SQLiteDatabase): void {
     } catch {}
     try {
       database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN cor TEXT;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE AtividadesAgenda ADD COLUMN local TEXT;`);
+    } catch {}
+    try {
+      database.execSync(`ALTER TABLE AtividadesRecorrentes ADD COLUMN local TEXT;`);
+    } catch {}
+
+    // Migração para recuperar campos 'local' que estavam concatenados como 'Local: ...' em detalhes
+    try {
+      const rowsWithLocal = database.getAllSync<{ id: string; detalhes: string; local: string | null }>(
+        `SELECT id, detalhes, local FROM AtividadesAgenda WHERE detalhes LIKE 'Local: %' AND (local IS NULL OR local = '');`
+      );
+      for (const row of rowsWithLocal) {
+        if (!row.detalhes) continue;
+        const parts = row.detalhes.split('\n\n');
+        const localPart = parts[0].replace(/^Local:\s*/, '').trim();
+        const remainingDetalhes = parts.slice(1).join('\n\n').trim() || null;
+        database.runSync(
+          `UPDATE AtividadesAgenda SET local = ?, detalhes = ? WHERE id = ?;`,
+          [localPart, remainingDetalhes, row.id]
+        );
+      }
     } catch {}
 
     // Migração de balanceamento de passos: Semana 2 (Teoria na Seg/Ter/Qui e Prática na Qua/Sex)
@@ -1176,6 +1210,7 @@ export interface AtividadeAgenda {
   tipo: string;
   icone?: string | null;
   detalhes?: string | null;
+  local?: string | null;
   cor?: string | null;
   data_agendada: string;
   hora_inicio?: string | null;
@@ -1196,6 +1231,7 @@ export interface AtividadeRecorrente {
   tipo: string;
   icone?: string | null;
   detalhes?: string | null;
+  local?: string | null;
   cor?: string | null;
   frequencia: 'diaria' | 'dias_uteis' | 'semanal';
   dias_semana?: string | null; // JSON stringfied array
@@ -1216,14 +1252,15 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
     const ts = atividade.timestamp || Date.now();
     await database.runAsync(
       `INSERT INTO AtividadesAgenda (
-        id, id_recorrente, titulo, tipo, icone, detalhes, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, id_recorrente, titulo, tipo, icone, detalhes, local, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         id_recorrente = excluded.id_recorrente,
         titulo = excluded.titulo,
         tipo = excluded.tipo,
         icone = excluded.icone,
         detalhes = excluded.detalhes,
+        local = excluded.local,
         cor = excluded.cor,
         data_agendada = excluded.data_agendada,
         hora_inicio = excluded.hora_inicio,
@@ -1238,6 +1275,7 @@ export async function upsertAtividadeAgenda(atividade: AtividadeAgenda): Promise
         atividade.tipo.trim(),
         atividade.icone || null,
         atividade.detalhes || null,
+        atividade.local || null,
         atividade.cor || null,
         atividade.data_agendada,
         atividade.hora_inicio || null,
@@ -1261,13 +1299,14 @@ export async function upsertAtividadeRecorrente(recorrente: AtividadeRecorrente)
     const ts = recorrente.timestamp || Date.now();
     await database.runAsync(
       `INSERT INTO AtividadesRecorrentes (
-        id, titulo, tipo, icone, detalhes, frequencia, dias_semana, data_inicio, data_fim, hora_inicio, hora_fim, feedback_cansaco, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, titulo, tipo, icone, detalhes, local, frequencia, dias_semana, data_inicio, data_fim, hora_inicio, hora_fim, feedback_cansaco, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         titulo = excluded.titulo,
         tipo = excluded.tipo,
         icone = excluded.icone,
         detalhes = excluded.detalhes,
+        local = excluded.local,
         frequencia = excluded.frequencia,
         dias_semana = excluded.dias_semana,
         data_inicio = excluded.data_inicio,
@@ -1282,6 +1321,7 @@ export async function upsertAtividadeRecorrente(recorrente: AtividadeRecorrente)
         recorrente.tipo.trim(),
         recorrente.icone || null,
         recorrente.detalhes || null,
+        recorrente.local || null,
         recorrente.frequencia,
         recorrente.dias_semana || null,
         recorrente.data_inicio,
@@ -1352,6 +1392,7 @@ export async function getAtividadesPorData(dataYYYYMMDD: string): Promise<Ativid
           tipo: rec.tipo,
           icone: rec.icone || 'circle',
           detalhes: rec.detalhes || null,
+          local: rec.local || null,
           data_agendada: dataYYYYMMDD,
           hora_inicio: rec.hora_inicio,
           hora_fim: rec.hora_fim,
@@ -1396,6 +1437,7 @@ export async function criarNovaAtividade(dados: {
   tipo: string;
   icone?: string;
   detalhes?: string;
+  local?: string;
   cor?: string;
   frequencia: 'unica' | 'diaria' | 'dias_uteis' | 'semanal';
   data_inicio: string; // YYYY-MM-DD
@@ -1410,14 +1452,15 @@ export async function criarNovaAtividade(dados: {
 
   if (dados.frequencia === 'unica') {
     await database.runAsync(
-      `INSERT INTO AtividadesAgenda (id, titulo, tipo, icone, detalhes, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?);`,
+      `INSERT INTO AtividadesAgenda (id, titulo, tipo, icone, detalhes, local, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?);`,
       [
         id,
         dados.titulo.trim(),
         dados.tipo.trim(),
         dados.icone || 'circle',
         dados.detalhes || null,
+        dados.local || null,
         dados.cor || null,
         dados.data_inicio,
         dados.hora_inicio || null,
@@ -1429,14 +1472,15 @@ export async function criarNovaAtividade(dados: {
   } else {
     const diasStr = dados.dias_semana && dados.dias_semana.length > 0 ? JSON.stringify(dados.dias_semana) : null;
     await database.runAsync(
-      `INSERT INTO AtividadesRecorrentes (id, titulo, tipo, icone, detalhes, cor, frequencia, dias_semana, data_inicio, hora_inicio, hora_fim, feedback_cansaco, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO AtividadesRecorrentes (id, titulo, tipo, icone, detalhes, local, cor, frequencia, dias_semana, data_inicio, hora_inicio, hora_fim, feedback_cansaco, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         id,
         dados.titulo.trim(),
         dados.tipo.trim(),
         dados.icone || 'circle',
         dados.detalhes || null,
+        dados.local || null,
         dados.cor || null,
         dados.frequencia,
         diasStr,
@@ -1465,8 +1509,8 @@ export async function toggleAtividadeStatus(atividade: AtividadeAgenda): Promise
       const novoId = generateUUID();
       await database.runAsync(
         `INSERT INTO AtividadesAgenda (
-          id, id_recorrente, titulo, tipo, icone, detalhes, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          id, id_recorrente, titulo, tipo, icone, detalhes, local, cor, data_agendada, hora_inicio, hora_fim, feedback_cansaco, concluida, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           novoId,
           atividade.id_recorrente || null,
@@ -1474,6 +1518,7 @@ export async function toggleAtividadeStatus(atividade: AtividadeAgenda): Promise
           atividade.tipo,
           atividade.icone || 'circle',
           atividade.detalhes || null,
+          atividade.local || null,
           atividade.cor || null,
           atividade.data_agendada,
           atividade.hora_inicio || null,
@@ -1511,7 +1556,7 @@ export async function atualizarAtividade(id: string, dados: Partial<AtividadeAge
     const parts = id.split('_');
     const recId = parts[1];
     const recKeys = keys.filter((k) =>
-      ['titulo', 'tipo', 'icone', 'detalhes', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+      ['titulo', 'tipo', 'icone', 'detalhes', 'local', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
     );
     if (recKeys.length > 0) {
       const recFields = recKeys.map((k) => `${k} = ?`).join(', ');
@@ -1523,7 +1568,7 @@ export async function atualizarAtividade(id: string, dados: Partial<AtividadeAge
     await database.runAsync(`UPDATE AtividadesAgenda SET ${fields} WHERE id = ?;`, values);
     try {
       const recKeys = keys.filter((k) =>
-        ['titulo', 'tipo', 'icone', 'detalhes', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+        ['titulo', 'tipo', 'icone', 'detalhes', 'local', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
       );
       if (recKeys.length > 0) {
         const recFields = recKeys.map((k) => `${k} = ?`).join(', ');
@@ -1547,6 +1592,142 @@ export async function excluirAtividade(id: string): Promise<void> {
     await database.runAsync(`DELETE FROM AtividadesRecorrentes WHERE id = ?;`, [recId]);
   } else {
     await database.runAsync(`DELETE FROM AtividadesRecorrentes WHERE id = ?;`, [id]);
+  }
+}
+
+/**
+ * Extrai o prefixo da série de um evento iCal (excluindo a data final YYYY-MM-DD).
+ * Ex: 'ical_abc123_uid456_2026-10-20' -> 'ical_abc123_uid456'
+ */
+export function extrairSeriePrefix(id: string): string | null {
+  if (!id.startsWith('ical_')) return null;
+  const match = id.match(/^(ical_.+)_\d{4}-\d{2}-\d{2}$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Verifica se um evento pertence a uma série repetida com mais de uma ocorrência.
+ */
+export async function verificarSeEventoRepete(
+  id: string
+): Promise<{ ehRepeticao: boolean; seriePrefix: string | null; total: number }> {
+  try {
+    const database = getDatabase();
+
+    if (id.startsWith('virtual_')) {
+      return { ehRepeticao: true, seriePrefix: null, total: 999 };
+    }
+
+    const seriePrefix = extrairSeriePrefix(id);
+    if (!seriePrefix) {
+      return { ehRepeticao: false, seriePrefix: null, total: 1 };
+    }
+
+    const countResult = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM AtividadesAgenda WHERE id LIKE ?;`,
+      [`${seriePrefix}_%`]
+    );
+    const count = countResult?.count || 0;
+    return { ehRepeticao: count > 1, seriePrefix, total: count };
+  } catch (err) {
+    console.error('[database] Erro ao verificar se evento repete:', err);
+    return { ehRepeticao: false, seriePrefix: null, total: 1 };
+  }
+}
+
+/**
+ * Atualiza todos os eventos que pertencem a uma série recorrente (ex: iCal) e salva o override permanente.
+ */
+export async function atualizarSerieEventos(
+  seriePrefix: string,
+  dados: Partial<AtividadeAgenda>
+): Promise<void> {
+  const database = getDatabase();
+  const ts = Date.now();
+
+  const keys = Object.keys(dados).filter(
+    (k) => ['titulo', 'tipo', 'icone', 'detalhes', 'local', 'cor', 'hora_inicio', 'hora_fim', 'feedback_cansaco'].includes(k)
+  );
+  if (keys.length === 0) return;
+
+  const fields = keys.map((k) => `${k} = ?`).join(', ');
+  const values = keys.map((k) => (dados as any)[k]);
+  values.push(`${seriePrefix}_%`);
+
+  // 1. Atualiza todas as ocorrências existentes no banco para essa série
+  await database.runAsync(
+    `UPDATE AtividadesAgenda SET ${fields} WHERE id LIKE ?;`,
+    values
+  );
+
+  // 2. Registra o override permanente para garantir que futuros syncs do iCal respeitem a personalização
+  try {
+    await database.runAsync(
+      `INSERT INTO ical_series_overrides (serie_prefix, icone, cor, local, titulo, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(serie_prefix) DO UPDATE SET
+         icone = COALESCE(excluded.icone, ical_series_overrides.icone),
+         cor = COALESCE(excluded.cor, ical_series_overrides.cor),
+         local = COALESCE(excluded.local, ical_series_overrides.local),
+         titulo = COALESCE(excluded.titulo, ical_series_overrides.titulo),
+         timestamp = excluded.timestamp;`,
+      [
+        seriePrefix,
+        dados.icone || null,
+        dados.cor || null,
+        dados.local || null,
+        dados.titulo || null,
+        ts,
+      ]
+    );
+  } catch (err) {
+    console.warn('[database] Erro ao salvar override da série:', err);
+  }
+}
+
+/**
+ * Exclui todas as ocorrências de uma série recorrente.
+ */
+export async function excluirSerieEventos(seriePrefix: string): Promise<void> {
+  const database = getDatabase();
+  await database.runAsync(`DELETE FROM AtividadesAgenda WHERE id LIKE ?;`, [`${seriePrefix}_%`]);
+  try {
+    await database.runAsync(`DELETE FROM ical_series_overrides WHERE serie_prefix = ?;`, [seriePrefix]);
+  } catch {}
+}
+
+/**
+ * Retorna todos os overrides de séries do iCal salvos.
+ */
+export async function getIcalSeriesOverrides(): Promise<
+  Record<string, { icone?: string | null; cor?: string | null; local?: string | null; titulo?: string | null }>
+> {
+  try {
+    const database = getDatabase();
+    const rows = await database.getAllAsync<{
+      serie_prefix: string;
+      icone: string | null;
+      cor: string | null;
+      local: string | null;
+      titulo: string | null;
+    }>(`SELECT serie_prefix, icone, cor, local, titulo FROM ical_series_overrides;`);
+
+    const result: Record<
+      string,
+      { icone?: string | null; cor?: string | null; local?: string | null; titulo?: string | null }
+    > = {};
+    for (const r of rows) {
+      result[r.serie_prefix] = {
+        icone: r.icone,
+        cor: r.cor,
+        local: r.local,
+        titulo: r.titulo,
+      };
+    }
+    return result;
+  } catch (err) {
+    console.warn('[database] Erro ao buscar ical_series_overrides:', err);
+    return {};
   }
 }
 

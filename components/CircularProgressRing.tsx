@@ -12,6 +12,8 @@ interface CircularProgressRingProps {
   backgroundColor?: string;
   completedColor?: string;
   showText?: boolean;
+  textColor?: string;
+  alwaysShowPercent?: boolean;
 }
 
 export default function CircularProgressRing({
@@ -22,6 +24,8 @@ export default function CircularProgressRing({
   backgroundColor = '#26292C',
   completedColor,
   showText = true,
+  textColor,
+  alwaysShowPercent = false,
 }: CircularProgressRingProps) {
   const clampedProgress = Math.min(100, Math.max(0, Math.round(progress)));
   const radius = (size - strokeWidth) / 2;
@@ -29,6 +33,7 @@ export default function CircularProgressRing({
   const strokeDashoffset = circumference - (circumference * clampedProgress) / 100;
   const isCompleted = clampedProgress === 100;
   const activeColor = isCompleted ? (completedColor || '#10B981') : color;
+  const showCheckmark = isCompleted && !alwaysShowPercent;
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -64,7 +69,7 @@ export default function CircularProgressRing({
           style={[StyleSheet.absoluteFill, styles.centerTextContainer]}
           pointerEvents="none"
         >
-          {isCompleted ? (
+          {showCheckmark ? (
             <Ionicons name="checkmark" size={size * 0.38} color={completedColor || '#10B981'} />
           ) : (
             <Text
@@ -72,7 +77,7 @@ export default function CircularProgressRing({
                 styles.progressText,
                 {
                   fontSize: clampedProgress === 100 ? size * 0.22 : size * 0.25,
-                  color: clampedProgress > 0 ? '#FFFFFF' : '#8E959E',
+                  color: textColor || (clampedProgress > 0 ? '#FFFFFF' : '#8E959E'),
                 },
               ]}
               numberOfLines={1}

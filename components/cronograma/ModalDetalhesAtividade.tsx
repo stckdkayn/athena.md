@@ -191,7 +191,7 @@ export default function ModalDetalhesAtividade({
               style={[
                 styles.detailsBox,
                 {
-                  backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                  backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                   borderColor: theme.border,
                 },
               ]}
@@ -254,6 +254,32 @@ export default function ModalDetalhesAtividade({
                   </View>
                 </View>
               ) : null}
+
+              {/* Local do Evento / Atividade */}
+              {!!item.local && (
+                <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
+                    <Ionicons name="location-outline" size={16} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Local</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{item.local}</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Detalhes / Anotações */}
+              {!!item.detalhes && item.detalhes !== detalhe && (
+                <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                  <View style={[styles.infoIconBox, { backgroundColor: theme.primarySubtle }]}>
+                    <Ionicons name="document-text-outline" size={16} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Anotações / Descrição</Text>
+                    <Text style={[styles.infoValue, { color: theme.text }]}>{item.detalhes}</Text>
+                  </View>
+                </View>
+              )}
 
               {/* Status */}
               <View style={[styles.infoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
@@ -341,7 +367,7 @@ export default function ModalDetalhesAtividade({
                 style={[
                   styles.remanejarBox,
                   {
-                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                     borderColor: theme.border,
                   },
                 ]}
@@ -358,7 +384,7 @@ export default function ModalDetalhesAtividade({
                         style={[
                           styles.diaPill,
                           {
-                            backgroundColor: isDark ? '#232628' : theme.surface,
+                            backgroundColor: isDark ? theme.surfaceCard : theme.surface,
                             borderColor: theme.border,
                           },
                           isActive && {
@@ -396,7 +422,7 @@ export default function ModalDetalhesAtividade({
                 style={[
                   styles.remanejarBox,
                   {
-                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                     borderColor: theme.border,
                   },
                 ]}
@@ -413,7 +439,7 @@ export default function ModalDetalhesAtividade({
                         style={[
                           styles.semanaPill,
                           {
-                            backgroundColor: isDark ? '#232628' : theme.surface,
+                            backgroundColor: isDark ? theme.surfaceCard : theme.surface,
                             borderColor: theme.border,
                           },
                           isActive && {
@@ -452,7 +478,7 @@ export default function ModalDetalhesAtividade({
                   style={[
                     styles.remanejarBtn,
                     {
-                      backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                      backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                       borderColor: theme.border,
                     },
                     showSeletorDia && {
@@ -486,7 +512,7 @@ export default function ModalDetalhesAtividade({
                   style={[
                     styles.remanejarBtn,
                     {
-                      backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                      backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                       borderColor: theme.border,
                     },
                     showSeletorSemana && {
@@ -524,7 +550,7 @@ export default function ModalDetalhesAtividade({
                     style={[
                       styles.editBtn,
                       {
-                        backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                        backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                         borderColor: theme.border,
                       },
                     ]}

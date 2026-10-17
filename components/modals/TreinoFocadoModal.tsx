@@ -165,7 +165,7 @@ export function TreinoFocadoModal({
                       style={[
                         styles.microFocoCheckboxRow,
                         {
-                          backgroundColor: isDark ? '#131518' : '#FFFFFF',
+                          backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                           borderColor: theme.border,
                         },
                         isSelected && {
@@ -223,7 +223,7 @@ export function TreinoFocadoModal({
                     style={[
                       styles.microFocoCheckboxRow,
                       {
-                        backgroundColor: isDark ? '#131518' : '#FFFFFF',
+                        backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                         borderColor: theme.border,
                       },
                       selectedMicroFocos.includes('__geral__') && {
@@ -267,7 +267,7 @@ export function TreinoFocadoModal({
               style={[
                 styles.microFocoSingleNote,
                 {
-                  backgroundColor: isDark ? '#131518' : '#FFFFFF',
+                  backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                   borderColor: theme.border,
                 },
               ]}

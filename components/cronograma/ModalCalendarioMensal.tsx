@@ -53,6 +53,8 @@ LocaleConfig.locales['pt-br'] = {
 };
 LocaleConfig.defaultLocale = 'pt-br';
 
+import { useAppTheme } from '@/context/ThemeContext';
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -66,13 +68,15 @@ export default function ModalCalendarioMensal({
   dataAtual,
   onDayPress,
 }: Props) {
+  const { colors: theme, isDark } = useAppTheme();
+
   // Configuração dos dias marcados (dataAtual selecionada)
   const markedDates: Record<string, any> = dataAtual
     ? {
         [dataAtual]: {
           selected: true,
-          selectedColor: '#1F2937',
-          selectedTextColor: '#FFFFFF',
+          selectedColor: theme.primary,
+          selectedTextColor: isDark ? '#000000' : '#FFFFFF',
         },
       }
     : {};
@@ -85,12 +89,24 @@ export default function ModalCalendarioMensal({
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={styles.overlay}
+        style={[
+          styles.overlay,
+          { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.45)' },
+        ]}
         activeOpacity={1}
         onPress={onClose}
       >
         <TouchableWithoutFeedback>
-          <View style={styles.calendarContainer}>
+          <View
+            style={[
+              styles.calendarContainer,
+              {
+                backgroundColor: theme.surfaceCard || theme.surface,
+                borderColor: theme.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
             <Calendar
               current={dataAtual || undefined}
               onDayPress={(day: { dateString: string }) => {
@@ -98,18 +114,18 @@ export default function ModalCalendarioMensal({
               }}
               markedDates={markedDates}
               theme={{
-                backgroundColor: '#FFFFFF',
-                calendarBackground: '#FFFFFF',
-                textSectionTitleColor: '#6B7280',
-                selectedDayBackgroundColor: '#1F2937',
-                selectedDayTextColor: '#FFFFFF',
-                todayBackgroundColor: '#000000',
-                todayTextColor: '#FFFFFF',
-                dayTextColor: '#000000',
-                textDisabledColor: '#D1D5DB',
-                arrowColor: '#000000',
-                monthTextColor: '#000000',
-                textMonthFontWeight: '700',
+                backgroundColor: theme.surfaceCard || theme.surface,
+                calendarBackground: theme.surfaceCard || theme.surface,
+                textSectionTitleColor: theme.textSecondary,
+                selectedDayBackgroundColor: theme.primary,
+                selectedDayTextColor: isDark ? '#000000' : '#FFFFFF',
+                todayBackgroundColor: theme.primarySubtle,
+                todayTextColor: theme.primary,
+                dayTextColor: theme.text,
+                textDisabledColor: theme.textMuted,
+                arrowColor: isDark ? theme.primary : theme.text,
+                monthTextColor: theme.text,
+                textMonthFontWeight: '800',
                 textDayHeaderFontWeight: '600',
                 textDayFontSize: 15,
                 textMonthFontSize: 16,
@@ -130,13 +146,11 @@ export default function ModalCalendarioMensal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   calendarContainer: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 12,
     width: '100%',

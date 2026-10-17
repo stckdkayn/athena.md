@@ -62,16 +62,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const colors = useMemo<ActiveThemeColors>(() => {
     const base = isDark ? BASE_THEMES.dark : BASE_THEMES.light;
-    // No modo claro ou com accent monocromático: tudo preto, branco e variações de cinza
-    if (!isDark || accentKey === 'monocromatico') {
-      const isLightMono = !isDark;
+
+    if (isDark) {
+      // No modo escuro: padrão Athena clássico com Dourado (#EAE115) do branch main
+      if (accentKey === 'monocromatico' || accentKey === 'amarelo') {
+        return {
+          ...base,
+          primary: '#EAE115',
+          primarySubtle: 'rgba(234, 225, 21, 0.14)',
+          primaryBorder: 'rgba(234, 225, 21, 0.35)',
+        };
+      }
       return {
         ...base,
-        primary: isLightMono ? '#37352F' : '#FFFFFF',
-        primarySubtle: isLightMono ? 'rgba(55, 53, 47, 0.08)' : 'rgba(255, 255, 255, 0.10)',
-        primaryBorder: isLightMono ? 'rgba(55, 53, 47, 0.16)' : 'rgba(255, 255, 255, 0.25)',
+        primary: accentOption.color,
+        primarySubtle: accentOption.subtle,
+        primaryBorder: accentOption.border,
       };
     }
+
+    // No modo claro: Notion Light com Azul Notion (#2383E2) para botões e ações
+    if (accentKey === 'monocromatico') {
+      return {
+        ...base,
+        primary: '#2383E2',
+        primarySubtle: 'rgba(35, 131, 226, 0.10)',
+        primaryBorder: 'rgba(35, 131, 226, 0.25)',
+      };
+    }
+
     return {
       ...base,
       primary: accentOption.color,
@@ -127,9 +146,9 @@ export function useAppTheme(): ThemeContextData {
     const fallbackAccent = ACCENT_PALETTE.monocromatico;
     const fallbackColors: ActiveThemeColors = {
       ...fallbackBase,
-      primary: '#37352F',
-      primarySubtle: 'rgba(55, 53, 47, 0.08)',
-      primaryBorder: 'rgba(55, 53, 47, 0.16)',
+      primary: '#2383E2',
+      primarySubtle: 'rgba(35, 131, 226, 0.10)',
+      primaryBorder: 'rgba(35, 131, 226, 0.25)',
     };
     return {
       mode: 'light',
@@ -137,7 +156,7 @@ export function useAppTheme(): ThemeContextData {
       isDark: false,
       colors: fallbackColors,
       theme: fallbackColors,
-      accentColor: '#37352F',
+      accentColor: '#2383E2',
       accentOption: fallbackAccent,
       setMode: () => {},
       setAccent: () => {},

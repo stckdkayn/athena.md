@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -10,7 +10,8 @@ import {
   StyleSheet
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+import { Colors, ActiveThemeColors } from '@/constants/Colors';
+import { useAppTheme } from '@/context/ThemeContext';
 import { storage } from '@/services/storage';
 
 interface MetaDiariaModalProps {
@@ -21,6 +22,8 @@ interface MetaDiariaModalProps {
 }
 
 export function MetaDiariaModal({ visible, onClose, onSave, initialMeta }: MetaDiariaModalProps) {
+  const { colors: theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const [inputMeta, setInputMeta] = useState('');
 
   useEffect(() => {
@@ -179,186 +182,190 @@ export function MetaDiariaModal({ visible, onClose, onSave, initialMeta }: MetaD
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalBackdropTouch: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  nameModalCard: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: '#1A1D20',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#2E3338',
-    padding: 22,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  nameModalHeader: {
-    alignItems: 'center',
-    marginBottom: 20,
-    width: '100%',
-  },
-  nameModalIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  nameModalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  nameModalSubtitle: {
-    fontSize: 13,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 8,
-  },
-  nameInputContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121416',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#34383c',
-    paddingHorizontal: 14,
-    marginBottom: 22,
-  },
-  nameInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  nameInputClearBtn: {
-    padding: 4,
-  },
-  nameModalButtonsRow: {
-    flexDirection: 'row',
-    width: '100%',
-    gap: 12,
-  },
-  nameModalCancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: '#26292d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nameModalCancelText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  nameModalSaveBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nameModalSaveText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#000000',
-  },
-  metaPresetsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
-    width: '100%',
-  },
-  metaPresetChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#121416',
-    borderWidth: 1,
-    borderColor: '#2e3338',
-  },
-  metaPresetChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  metaPresetChipText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9ca3af',
-  },
-  metaPresetChipTextActive: {
-    color: '#000000',
-    fontWeight: '800',
-  },
-  metaModalRemoveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    marginBottom: 14,
-  },
-  metaModalRemoveText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.error,
-  },
-  metaProjectionBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121416',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#262A2E',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    width: '100%',
-  },
-  metaProjectionItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  metaProjectionLabel: {
-    fontSize: 11,
-    color: '#8A9098',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  metaProjectionVal: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: '800',
-  },
-  metaProjectionDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: '#2A2E33',
-  }
-});
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  return StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 16,
+    },
+    modalBackdropTouch: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    nameModalCard: {
+      width: '100%',
+      maxWidth: 380,
+      backgroundColor: theme.surfaceCard || theme.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 22,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: isDark ? 0.5 : 0.15,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    nameModalHeader: {
+      alignItems: 'center',
+      marginBottom: 20,
+      width: '100%',
+    },
+    nameModalIconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.primarySubtle,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    nameModalTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: theme.text,
+      textAlign: 'center',
+      marginBottom: 6,
+    },
+    nameModalSubtitle: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      paddingHorizontal: 8,
+    },
+    nameInputContainer: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.backgroundSecondary || theme.surface,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      paddingHorizontal: 14,
+      marginBottom: 22,
+    },
+    nameInput: {
+      flex: 1,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: theme.text,
+      fontWeight: '600',
+    },
+    nameInputClearBtn: {
+      padding: 4,
+    },
+    nameModalButtonsRow: {
+      flexDirection: 'row',
+      width: '100%',
+      gap: 12,
+    },
+    nameModalCancelBtn: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nameModalCancelText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    nameModalSaveBtn: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nameModalSaveText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: isDark ? '#000000' : '#FFFFFF',
+    },
+    metaPresetsRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      marginBottom: 16,
+      width: '100%',
+    },
+    metaPresetChip: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: theme.backgroundSecondary || theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    metaPresetChipActive: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    metaPresetChipText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    metaPresetChipTextActive: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontWeight: '800',
+    },
+    metaModalRemoveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 6,
+      marginBottom: 14,
+    },
+    metaModalRemoveText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.error,
+    },
+    metaProjectionBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.backgroundSecondary || theme.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.borderSubtle,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 16,
+      width: '100%',
+    },
+    metaProjectionItem: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    metaProjectionLabel: {
+      fontSize: 11,
+      color: theme.textMuted,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    metaProjectionVal: {
+      fontSize: 13,
+      color: theme.primary,
+      fontWeight: '800',
+    },
+    metaProjectionDivider: {
+      width: 1,
+      height: 22,
+      backgroundColor: theme.borderSubtle,
+    }
+  });
+}

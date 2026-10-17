@@ -35,9 +35,6 @@ import {
   getAutoSyncEnabled,
   setAutoSyncEnabled,
   getLastSyncTimestamp,
-  importarArquivoICS,
-  contarEventosICSLocais,
-  limparEventosICSLocais,
 } from '@/services/icsService';
 
 import { storage } from '@/services/storage'; // <-- Motor Síncrono MMKV
@@ -52,8 +49,6 @@ import {
 import {
   getDistinctProgressThemes,
   deleteProgressByThemes,
-  getDiagnosticSummary,
-  DiagnosticSummary,
 } from '@/services/progressService';
 import { limparGargalosEReplanejar } from '@/services/schedulerService';
 import { invalidateImageCache, clearAllAthenaImages } from '@/services/imageService';
@@ -85,7 +80,6 @@ import {
   getCronograma,
   getCronogramaProgresso,
   calcularProgressoGeral,
-  pickAndImportCronograma,
   resetCronogramaProgresso,
   clearCronograma,
 } from '@/services/scheduleService';
@@ -227,7 +221,6 @@ export default function ConfiguracoesScreen() {
   const [questoesCount, setQuestoesCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [unzipping, setUnzipping] = useState<boolean>(false);
-  const [importandoICS, setImportandoICS] = useState<boolean>(false);
   const [totalImagensSalvas, setTotalImagensSalvas] = useState<number>(0);
 
   // Estados do Gerenciador de Armazenamento Granular
@@ -253,22 +246,6 @@ export default function ConfiguracoesScreen() {
   const [pacoteOrigemInput, setPacoteOrigemInput] = useState<string>('');
 
   const [modalResetVisible, setModalResetVisible] = useState<boolean>(false);
-  const [modalDiagnosticoVisible, setModalDiagnosticoVisible] = useState<boolean>(false);
-  const [diagnosticoData, setDiagnosticoData] = useState<DiagnosticSummary | null>(null);
-  const [carregandoDiagnostico, setCarregandoDiagnostico] = useState<boolean>(false);
-
-  const abrirDiagnostico = async () => {
-    setCarregandoDiagnostico(true);
-    setModalDiagnosticoVisible(true);
-    try {
-      const data = await getDiagnosticSummary();
-      setDiagnosticoData(data);
-    } catch (err) {
-      console.error('Erro ao abrir diagnóstico:', err);
-    } finally {
-      setCarregandoDiagnostico(false);
-    }
-  };
   const [temasDisponiveis, setTemasDisponiveis] = useState<string[]>([]);
   const [searchTema, setSearchTema] = useState<string>('');
   const [temasSelecionados, setTemasSelecionados] = useState<string[]>([]);
@@ -351,9 +328,6 @@ export default function ConfiguracoesScreen() {
   const [novoFeedTipo, setNovoFeedTipo] = useState<string>('Faculdade');
   const [salvandoNovoFeed, setSalvandoNovoFeed] = useState<boolean>(false);
   const [feedParaRemover, setFeedParaRemover] = useState<ICalFeed | null>(null);
-  const [modalLimparICSVisible, setModalLimparICSVisible] = useState<boolean>(false);
-  const [limpandoICS, setLimpandoICS] = useState<boolean>(false);
-  const [totalEventosICSParaLimpar, setTotalEventosICSParaLimpar] = useState<number>(0);
 
   const carregarDadosCalendario = () => {
     try {
@@ -422,7 +396,6 @@ export default function ConfiguracoesScreen() {
       setModalRemoverCronogramaVisible(false);
       setModalResetCronogramaVisible(false);
       setModalAddFeedVisible(false);
-      setModalLimparICSVisible(false);
       setFeedParaRemover(null);
       setSucessoCronogramaModal(null);
       setErroCronogramaModal(null);
@@ -1284,20 +1257,6 @@ export default function ConfiguracoesScreen() {
     setTemasParaConfirmar([...temasSelecionados]);
   };
 
-  const handleImportarCronogramaJSON = async () => {
-    try {
-      const res = await pickAndImportCronograma();
-      if (res.cancelado) return;
-      if (res.success && res.data) {
-        carregarDadosCronograma();
-        const totalTops = res.data.semanas.reduce((acc, s) => acc + (s.topicos?.length || 0), 0);
-        setSucessoCronogramaModal({ titulo: res.data.titulo || '', semanas: res.data.semanas.length, topicos: totalTops });
-      } else if (res.error) setErroCronogramaModal(res.error);
-    } catch (e: any) {
-      setErroCronogramaModal(e?.message || 'Falha ao importar cronograma.');
-    }
-  };
-
   const handleBaixarCronogramaGitHub = async () => {
     try {
       const cfg = await getGitHubConfig();
@@ -1428,56 +1387,6 @@ export default function ConfiguracoesScreen() {
     }
   };
 
-  const handleImportarICS = async () => {
-    try {
-      setImportandoICS(true);
-      const resultado = await importarArquivoICS();
-      if (!resultado) {
-        return;
-      }
-      carregarDadosCalendario();
-      Alert.alert(
-        'Sucesso!',
-        `${resultado.count} ${resultado.count === 1 ? 'evento foi importado' : 'eventos foram importados'} para a sua agenda.`
-      );
-    } catch (err: any) {
-      console.error('Erro ao importar arquivo ICS:', err);
-      Alert.alert('Erro na Importação', err?.message || 'Não foi possível importar o arquivo de calendário.');
-    } finally {
-      setImportandoICS(false);
-    }
-  };
-
-  const handleAbrirModalLimparICS = async () => {
-    try {
-      const total = await contarEventosICSLocais();
-      setTotalEventosICSParaLimpar(total);
-      setModalLimparICSVisible(true);
-    } catch (e) {
-      console.error('Erro ao contar eventos do .ICS:', e);
-      setTotalEventosICSParaLimpar(0);
-      setModalLimparICSVisible(true);
-    }
-  };
-
-  const handleConfirmarLimparICS = async () => {
-    try {
-      setLimpandoICS(true);
-      const totalRemovidos = await limparEventosICSLocais();
-      setModalLimparICSVisible(false);
-      carregarDadosCalendario();
-      Alert.alert(
-        'Limpeza Concluída',
-        `${totalRemovidos} ${totalRemovidos === 1 ? 'evento do .ICS foi removido' : 'eventos do .ICS foram removidos'} da sua agenda com sucesso.`
-      );
-    } catch (err: any) {
-      console.error('Erro ao limpar eventos do .ICS:', err);
-      Alert.alert('Erro', err?.message || 'Não foi possível limpar os eventos do .ICS.');
-    } finally {
-      setLimpandoICS(false);
-    }
-  };
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
@@ -1488,8 +1397,8 @@ export default function ConfiguracoesScreen() {
         {currentView === 'menu' ? (
           <View style={styles.menuOptionsContainer}>
             <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={abrirOpcaoAdicionarQuestoes}>
-              <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                <Ionicons name="cloud-upload-outline" size={24} color={Colors.primary} />
+              <View style={[styles.menuOptionIconBox, { backgroundColor: themeColors.primarySubtle }]}>
+                <Ionicons name="cloud-upload-outline" size={24} color={themeColors.primary} />
                 {updateStatus.hasUpdate && <View style={styles.cardNotificationDot} />}
               </View>
               <View style={styles.menuOptionContent}>
@@ -1504,7 +1413,7 @@ export default function ConfiguracoesScreen() {
                 </View>
                 <Text style={styles.menuOptionSubtitle}>Sincronização com GitHub, importar arquivos, armazenamento e progresso</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1518,21 +1427,9 @@ export default function ConfiguracoesScreen() {
               <View style={styles.menuOptionContent}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={styles.menuOptionTitle}>Cronograma & Calendário</Text>
-                  {cronogramaInfo && (
-                    <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.35)' }]}>
-                      <Text style={[styles.menuUpdateBadgeText, { color: '#10B981' }]}>Ativo</Text>
-                    </View>
-                  )}
-                  {icalFeeds.length > 0 && (
-                    <View style={[styles.menuUpdateBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.35)', marginLeft: 6 }]}>
-                      <Text style={[styles.menuUpdateBadgeText, { color: '#3B82F6' }]}>
-                        {icalFeeds.length} {icalFeeds.length === 1 ? 'feed' : 'feeds'}
-                      </Text>
-                    </View>
-                  )}
                 </View>
                 <Text style={styles.menuOptionSubtitle}>
-                  Sincronização de cronograma, Google Calendar (iCal/Webcal) e arquivos .ics
+                  Sincronização de cronograma pelo GitHub e visualização de feeds iCal / Webcal
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
@@ -1542,7 +1439,7 @@ export default function ConfiguracoesScreen() {
           <>
             <View style={styles.subScreenHeader}>
               <TouchableOpacity style={styles.subScreenBackBtn} onPress={() => setCurrentView('menu')} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Ionicons name="arrow-back" size={22} color={Colors.text} />
+                <Ionicons name="arrow-back" size={22} color={themeColors.text} />
               </TouchableOpacity>
               <Text style={styles.subScreenHeaderTitle}>Gerenciar Questões</Text>
             </View>
@@ -1553,9 +1450,9 @@ export default function ConfiguracoesScreen() {
                 <Text style={styles.menuSummaryValue}>{questoesCount} {questoesCount === 1 ? 'questão carregada' : 'questões carregadas'}</Text>
                 <Text style={styles.menuSummarySubValue}>{totalImagensSalvas} {totalImagensSalvas === 1 ? 'imagem offline salva' : 'imagens offline salvas'}</Text>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: questoesCount > 0 ? 'rgba(76, 175, 80, 0.15)' : Colors.background }]}>
-                <View style={[styles.statusDot, { backgroundColor: questoesCount > 0 ? Colors.success : Colors.textSecondary }]} />
-                <Text style={[styles.statusBadgeText, { color: questoesCount > 0 ? Colors.success : Colors.textSecondary }]}>{questoesCount > 0 ? 'Ativo' : 'Vazio'}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: questoesCount > 0 ? 'rgba(76, 175, 80, 0.15)' : themeColors.background }]}>
+                <View style={[styles.statusDot, { backgroundColor: questoesCount > 0 ? themeColors.success : themeColors.textSecondary }]} />
+                <Text style={[styles.statusBadgeText, { color: questoesCount > 0 ? themeColors.success : themeColors.textSecondary }]}>{questoesCount > 0 ? 'Ativo' : 'Vazio'}</Text>
               </View>
             </View>
 
@@ -1582,8 +1479,8 @@ export default function ConfiguracoesScreen() {
                 activeOpacity={0.7}
                 onPress={() => toggleSection('github')}
               >
-                <View style={[styles.accordionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                  <Ionicons name="logo-github" size={22} color={Colors.primary} />
+                <View style={[styles.accordionIconBox, { backgroundColor: themeColors.primarySubtle }]}>
+                  <Ionicons name="logo-github" size={22} color={themeColors.primary} />
                 </View>
                 <View style={styles.accordionHeaderContent}>
                   <Text style={styles.accordionTitle}>GitHub</Text>
@@ -1594,7 +1491,7 @@ export default function ConfiguracoesScreen() {
                 <Ionicons
                   name={expandedSections.has('github') ? 'chevron-up' : 'chevron-down'}
                   size={18}
-                  color={Colors.textSecondary}
+                  color={themeColors.textSecondary}
                 />
               </TouchableOpacity>
 
@@ -1608,13 +1505,13 @@ export default function ConfiguracoesScreen() {
                             {gitHubRepoInput ? gitHubRepoInput : 'Nenhum repositório configurado'}
                           </Text>
                           <View style={[styles.gitHubStatusBadge, { backgroundColor: updateStatus.hasUpdate ? 'rgba(255, 59, 48, 0.15)' : temTokenConfigurado ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 167, 38, 0.15)', borderColor: updateStatus.hasUpdate ? 'rgba(255, 59, 48, 0.35)' : temTokenConfigurado ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 167, 38, 0.3)' }]}>
-                            <Text style={[styles.gitHubStatusBadgeText, { color: updateStatus.hasUpdate ? '#FF5252' : temTokenConfigurado ? Colors.success : '#FFA726' }]}>
+                            <Text style={[styles.gitHubStatusBadgeText, { color: updateStatus.hasUpdate ? '#FF5252' : temTokenConfigurado ? themeColors.success : '#FFA726' }]}>
                               {updateStatus.hasUpdate ? 'Atualização Disponível' : temTokenConfigurado ? 'Conectado' : 'Credenciais Pendentes'}
                             </Text>
                           </View>
                         </View>
                         <View style={styles.gitHubSyncSubRow}>
-                          <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
+                          <Ionicons name="time-outline" size={12} color={themeColors.textSecondary} />
                           <Text style={styles.gitHubSyncSub}>
                             {syncMetadata?.ultimaSincronizacao ? `Última sincronização: ${formatarData(syncMetadata.ultimaSincronizacao)}` : 'Nenhuma sincronização recente'}
                           </Text>
@@ -1630,11 +1527,11 @@ export default function ConfiguracoesScreen() {
                       </TouchableOpacity>
                       <View style={styles.gitHubSyncSecondaryRow}>
                         <TouchableOpacity style={styles.gitHubSyncSecondaryBtn} onPress={abrirSincronizacaoGitHub} activeOpacity={0.7} disabled={modalSyncProgressVisible}>
-                          <Ionicons name="sync" size={15} color={Colors.text} style={{ marginRight: 6 }} />
+                          <Ionicons name="sync" size={15} color={themeColors.text} style={{ marginRight: 6 }} />
                           <Text style={styles.gitHubSyncSecondaryBtnText}>Sincronizar Tudo</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.gitHubSyncSecondaryBtn} onPress={() => { setResultadoTesteConexao(null); setModalGitHubConfigVisible(true); }} activeOpacity={0.7}>
-                          <Ionicons name="key-outline" size={15} color={Colors.textSecondary} style={{ marginRight: 6 }} />
+                          <Ionicons name="key-outline" size={15} color={themeColors.textSecondary} style={{ marginRight: 6 }} />
                           <Text style={styles.gitHubSyncSecondaryBtnText}>Login</Text>
                         </TouchableOpacity>
                       </View>
@@ -1651,8 +1548,8 @@ export default function ConfiguracoesScreen() {
                 activeOpacity={0.7}
                 onPress={() => toggleSection('local')}
               >
-                <View style={[styles.accordionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                  <MaterialCommunityIcons name="tray-arrow-down" size={22} color={Colors.primary} />
+                <View style={[styles.accordionIconBox, { backgroundColor: themeColors.primarySubtle }]}>
+                  <MaterialCommunityIcons name="tray-arrow-down" size={22} color={themeColors.primary} />
                 </View>
                 <View style={styles.accordionHeaderContent}>
                   <Text style={styles.accordionTitle}>Importação Local</Text>
@@ -1663,7 +1560,7 @@ export default function ConfiguracoesScreen() {
                 <Ionicons
                   name={expandedSections.has('local') ? 'chevron-up' : 'chevron-down'}
                   size={18}
-                  color={Colors.textSecondary}
+                  color={themeColors.textSecondary}
                 />
               </TouchableOpacity>
 
@@ -1671,21 +1568,21 @@ export default function ConfiguracoesScreen() {
                 <View style={styles.accordionBody}>
                   <View style={styles.minCardsCol}>
                     <TouchableOpacity style={[styles.minActionCard, loading && styles.buttonDisabled]} onPress={importarJSON} activeOpacity={0.7} disabled={loading}>
-                      <View style={[styles.minIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="document-text-outline" size={22} color={Colors.primary} /></View>
+                      <View style={[styles.minIconBox, { backgroundColor: themeColors.primarySubtle }]}><Ionicons name="document-text-outline" size={22} color={themeColors.primary} /></View>
                       <View style={styles.minActionContent}>
                         <Text style={styles.minActionTitle}>Banco de Questões</Text>
                         <Text style={styles.minActionSub}>Arquivo .json</Text>
                       </View>
-                      {loading ? <ActivityIndicator size="small" color={Colors.primary} /> : <View style={styles.minActionPill}><Ionicons name="cloud-upload-outline" size={15} color={Colors.primary} style={{ marginRight: 5 }} /><Text style={styles.minActionPillText}>Carregar</Text></View>}
+                      {loading ? <ActivityIndicator size="small" color={themeColors.primary} /> : <View style={styles.minActionPill}><Ionicons name="cloud-upload-outline" size={15} color={themeColors.primary} style={{ marginRight: 5 }} /><Text style={styles.minActionPillText}>Carregar</Text></View>}
                     </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.minActionCard, unzipping && styles.buttonDisabled]} onPress={selecionarArquivoZip} activeOpacity={0.7} disabled={unzipping || loading}>
-                      <View style={[styles.minIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><MaterialCommunityIcons name="folder-zip-outline" size={22} color={Colors.primary} /></View>
+                      <View style={[styles.minIconBox, { backgroundColor: themeColors.primarySubtle }]}><MaterialCommunityIcons name="folder-zip-outline" size={22} color={themeColors.primary} /></View>
                       <View style={styles.minActionContent}>
                         <Text style={styles.minActionTitle}>Pacote de Imagens</Text>
                         <Text style={styles.minActionSub}>Arquivo .zip</Text>
                       </View>
-                      {unzipping ? <ActivityIndicator size="small" color={Colors.primary} /> : <View style={styles.minActionPill}><Ionicons name="cloud-upload-outline" size={15} color={Colors.primary} style={{ marginRight: 5 }} /><Text style={styles.minActionPillText}>Carregar</Text></View>}
+                      {unzipping ? <ActivityIndicator size="small" color={themeColors.primary} /> : <View style={styles.minActionPill}><Ionicons name="cloud-upload-outline" size={15} color={themeColors.primary} style={{ marginRight: 5 }} /><Text style={styles.minActionPillText}>Carregar</Text></View>}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1699,8 +1596,8 @@ export default function ConfiguracoesScreen() {
                 activeOpacity={0.7}
                 onPress={() => toggleSection('storage')}
               >
-                <View style={[styles.accordionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                  <MaterialCommunityIcons name="server-outline" size={22} color={Colors.primary} />
+                <View style={[styles.accordionIconBox, { backgroundColor: themeColors.primarySubtle }]}>
+                  <MaterialCommunityIcons name="server-outline" size={22} color={themeColors.primary} />
                 </View>
                 <View style={styles.accordionHeaderContent}>
                   <Text style={styles.accordionTitle}>Armazenamento</Text>
@@ -1711,7 +1608,7 @@ export default function ConfiguracoesScreen() {
                 <Ionicons
                   name={expandedSections.has('storage') ? 'chevron-up' : 'chevron-down'}
                   size={18}
-                  color={Colors.textSecondary}
+                  color={themeColors.textSecondary}
                 />
               </TouchableOpacity>
 
@@ -1719,7 +1616,7 @@ export default function ConfiguracoesScreen() {
                 <View style={styles.accordionBody}>
                   <View style={styles.minStorageCardInner}>
                     <View style={styles.minStorageSubHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}><MaterialCommunityIcons name="code-json" size={16} color={Colors.primary} style={{ marginRight: 6 }} /><Text style={styles.minStorageSubTitle}>Bancos de Questões</Text></View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}><MaterialCommunityIcons name="code-json" size={16} color={themeColors.primary} style={{ marginRight: 6 }} /><Text style={styles.minStorageSubTitle}>Bancos de Questões</Text></View>
                       <Text style={styles.minStorageBadge}>{gruposBancosList.length} {gruposBancosList.length === 1 ? 'conjunto' : 'conjuntos'}</Text>
                     </View>
 
@@ -1728,9 +1625,9 @@ export default function ConfiguracoesScreen() {
                     ) : (
                       gruposBancosList.map((grupo, index) => (
                         <TouchableOpacity key={`grupo-banco-${grupo.tagMaior}-${index}`} style={styles.minStorageRow} onPress={() => { setGrupoBancosModal(grupo); setSearchBancoModal(''); }} activeOpacity={0.7}>
-                          <View style={styles.minGroupIconBox}><MaterialCommunityIcons name="layers-outline" size={18} color={Colors.primary} /></View>
+                          <View style={styles.minGroupIconBox}><MaterialCommunityIcons name="layers-outline" size={18} color={themeColors.primary} /></View>
                           <View style={{ flex: 1, marginRight: 8 }}><Text style={styles.minItemTitle} numberOfLines={1}>{grupo.tagMaior}</Text><Text style={styles.minItemSub}>{grupo.totalBancos} {grupo.totalBancos === 1 ? 'banco' : 'bancos'} • {grupo.totalQuestoes} questões</Text></View>
-                          <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                          <Ionicons name="chevron-forward" size={16} color={themeColors.textSecondary} />
                         </TouchableOpacity>
                       ))
                     )}
@@ -1738,7 +1635,7 @@ export default function ConfiguracoesScreen() {
                     <View style={styles.minDivider} />
 
                     <View style={styles.minStorageSubHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}><MaterialCommunityIcons name="folder-multiple-image" size={16} color={Colors.primary} style={{ marginRight: 6 }} /><Text style={styles.minStorageSubTitle}>Pacotes de Imagens</Text></View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}><MaterialCommunityIcons name="folder-multiple-image" size={16} color={themeColors.primary} style={{ marginRight: 6 }} /><Text style={styles.minStorageSubTitle}>Pacotes de Imagens</Text></View>
                       <Text style={styles.minStorageBadge}>{gruposPacotesList.length} {gruposPacotesList.length === 1 ? 'conjunto' : 'conjuntos'}</Text>
                     </View>
 
@@ -1747,9 +1644,9 @@ export default function ConfiguracoesScreen() {
                     ) : (
                       gruposPacotesList.map((grupo, index) => (
                         <TouchableOpacity key={`grupo-pacote-${grupo.tagMaior}-${index}`} style={styles.minStorageRow} onPress={() => { setGrupoPacotesModal(grupo); setSearchPacoteModal(''); }} activeOpacity={0.7}>
-                          <View style={styles.minGroupIconBox}><MaterialCommunityIcons name="image-multiple-outline" size={18} color={Colors.primary} /></View>
+                          <View style={styles.minGroupIconBox}><MaterialCommunityIcons name="image-multiple-outline" size={18} color={themeColors.primary} /></View>
                           <View style={{ flex: 1, marginRight: 8 }}><Text style={styles.minItemTitle} numberOfLines={1}>{grupo.tagMaior}</Text><Text style={styles.minItemSub}>{grupo.totalPacotes} {grupo.totalPacotes === 1 ? 'pacote' : 'pacotes'} • {grupo.totalImagens} imagens</Text></View>
-                          <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                          <Ionicons name="chevron-forward" size={16} color={themeColors.textSecondary} />
                         </TouchableOpacity>
                       ))
                     )}
@@ -1768,29 +1665,18 @@ export default function ConfiguracoesScreen() {
                   <Text style={styles.menuOptionTitle}>Resetar Progresso</Text>
                   <Text style={styles.menuOptionSubtitle}>Apagar histórico de acertos e resoluções por tema</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={abrirModalZerarBanco} disabled={loading || zerandoBanco}>
                 <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-                  <Ionicons name="trash-outline" size={22} color={Colors.error} />
+                  <Ionicons name="trash-outline" size={22} color={themeColors.error} />
                 </View>
                 <View style={styles.menuOptionContent}>
                   <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Apagar Banco de Dados</Text>
                   <Text style={styles.menuOptionSubtitle}>Excluir todas as questões e imagens salvas do banco local</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={abrirDiagnostico}>
-                <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                  <Ionicons name="analytics-outline" size={24} color="#3B82F6" />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionTitle}>Diagnóstico do Histórico & SM-2</Text>
-                  <Text style={styles.menuOptionSubtitle}>Ver registros de tempo, sessões e agendamentos de repetição espaçada</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
               </TouchableOpacity>
             </View>
           </>
@@ -1867,11 +1753,11 @@ export default function ConfiguracoesScreen() {
                   <View style={styles.menuSummaryLeft}>
                     <Text style={styles.menuSummaryLabel}>STATUS DO CRONOGRAMA</Text>
                     <Text style={styles.menuSummaryValue}>{cronogramaInfo ? cronogramaInfo.titulo : 'Nenhum cronograma ativo'}</Text>
-                    <Text style={styles.menuSummarySubValue}>{cronogramaInfo ? `${cronogramaInfo.semanas?.length || 0} semanas • ${cronogramaStats.total} tarefas • ${cronogramaStats.concluidos} concluídas (${cronogramaStats.porcentagem}%)` : 'Importe um arquivo JSON ou carregue o modelo de residência médica.'}</Text>
+                    <Text style={styles.menuSummarySubValue}>{cronogramaInfo ? `${cronogramaInfo.semanas?.length || 0} semanas • ${cronogramaStats.total} tarefas • ${cronogramaStats.concluidos} concluídas (${cronogramaStats.porcentagem}%)` : 'Sincronize com o GitHub para carregar seu cronograma de estudos.'}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: cronogramaInfo ? 'rgba(76, 175, 80, 0.15)' : themeColors.background }]}>
-                    <View style={[styles.statusDot, { backgroundColor: cronogramaInfo ? Colors.success : themeColors.textSecondary }]} />
-                    <Text style={[styles.statusBadgeText, { color: cronogramaInfo ? Colors.success : themeColors.textSecondary }]}>{cronogramaInfo ? 'Ativo' : 'Vazio'}</Text>
+                    <View style={[styles.statusDot, { backgroundColor: cronogramaInfo ? themeColors.success : themeColors.textSecondary }]} />
+                    <Text style={[styles.statusBadgeText, { color: cronogramaInfo ? themeColors.success : themeColors.textSecondary }]}>{cronogramaInfo ? 'Ativo' : 'Vazio'}</Text>
                   </View>
                 </View>
 
@@ -1883,21 +1769,12 @@ export default function ConfiguracoesScreen() {
 
                 <View style={styles.menuOptionsContainer}>
                   <TouchableOpacity style={[styles.menuOptionCard, baixandoCronogramaGitHub && styles.buttonDisabled]} activeOpacity={0.7} onPress={handleBaixarCronogramaGitHub} disabled={baixandoCronogramaGitHub}>
-                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="logo-github" size={24} color={Colors.primary} /></View>
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: themeColors.primarySubtle }]}><Ionicons name="logo-github" size={24} color={themeColors.primary} /></View>
                     <View style={styles.menuOptionContent}>
                       <Text style={styles.menuOptionTitle}>Baixar do GitHub</Text>
                       <Text style={styles.menuOptionSubtitle}>Sincronizar cronograma.json direto do seu repositório configurado</Text>
                     </View>
-                    {baixandoCronogramaGitHub ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.menuOptionCard} activeOpacity={0.7} onPress={handleImportarCronogramaJSON}>
-                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}><Ionicons name="cloud-upload-outline" size={24} color={Colors.primary} /></View>
-                    <View style={styles.menuOptionContent}>
-                      <Text style={styles.menuOptionTitle}>Importar Arquivo JSON</Text>
-                      <Text style={styles.menuOptionSubtitle}>Carregar novo arquivo .json estruturado com suas semanas e tópicos</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                    {baixandoCronogramaGitHub ? <ActivityIndicator size="small" color={themeColors.primary} /> : <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />}
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.menuOptionCard, !cronogramaInfo && styles.buttonDisabled]} activeOpacity={0.7} onPress={() => setModalResetCronogramaVisible(true)} disabled={!cronogramaInfo}>
@@ -1910,7 +1787,7 @@ export default function ConfiguracoesScreen() {
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.menuOptionCard, !cronogramaInfo && styles.buttonDisabled]} activeOpacity={0.7} onPress={() => setModalRemoverCronogramaVisible(true)} disabled={!cronogramaInfo}>
-                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}><Ionicons name="trash-outline" size={22} color={Colors.error} /></View>
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}><Ionicons name="trash-outline" size={22} color={themeColors.error} /></View>
                     <View style={styles.menuOptionContent}>
                       <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Remover Cronograma</Text>
                       <Text style={styles.menuOptionSubtitle}>Excluir o cronograma salvo no aparelho e o progresso associado</Text>
@@ -2031,11 +1908,11 @@ export default function ConfiguracoesScreen() {
                       setModalAddFeedVisible(true);
                     }}
                   >
-                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.15)' }]}>
-                      <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
+                    <View style={[styles.menuOptionIconBox, { backgroundColor: themeColors.primarySubtle }]}>
+                      <Ionicons name="add-circle-outline" size={24} color={themeColors.primary} />
                     </View>
                     <View style={styles.menuOptionContent}>
-                      <Text style={[styles.menuOptionTitle, { color: Colors.primary }]}>+ Adicionar Link de iCal</Text>
+                      <Text style={[styles.menuOptionTitle, { color: themeColors.primary }]}>+ Adicionar Link de iCal</Text>
                       <Text style={styles.menuOptionSubtitle}>
                         Google Calendar, Outlook ou qualquer link no formato .ics / webcal
                       </Text>
@@ -2098,60 +1975,13 @@ export default function ConfiguracoesScreen() {
                               onPress={() => setFeedParaRemover(feed)}
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
-                              <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                              <Ionicons name="trash-outline" size={20} color={themeColors.error} />
                             </TouchableOpacity>
                           </View>
                         </View>
                       );
                     })
                   )}
-                </View>
-
-                {/* Importação Manual por Arquivo */}
-                <View style={{ marginTop: 14 }}>
-                  <View style={styles.minSectionHeader}>
-                    <Text style={styles.minSectionTitle}>IMPORTAÇÃO MANUAL</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.menuOptionCard, importandoICS && styles.buttonDisabled]}
-                    activeOpacity={0.7}
-                    onPress={handleImportarICS}
-                    disabled={importandoICS}
-                  >
-                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(234, 225, 21, 0.12)' }]}>
-                      <Feather name="download-cloud" size={24} color={Colors.primary} />
-                    </View>
-                    <View style={styles.menuOptionContent}>
-                      <Text style={styles.menuOptionTitle}>Importar Arquivo .ICS Local</Text>
-                      <Text style={styles.menuOptionSubtitle}>
-                        {importandoICS
-                          ? 'Processando eventos e salvando na agenda...'
-                          : 'Carregar arquivo salvo na memória do aparelho'}
-                      </Text>
-                    </View>
-                    {importandoICS ? (
-                      <ActivityIndicator size="small" color={Colors.primary} />
-                    ) : (
-                      <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.menuOptionCard, { marginTop: 10 }]}
-                    activeOpacity={0.7}
-                    onPress={handleAbrirModalLimparICS}
-                  >
-                    <View style={[styles.menuOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-                      <Ionicons name="trash-outline" size={22} color={Colors.error} />
-                    </View>
-                    <View style={styles.menuOptionContent}>
-                      <Text style={[styles.menuOptionTitle, { color: '#FF6B6B' }]}>Limpar Eventos do .ICS</Text>
-                      <Text style={styles.menuOptionSubtitle}>
-                        Remover todas as aulas e atividades adicionadas por arquivo .ICS
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
-                  </TouchableOpacity>
                 </View>
               </>
             )}
@@ -2172,11 +2002,11 @@ export default function ConfiguracoesScreen() {
 
             {temasDisponiveis.length > 0 && (
               <View style={styles.searchBarContainer}>
-                <Ionicons name="search-outline" size={18} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+                <Ionicons name="search-outline" size={18} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchBarInput}
                   placeholder="Buscar tema..."
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   value={searchTema}
                   onChangeText={setSearchTema}
                   autoCapitalize="none"
@@ -2189,7 +2019,7 @@ export default function ConfiguracoesScreen() {
                 />
                 {searchTema.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchTema('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+                    <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -2198,7 +2028,7 @@ export default function ConfiguracoesScreen() {
             {temasFiltrados.length > 0 && (
               <View style={styles.selectionToolbar}>
                 <TouchableOpacity style={styles.selectionToolbarBtn} activeOpacity={0.7} onPress={toggleSelecionarTodos}>
-                  <Ionicons name={temasFiltrados.length > 0 && temasFiltrados.every((t) => temasSelecionados.includes(t)) ? 'checkbox' : 'square-outline'} size={18} color={temasFiltrados.length > 0 && temasFiltrados.every((t) => temasSelecionados.includes(t)) ? Colors.primary : Colors.textSecondary} style={{ marginRight: 6 }} />
+                  <Ionicons name={temasFiltrados.length > 0 && temasFiltrados.every((t) => temasSelecionados.includes(t)) ? 'checkbox' : 'square-outline'} size={18} color={temasFiltrados.length > 0 && temasFiltrados.every((t) => temasSelecionados.includes(t)) ? themeColors.primary : themeColors.textSecondary} style={{ marginRight: 6 }} />
                   <Text style={styles.selectionToolbarBtnText}>{temasFiltrados.length > 0 && temasFiltrados.every((t) => temasSelecionados.includes(t)) ? 'Desmarcar todos' : 'Selecionar todos'}</Text>
                 </TouchableOpacity>
                 <View style={styles.selectionCountBadge}>
@@ -2209,13 +2039,13 @@ export default function ConfiguracoesScreen() {
 
             {temasDisponiveis.length === 0 ? (
               <View style={styles.modalEmptyContainer}>
-                <Ionicons name="folder-open-outline" size={42} color={Colors.textSecondary} />
+                <Ionicons name="folder-open-outline" size={42} color={themeColors.textSecondary} />
                 <Text style={styles.modalEmptyTitle}>Nenhum histórico encontrado</Text>
                 <Text style={styles.modalEmptySubtitle}>Não há resoluções registradas para nenhum tema no momento.</Text>
               </View>
             ) : temasFiltrados.length === 0 ? (
               <View style={styles.modalEmptyContainer}>
-                <Ionicons name="search-outline" size={38} color={Colors.textSecondary} />
+                <Ionicons name="search-outline" size={38} color={themeColors.textSecondary} />
                 <Text style={styles.modalEmptyTitle}>Nenhum tema encontrado</Text>
                 <Text style={styles.modalEmptySubtitle}>Nenhum tema corresponde a "{searchTema}".</Text>
               </View>
@@ -2226,7 +2056,7 @@ export default function ConfiguracoesScreen() {
                   return (
                     <TouchableOpacity key={`${temaItem}-${idx}`} style={[styles.temaItemRow, isSelected && styles.temaItemRowSelected]} activeOpacity={0.7} onPress={() => toggleSelecionarTema(temaItem)}>
                       <View style={styles.temaItemInfo}>
-                        <Ionicons name={isSelected ? 'checkbox' : 'square-outline'} size={22} color={isSelected ? Colors.error : '#61676d'} style={{ marginRight: 10 }} />
+                        <Ionicons name={isSelected ? 'checkbox' : 'square-outline'} size={22} color={isSelected ? themeColors.error : '#61676d'} style={{ marginRight: 10 }} />
                         <Text style={[styles.temaItemText, isSelected && styles.temaItemTextSelected]} numberOfLines={2}>{temaItem}</Text>
                       </View>
                     </TouchableOpacity>
@@ -2253,12 +2083,12 @@ export default function ConfiguracoesScreen() {
         <View style={styles.confirmModalOverlay}>
           <TouchableOpacity style={styles.confirmBackdropDismiss} activeOpacity={1} onPress={() => !resettingTema && setTemasParaConfirmar(null)} />
           <View style={styles.confirmModalCard}>
-            <View style={styles.confirmIconCircle}><MaterialCommunityIcons name="alert-octagon-outline" size={32} color={Colors.error} /></View>
+            <View style={styles.confirmIconCircle}><MaterialCommunityIcons name="alert-octagon-outline" size={32} color={themeColors.error} /></View>
             <Text style={styles.confirmTitle}>Zerar Histórico</Text>
             <Text style={styles.confirmDescription}>{temasParaConfirmar && temasParaConfirmar.length === 1 ? 'Tem certeza que deseja apagar todo o histórico de resoluções de:' : `Tem certeza que deseja apagar todo o histórico de resoluções dos ${temasParaConfirmar?.length || 0} temas selecionados?`}</Text>
             {temasParaConfirmar && (
               <View style={styles.confirmThemeBox}>
-                <MaterialCommunityIcons name={temasParaConfirmar.length === 1 ? 'bookmark' : 'bookmark-multiple'} size={18} color={Colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
+                <MaterialCommunityIcons name={temasParaConfirmar.length === 1 ? 'bookmark' : 'bookmark-multiple'} size={18} color={themeColors.primary} style={{ marginRight: 8, marginTop: 2 }} />
                 <Text style={styles.confirmThemeText} numberOfLines={3}>{temasParaConfirmar.join(', ')}</Text>
               </View>
             )}
@@ -2280,17 +2110,17 @@ export default function ConfiguracoesScreen() {
         <View style={styles.confirmModalOverlay}>
           <TouchableOpacity style={styles.confirmBackdropDismiss} activeOpacity={1} onPress={() => setSucessoTemaReset(null)} />
           <View style={styles.successModalCard}>
-            <View style={styles.successIconCircle}><Ionicons name="checkmark-circle" size={44} color={Colors.success} /></View>
+            <View style={styles.successIconCircle}><Ionicons name="checkmark-circle" size={44} color={themeColors.success} /></View>
             <Text style={styles.successModalTitle}>Histórico Zerado!</Text>
             <Text style={styles.successModalDescription}>{sucessoTemaReset && sucessoTemaReset.length === 1 ? 'O histórico de questões resolvidas do tema abaixo foi apagado com sucesso:' : `O histórico de questões resolvidas de ${sucessoTemaReset?.length || 0} temas foi apagado com sucesso:`}</Text>
             {sucessoTemaReset && (
               <View style={styles.successThemeBox}>
-                <MaterialCommunityIcons name="bookmark-check" size={20} color={Colors.success} style={{ marginRight: 8, marginTop: 2 }} />
+                <MaterialCommunityIcons name="bookmark-check" size={20} color={themeColors.success} style={{ marginRight: 8, marginTop: 2 }} />
                 <Text style={styles.successThemeText} numberOfLines={3}>{sucessoTemaReset.join(', ')}</Text>
               </View>
             )}
             <View style={styles.successInfoBox}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+              <Ionicons name="shield-checkmark-outline" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
               <Text style={styles.successInfoText}>O progresso e os dados das demais especialidades e temas permanecem intactos.</Text>
             </View>
             <TouchableOpacity style={styles.successDoneButton} activeOpacity={0.85} onPress={() => setSucessoTemaReset(null)}>
@@ -2304,11 +2134,11 @@ export default function ConfiguracoesScreen() {
         <View style={styles.confirmModalOverlay}>
           <TouchableOpacity style={styles.confirmBackdropDismiss} activeOpacity={1} onPress={() => !zerandoBanco && setModalZerarBancoVisible(false)} />
           <View style={styles.confirmModalCard}>
-            <View style={styles.dangerIconCircle}><MaterialCommunityIcons name="database-alert" size={34} color={Colors.error} /></View>
+            <View style={styles.dangerIconCircle}><MaterialCommunityIcons name="database-alert" size={34} color={themeColors.error} /></View>
             <Text style={styles.confirmTitle}>Apagar Banco de Dados</Text>
             <Text style={styles.confirmDescription}>Esta ação removerá permanentemente todas as questões cadastradas e todos os arquivos de imagens do armazenamento interno do seu aparelho.</Text>
             <View style={styles.dangerHighlightBox}>
-              <Ionicons name="trash" size={20} color={Colors.error} style={{ marginRight: 8 }} />
+              <Ionicons name="trash" size={20} color={themeColors.error} style={{ marginRight: 8 }} />
               <Text style={styles.dangerHighlightText}>{questoesCount} {questoesCount === 1 ? 'questão' : 'questões'}{totalImagensSalvas > 0 ? ` e ${totalImagensSalvas} ${totalImagensSalvas === 1 ? 'imagem' : 'imagens'}` : ''} serão excluídas</Text>
             </View>
             <View style={styles.confirmWarningBox}>
@@ -2329,11 +2159,11 @@ export default function ConfiguracoesScreen() {
         <View style={styles.confirmModalOverlay}>
           <TouchableOpacity style={styles.confirmBackdropDismiss} activeOpacity={1} onPress={() => setSucessoZerarBanco(false)} />
           <View style={styles.successModalCard}>
-            <View style={styles.successIconCircle}><Ionicons name="checkmark-circle" size={44} color={Colors.success} /></View>
+            <View style={styles.successIconCircle}><Ionicons name="checkmark-circle" size={44} color={themeColors.success} /></View>
             <Text style={styles.successModalTitle}>Banco Zerado!</Text>
             <Text style={styles.successModalDescription}>Todas as questões e arquivos de imagens foram removidos com sucesso do armazenamento local.</Text>
             <View style={styles.successInfoBox}>
-              <Ionicons name="information-circle-outline" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+              <Ionicons name="information-circle-outline" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
               <Text style={styles.successInfoText}>O banco de dados e os pacotes de imagens foram completamente limpos. Você pode sincronizar com o GitHub ou importar novos arquivos a qualquer momento.</Text>
             </View>
             <TouchableOpacity style={styles.successDoneButton} activeOpacity={0.85} onPress={() => setSucessoZerarBanco(false)}>
@@ -2347,22 +2177,22 @@ export default function ConfiguracoesScreen() {
         <View style={styles.confirmModalOverlay}>
           <TouchableOpacity style={styles.confirmBackdropDismiss} activeOpacity={1} onPress={() => setSucessoImportacao(null)} />
           <View style={styles.importSuccessCard}>
-            <View style={styles.importSuccessIconCircle}><Ionicons name={sucessoImportacao && sucessoImportacao.adicionadas > 0 ? "cloud-done" : "checkmark-circle"} size={40} color={Colors.success} /></View>
+            <View style={styles.importSuccessIconCircle}><Ionicons name={sucessoImportacao && sucessoImportacao.adicionadas > 0 ? "cloud-done" : "checkmark-circle"} size={40} color={themeColors.success} /></View>
             <Text style={styles.importSuccessTitle}>{sucessoImportacao && sucessoImportacao.adicionadas > 0 ? 'Banco Atualizado!' : 'Nenhuma Nova Questão'}</Text>
             <Text style={styles.importSuccessSubtitle}>{sucessoImportacao && sucessoImportacao.adicionadas > 0 ? 'O arquivo JSON foi processado e integrado com sucesso ao seu banco de dados local.' : 'Todas as questões deste arquivo já constam cadastradas no seu banco de dados.'}</Text>
             {sucessoImportacao && (
               <View style={styles.importStatsCard}>
                 <View style={styles.importStatsGrid}>
-                  <View style={styles.importStatBox}><Text style={styles.importStatLabel}>NOVAS</Text><Text style={[styles.importStatValue, { color: Colors.success }]}>+{sucessoImportacao.adicionadas}</Text></View>
+                  <View style={styles.importStatBox}><Text style={styles.importStatLabel}>NOVAS</Text><Text style={[styles.importStatValue, { color: themeColors.success }]}>+{sucessoImportacao.adicionadas}</Text></View>
                   <View style={styles.importStatDivider} />
-                  <View style={styles.importStatBox}><Text style={styles.importStatLabel}>DUPLICADAS</Text><Text style={[styles.importStatValue, { color: Colors.textSecondary }]}>{sucessoImportacao.duplicadas}</Text></View>
+                  <View style={styles.importStatBox}><Text style={styles.importStatLabel}>DUPLICADAS</Text><Text style={[styles.importStatValue, { color: themeColors.textSecondary }]}>{sucessoImportacao.duplicadas}</Text></View>
                   <View style={styles.importStatDivider} />
-                  <View style={styles.importStatBox}><Text style={styles.importStatLabel}>TOTAL BANCO</Text><Text style={[styles.importStatValue, { color: Colors.primary }]}>{sucessoImportacao.totalFinal}</Text></View>
+                  <View style={styles.importStatBox}><Text style={styles.importStatLabel}>TOTAL BANCO</Text><Text style={[styles.importStatValue, { color: themeColors.primary }]}>{sucessoImportacao.totalFinal}</Text></View>
                 </View>
                 {sucessoImportacao.especialidades.length > 0 && (
                   <View style={styles.importSpecsRow}>
                     {sucessoImportacao.especialidades.slice(0, 3).map((esp, i) => (
-                      <View key={i} style={styles.importSpecChip}><Ionicons name="medical" size={11} color={Colors.primary} style={{ marginRight: 4 }} /><Text style={styles.importSpecChipText} numberOfLines={1}>{esp}</Text></View>
+                      <View key={i} style={styles.importSpecChip}><Ionicons name="medical" size={11} color={themeColors.primary} style={{ marginRight: 4 }} /><Text style={styles.importSpecChipText} numberOfLines={1}>{esp}</Text></View>
                     ))}
                     {sucessoImportacao.especialidades.length > 3 && <View style={styles.importSpecChip}><Text style={styles.importSpecChipText}>+{sucessoImportacao.especialidades.length - 3} mais</Text></View>}
                   </View>
@@ -2370,8 +2200,8 @@ export default function ConfiguracoesScreen() {
               </View>
             )}
             <View style={styles.importInfoBox}>
-              <Ionicons name="sparkles-outline" size={17} color={Colors.primary} style={{ marginRight: 8, marginTop: 1 }} />
-              <Text style={styles.importInfoText}>Tudo pronto para treinar! As novas questões já estão disponíveis na aba <Text style={{ fontWeight: '700', color: Colors.text }}>Questões</Text>.</Text>
+              <Ionicons name="sparkles-outline" size={17} color={themeColors.primary} style={{ marginRight: 8, marginTop: 1 }} />
+              <Text style={styles.importInfoText}>Tudo pronto para treinar! As novas questões já estão disponíveis na aba <Text style={{ fontWeight: '700', color: themeColors.text }}>Questões</Text>.</Text>
             </View>
             <TouchableOpacity style={styles.importDoneButton} activeOpacity={0.85} onPress={() => setSucessoImportacao(null)}>
               <Text style={styles.importDoneButtonText}>Excelente, Começar a Estudar</Text>
@@ -2389,7 +2219,7 @@ export default function ConfiguracoesScreen() {
             <Text style={styles.emptyDbSubtitle}>Não há questões ou arquivos de imagem armazenados no momento no aplicativo para serem apagados.</Text>
             <View style={styles.emptyDbInfoBox}>
               <Ionicons name="bulb-outline" size={18} color="#FFA726" style={{ marginRight: 8, marginTop: 1 }} />
-              <Text style={styles.emptyDbInfoText}>Para iniciar seus simulados e treinos, sincronize com o GitHub ou importe um arquivo no formato <Text style={{ fontWeight: '700', color: Colors.text }}>JSON</Text> com as questões.</Text>
+              <Text style={styles.emptyDbInfoText}>Para iniciar seus simulados e treinos, sincronize com o GitHub ou importe um arquivo no formato <Text style={{ fontWeight: '700', color: themeColors.text }}>JSON</Text> com as questões.</Text>
             </View>
             <View style={styles.emptyDbButtonsCol}>
               <TouchableOpacity style={styles.emptyDbPrimaryButton} activeOpacity={0.85} onPress={() => { setModalBancoVazioVisible(false); setTimeout(() => { importarJSON(); }, 250); }}>
@@ -2420,10 +2250,10 @@ export default function ConfiguracoesScreen() {
             <View
               style={[
                 styles.successIconCircle,
-                { backgroundColor: 'rgba(234, 225, 21, 0.12)', borderColor: 'rgba(234, 225, 21, 0.3)' },
+                { backgroundColor: themeColors.primarySubtle, borderColor: 'rgba(234, 225, 21, 0.3)' },
               ]}
             >
-              <Ionicons name="logo-github" size={34} color={Colors.primary} />
+              <Ionicons name="logo-github" size={34} color={themeColors.primary} />
             </View>
 
             <Text style={styles.confirmTitle}>Repositório GitHub</Text>
@@ -2435,13 +2265,13 @@ export default function ConfiguracoesScreen() {
             <View style={styles.gitHubInputContainer}>
               <Text style={styles.pkgInputLabel}>REPOSITÓRIO (USUÁRIO/REPOSITÓRIO)</Text>
               <View style={styles.pkgInputWrapper}>
-                <Ionicons name="git-branch-outline" size={17} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Ionicons name="git-branch-outline" size={17} color={themeColors.primary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.pkgInput}
                   value={gitHubRepoInput}
                   onChangeText={setGitHubRepoInput}
                   placeholder="ex: usuario/repositorio"
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -2452,7 +2282,7 @@ export default function ConfiguracoesScreen() {
             <View style={[styles.gitHubInputContainer, { marginTop: 12 }]}>
               <Text style={styles.pkgInputLabel}>PERSONAL ACCESS TOKEN (PAT)</Text>
               <View style={styles.pkgInputWrapper}>
-                <Ionicons name="key-outline" size={17} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Ionicons name="key-outline" size={17} color={themeColors.primary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.pkgInput}
                   value={gitHubTokenInput}
@@ -2461,7 +2291,7 @@ export default function ConfiguracoesScreen() {
                     setResultadoTesteConexao(null);
                   }}
                   placeholder="ghp_... ou github_pat_..."
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   secureTextEntry={!mostrarToken}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -2474,7 +2304,7 @@ export default function ConfiguracoesScreen() {
                   <Ionicons
                     name={mostrarToken ? 'eye-off-outline' : 'eye-outline'}
                     size={18}
-                    color={Colors.textSecondary}
+                    color={themeColors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -2506,13 +2336,13 @@ export default function ConfiguracoesScreen() {
                 <Ionicons
                   name={resultadoTesteConexao.sucesso ? 'checkmark-circle' : 'alert-circle'}
                   size={18}
-                  color={resultadoTesteConexao.sucesso ? Colors.success : Colors.error}
+                  color={resultadoTesteConexao.sucesso ? themeColors.success : themeColors.error}
                   style={{ marginRight: 8 }}
                 />
                 <Text
                   style={[
                     styles.gitHubFeedbackText,
-                    { color: resultadoTesteConexao.sucesso ? Colors.success : '#ff8a80' },
+                    { color: resultadoTesteConexao.sucesso ? themeColors.success : '#ff8a80' },
                   ]}
                 >
                   {resultadoTesteConexao.mensagem}
@@ -2528,10 +2358,10 @@ export default function ConfiguracoesScreen() {
               disabled={testandoConexao}
             >
               {testandoConexao ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
+                <ActivityIndicator size="small" color={themeColors.primary} />
               ) : (
                 <>
-                  <Ionicons name="flash-outline" size={15} color={Colors.primary} style={{ marginRight: 6 }} />
+                  <Ionicons name="flash-outline" size={15} color={themeColors.primary} style={{ marginRight: 6 }} />
                   <Text style={styles.gitHubTestBtnText}>Testar Conexão com GitHub</Text>
                 </>
               )}
@@ -2574,10 +2404,10 @@ export default function ConfiguracoesScreen() {
             <View
               style={[
                 styles.successIconCircle,
-                { backgroundColor: 'rgba(234, 225, 21, 0.12)', borderColor: 'rgba(234, 225, 21, 0.3)' },
+                { backgroundColor: themeColors.primarySubtle, borderColor: 'rgba(234, 225, 21, 0.3)' },
               ]}
             >
-              <ActivityIndicator size="large" color={Colors.primary} />
+              <ActivityIndicator size="large" color={themeColors.primary} />
             </View>
 
             <Text style={styles.confirmTitle}>Sincronizando</Text>
@@ -2637,7 +2467,7 @@ export default function ConfiguracoesScreen() {
           />
           <View style={styles.importSuccessCard}>
             <View style={styles.importSuccessIconCircle}>
-              <Ionicons name="checkmark-circle" size={42} color={Colors.success} />
+              <Ionicons name="checkmark-circle" size={42} color={themeColors.success} />
             </View>
 
             <Text style={styles.importSuccessTitle}>Sincronização Concluída!</Text>
@@ -2650,7 +2480,7 @@ export default function ConfiguracoesScreen() {
               <View style={styles.importStatsGrid}>
                 <View style={styles.importStatBox}>
                   <Text style={styles.importStatLabel}>NOVAS</Text>
-                  <Text style={[styles.importStatValue, { color: Colors.primary }]}>
+                  <Text style={[styles.importStatValue, { color: themeColors.primary }]}>
                     +{syncResultData?.questoesAdicionadas || 0}
                   </Text>
                 </View>
@@ -2668,7 +2498,7 @@ export default function ConfiguracoesScreen() {
 
                 <View style={styles.importStatBox}>
                   <Text style={styles.importStatLabel}>IMAGENS</Text>
-                  <Text style={[styles.importStatValue, { color: Colors.success }]}>
+                  <Text style={[styles.importStatValue, { color: themeColors.success }]}>
                     {syncResultData?.imagensExtraidas || 0}
                   </Text>
                 </View>
@@ -2677,9 +2507,9 @@ export default function ConfiguracoesScreen() {
 
             {/* Resumo do Total Final */}
             <View style={styles.importInfoBox}>
-              <Ionicons name="layers-outline" size={18} color={Colors.primary} style={{ marginRight: 8, marginTop: 1 }} />
+              <Ionicons name="layers-outline" size={18} color={themeColors.primary} style={{ marginRight: 8, marginTop: 1 }} />
               <Text style={styles.importInfoText}>
-                Total no banco local: <Text style={{ color: Colors.text, fontWeight: '700' }}>{syncResultData?.totalQuestoesFinal || questoesCount} questões</Text> disponíveis para estudo offline.
+                Total no banco local: <Text style={{ color: themeColors.text, fontWeight: '700' }}>{syncResultData?.totalQuestoesFinal || questoesCount} questões</Text> disponíveis para estudo offline.
               </Text>
             </View>
 
@@ -2711,10 +2541,10 @@ export default function ConfiguracoesScreen() {
             <View
               style={[
                 styles.successIconCircle,
-                { backgroundColor: 'rgba(234, 225, 21, 0.12)', borderColor: 'rgba(234, 225, 21, 0.3)' },
+                { backgroundColor: themeColors.primarySubtle, borderColor: 'rgba(234, 225, 21, 0.3)' },
               ]}
             >
-              <Ionicons name="cloud-done-outline" size={38} color={Colors.primary} />
+              <Ionicons name="cloud-done-outline" size={38} color={themeColors.primary} />
             </View>
 
             <Text style={styles.confirmTitle}>Tudo Atualizado!</Text>
@@ -2723,7 +2553,7 @@ export default function ConfiguracoesScreen() {
             </Text>
 
             <View style={styles.upToDateInfoCard}>
-              <Ionicons name="checkmark-circle-outline" size={18} color={Colors.success} style={{ marginRight: 8 }} />
+              <Ionicons name="checkmark-circle-outline" size={18} color={themeColors.success} style={{ marginRight: 8 }} />
               <Text style={styles.upToDateInfoText}>
                 Nenhuma versão mais recente encontrada no repositório.
               </Text>
@@ -2742,7 +2572,7 @@ export default function ConfiguracoesScreen() {
               activeOpacity={0.7}
               onPress={() => executarSincronizacao(true)}
             >
-              <Ionicons name="refresh-outline" size={15} color={Colors.textSecondary} style={{ marginRight: 6 }} />
+              <Ionicons name="refresh-outline" size={15} color={themeColors.textSecondary} style={{ marginRight: 6 }} />
               <Text style={styles.forceSyncBtnText}>Forçar Re-download Completo</Text>
             </TouchableOpacity>
           </View>
@@ -2766,7 +2596,7 @@ export default function ConfiguracoesScreen() {
             {/* Cabeçalho */}
             <View style={styles.modalHeader}>
               <View style={styles.modalIconCircle}>
-                <Ionicons name="medical" size={26} color={Colors.primary} />
+                <Ionicons name="medical" size={26} color={themeColors.primary} />
               </View>
               <Text style={styles.modalTitle}>Baixar por Especialidade</Text>
               <Text style={styles.modalSubtitle}>
@@ -2776,14 +2606,14 @@ export default function ConfiguracoesScreen() {
 
             {carregandoBancosRemotos ? (
               <View style={[styles.modalEmptyContainer, { paddingVertical: 40 }]}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={themeColors.primary} />
                 <Text style={[styles.modalEmptyTitle, { marginTop: 16 }]}>
                   Consultando repositório GitHub...
                 </Text>
               </View>
             ) : !checkResultRemoto || checkResultRemoto.especialidades.length === 0 ? (
               <View style={styles.modalEmptyContainer}>
-                <Ionicons name="folder-open-outline" size={40} color={Colors.textSecondary} />
+                <Ionicons name="folder-open-outline" size={40} color={themeColors.textSecondary} />
                 <Text style={styles.modalEmptyTitle}>Nenhuma especialidade encontrada</Text>
                 <Text style={styles.modalEmptySubtitle}>
                   O arquivo index.json do repositório não possui especialidades listadas.
@@ -2807,7 +2637,7 @@ export default function ConfiguracoesScreen() {
                   <Ionicons
                     name={baixarImagensCorrespondentes ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={baixarImagensCorrespondentes ? Colors.primary : Colors.textSecondary}
+                    color={baixarImagensCorrespondentes ? themeColors.primary : themeColors.textSecondary}
                     style={{ marginRight: 10 }}
                   />
                   <View style={{ flex: 1 }}>
@@ -2819,18 +2649,18 @@ export default function ConfiguracoesScreen() {
                   <Ionicons
                     name="images-outline"
                     size={18}
-                    color={baixarImagensCorrespondentes ? Colors.primary : Colors.textSecondary}
+                    color={baixarImagensCorrespondentes ? themeColors.primary : themeColors.textSecondary}
                   />
                 </TouchableOpacity>
 
                 {/* Barra de Busca de Especialidades */}
                 {checkResultRemoto.especialidades.length > 3 && (
                   <View style={[styles.searchBarContainer, { marginBottom: 8 }]}>
-                    <Ionicons name="search-outline" size={17} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+                    <Ionicons name="search-outline" size={17} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
                       style={styles.searchBarInput}
                       placeholder="Buscar especialidade..."
-                      placeholderTextColor={Colors.textSecondary}
+                      placeholderTextColor={themeColors.textSecondary}
                       value={searchEspecialidadeFiltro}
                       onChangeText={setSearchEspecialidadeFiltro}
                       autoCapitalize="none"
@@ -2846,7 +2676,7 @@ export default function ConfiguracoesScreen() {
                         onPress={() => setSearchEspecialidadeFiltro('')}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Ionicons name="close-circle" size={17} color={Colors.textSecondary} />
+                        <Ionicons name="close-circle" size={17} color={themeColors.textSecondary} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -2861,7 +2691,7 @@ export default function ConfiguracoesScreen() {
                         onPress={selecionarTodasComAtualizacao}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.selectionToolbarBtnText, { color: Colors.primary }]}>
+                        <Text style={[styles.selectionToolbarBtnText, { color: themeColors.primary }]}>
                           Atualizações ({checkResultRemoto.especialidadesComAtualizacao.length})
                         </Text>
                       </TouchableOpacity>
@@ -2898,7 +2728,7 @@ export default function ConfiguracoesScreen() {
                 >
                   {especialidadesRemotasFiltradas.length === 0 ? (
                     <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                      <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
                         Nenhuma especialidade encontrada para "{searchEspecialidadeFiltro}".
                       </Text>
                     </View>
@@ -2918,7 +2748,7 @@ export default function ConfiguracoesScreen() {
                           <Ionicons
                             name={isSelected ? 'checkbox' : 'square-outline'}
                             size={22}
-                            color={isSelected ? Colors.primary : Colors.textSecondary}
+                            color={isSelected ? themeColors.primary : themeColors.textSecondary}
                             style={{ marginRight: 10 }}
                           />
                           <View style={{ flex: 1, marginRight: 6 }}>
@@ -2947,7 +2777,7 @@ export default function ConfiguracoesScreen() {
                               )}
                               {esp.status === 'atualizado' && (
                                 <View style={styles.badgeInstalado}>
-                                  <Ionicons name="checkmark" size={10} color={Colors.textSecondary} style={{ marginRight: 2 }} />
+                                  <Ionicons name="checkmark" size={10} color={themeColors.textSecondary} style={{ marginRight: 2 }} />
                                   <Text style={styles.badgeInstaladoText}>INSTALADO</Text>
                                 </View>
                               )}
@@ -3012,10 +2842,10 @@ export default function ConfiguracoesScreen() {
             <View
               style={[
                 styles.successIconCircle,
-                { backgroundColor: 'rgba(234, 225, 21, 0.15)', borderColor: 'rgba(234, 225, 21, 0.4)' },
+                { backgroundColor: themeColors.primarySubtle, borderColor: 'rgba(234, 225, 21, 0.4)' },
               ]}
             >
-              <Ionicons name="sparkles" size={34} color={Colors.primary} />
+              <Ionicons name="sparkles" size={34} color={themeColors.primary} />
             </View>
 
             <Text style={styles.confirmTitle}>Novas Questões Disponíveis!</Text>
@@ -3025,7 +2855,7 @@ export default function ConfiguracoesScreen() {
 
             <View style={styles.novasQuestoesInfoCard}>
               <View style={styles.novasQuestoesStatItem}>
-                <Ionicons name="document-text-outline" size={20} color={Colors.primary} style={{ marginBottom: 4 }} />
+                <Ionicons name="document-text-outline" size={20} color={themeColors.primary} style={{ marginBottom: 4 }} />
                 <Text style={styles.novasQuestoesStatValue}>
                   {updateStatus.totalBancosNovos > 0 ? `${updateStatus.totalBancosNovos}` : 'Disponível'}
                 </Text>
@@ -3086,7 +2916,7 @@ export default function ConfiguracoesScreen() {
                 { backgroundColor: 'rgba(76, 175, 80, 0.15)', borderColor: 'rgba(76, 175, 80, 0.35)' },
               ]}
             >
-              <Ionicons name="checkmark-done" size={36} color={Colors.success} />
+              <Ionicons name="checkmark-done" size={36} color={themeColors.success} />
             </View>
 
             <Text style={styles.confirmTitle}>Credenciais Salvas!</Text>
@@ -3096,14 +2926,14 @@ export default function ConfiguracoesScreen() {
 
             <View style={styles.credenciaisInfoBox}>
               <View style={styles.credenciaisInfoRow}>
-                <Ionicons name="logo-github" size={16} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+                <Ionicons name="logo-github" size={16} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                 <Text style={styles.credenciaisInfoText} numberOfLines={1}>
                   {gitHubRepoInput || 'Repositório configurado'}
                 </Text>
               </View>
               <View style={[styles.credenciaisInfoRow, { marginTop: 8 }]}>
-                <Ionicons name="shield-checkmark-outline" size={16} color={Colors.success} style={{ marginRight: 8 }} />
-                <Text style={[styles.credenciaisInfoText, { color: Colors.success }]}>
+                <Ionicons name="shield-checkmark-outline" size={16} color={themeColors.success} style={{ marginRight: 8 }} />
+                <Text style={[styles.credenciaisInfoText, { color: themeColors.success }]}>
                   Autenticação Token Ativa
                 </Text>
               </View>
@@ -3152,7 +2982,7 @@ export default function ConfiguracoesScreen() {
                 { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' },
               ]}
             >
-              <MaterialCommunityIcons name="cloud-alert" size={36} color={Colors.error} />
+              <MaterialCommunityIcons name="cloud-alert" size={36} color={themeColors.error} />
             </View>
 
             <Text style={styles.confirmTitle}>Falha na Sincronização</Text>
@@ -3161,7 +2991,7 @@ export default function ConfiguracoesScreen() {
             </Text>
 
             <View style={styles.syncErrorDetailsBox}>
-              <Ionicons name="alert-circle-outline" size={18} color={Colors.error} style={{ marginRight: 8 }} />
+              <Ionicons name="alert-circle-outline" size={18} color={themeColors.error} style={{ marginRight: 8 }} />
               <Text style={styles.syncErrorDetailsText}>
                 {syncErrorMessage || 'Verifique sua conexão e se as credenciais do repositório estão corretas.'}
               </Text>
@@ -3183,8 +3013,8 @@ export default function ConfiguracoesScreen() {
                 setModalGitHubConfigVisible(true);
               }}
             >
-              <Ionicons name="settings-outline" size={15} color={Colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.forceSyncBtnText, { color: Colors.primary }]}>Revisar Credenciais</Text>
+              <Ionicons name="settings-outline" size={15} color={themeColors.primary} style={{ marginRight: 6 }} />
+              <Text style={[styles.forceSyncBtnText, { color: themeColors.primary }]}>Revisar Credenciais</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -3206,20 +3036,20 @@ export default function ConfiguracoesScreen() {
           <View style={styles.pkgModalCard}>
             {/* Ícone com Halo Dourado */}
             <View style={styles.pkgIconCircle}>
-              <MaterialCommunityIcons name="folder-zip-outline" size={38} color={Colors.primary} />
+              <MaterialCommunityIcons name="folder-zip-outline" size={38} color={themeColors.primary} />
             </View>
 
             <Text style={styles.pkgTitle}>Pacote de Imagens</Text>
 
             <Text style={styles.pkgSubtitle}>
-              Defina o identificador deste pacote. Os arquivos serão descompactados em uma subpasta isolada para vincular diretamente com a chave <Text style={{ color: Colors.primary, fontWeight: '700' }}>"origem"</Text> das questões do seu arquivo JSON.
+              Defina o identificador deste pacote. Os arquivos serão descompactados em uma subpasta isolada para vincular diretamente com a chave <Text style={{ color: themeColors.primary, fontWeight: '700' }}>"origem"</Text> das questões do seu arquivo JSON.
             </Text>
 
             {/* Campo de Entrada do Nome do Pacote / Subpasta */}
             <View style={styles.pkgInputContainer}>
               <Text style={styles.pkgInputLabel}>IDENTIFICADOR DO BANCO / SUBPASTA</Text>
               <View style={styles.pkgInputWrapper}>
-                <Ionicons name="folder-outline" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Ionicons name="folder-outline" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.pkgInput}
                   value={pacoteOrigemInput}
@@ -3227,7 +3057,7 @@ export default function ConfiguracoesScreen() {
                     setPacoteOrigemInput(text.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase())
                   }
                   placeholder="ex: cardio_1"
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   autoCapitalize="none"
                   autoCorrect={false}
                   selectTextOnFocus
@@ -3237,7 +3067,7 @@ export default function ConfiguracoesScreen() {
 
             {/* Pré-visualização do Caminho Dinâmico */}
             <View style={styles.pkgPreviewBox}>
-              <Ionicons name="file-tray-full-outline" size={16} color={Colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
+              <Ionicons name="file-tray-full-outline" size={16} color={themeColors.primary} style={{ marginRight: 8, marginTop: 2 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.pkgPreviewLabel}>Caminho da subpasta isolada:</Text>
                 <Text style={styles.pkgPreviewPath} numberOfLines={2}>
@@ -3300,7 +3130,7 @@ export default function ConfiguracoesScreen() {
             {/* Cabeçalho do Modal */}
             <View style={styles.modalHeader}>
               <View style={styles.modalIconCircle}>
-                <MaterialCommunityIcons name="layers-outline" size={26} color={Colors.primary} />
+                <MaterialCommunityIcons name="layers-outline" size={26} color={themeColors.primary} />
               </View>
               <Text style={styles.modalTitle}>{grupoBancosModal?.tagMaior}</Text>
               <Text style={styles.modalSubtitle}>
@@ -3311,11 +3141,11 @@ export default function ConfiguracoesScreen() {
             {/* Barra de Busca se houver mais de 3 bancos */}
             {grupoBancosModal && grupoBancosModal.bancos.length > 3 && (
               <View style={styles.searchBarContainer}>
-                <Ionicons name="search-outline" size={18} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+                <Ionicons name="search-outline" size={18} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchBarInput}
                   placeholder="Buscar banco neste conjunto..."
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   value={searchBancoModal}
                   onChangeText={setSearchBancoModal}
                   autoCapitalize="none"
@@ -3331,7 +3161,7 @@ export default function ConfiguracoesScreen() {
                     onPress={() => setSearchBancoModal('')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+                    <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -3340,7 +3170,7 @@ export default function ConfiguracoesScreen() {
             {/* Lista dos Bancos Específicos */}
             {bancosFiltradosNoModal.length === 0 ? (
               <View style={styles.modalEmptyContainer}>
-                <Ionicons name="search-outline" size={38} color={Colors.textSecondary} />
+                <Ionicons name="search-outline" size={38} color={themeColors.textSecondary} />
                 <Text style={styles.modalEmptyTitle}>Nenhum banco encontrado</Text>
                 <Text style={styles.modalEmptySubtitle}>
                   Nenhum banco corresponde a "{searchBancoModal}".
@@ -3355,7 +3185,7 @@ export default function ConfiguracoesScreen() {
               >
                 {bancosFiltradosNoModal.map((banco, idx) => (
                   <View key={`banco-row-${banco.id}-${idx}`} style={styles.storageItemInModal}>
-                    <MaterialCommunityIcons name="database-outline" size={18} color={Colors.primary} style={{ marginRight: 10 }} />
+                    <MaterialCommunityIcons name="database-outline" size={18} color={themeColors.primary} style={{ marginRight: 10 }} />
                     <View style={{ flex: 1, marginRight: 8 }}>
                       <Text style={styles.minItemTitle} numberOfLines={1}>
                         {banco.nome}
@@ -3370,7 +3200,7 @@ export default function ConfiguracoesScreen() {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                      <Ionicons name="trash-outline" size={16} color={themeColors.error} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -3384,7 +3214,7 @@ export default function ConfiguracoesScreen() {
                 activeOpacity={0.8}
                 onPress={() => solicitarExclusaoTodosBancosDoGrupo(grupoBancosModal)}
               >
-                <Ionicons name="trash-bin-outline" size={16} color={Colors.error} style={{ marginRight: 6 }} />
+                <Ionicons name="trash-bin-outline" size={16} color={themeColors.error} style={{ marginRight: 6 }} />
                 <Text style={styles.modalDeleteAllGroupBtnText}>
                   Excluir Todos os Bancos de {grupoBancosModal.tagMaior}
                 </Text>
@@ -3420,7 +3250,7 @@ export default function ConfiguracoesScreen() {
             {/* Cabeçalho do Modal */}
             <View style={styles.modalHeader}>
               <View style={styles.modalIconCircle}>
-                <MaterialCommunityIcons name="folder-multiple-image" size={26} color={Colors.primary} />
+                <MaterialCommunityIcons name="folder-multiple-image" size={26} color={themeColors.primary} />
               </View>
               <Text style={styles.modalTitle}>{grupoPacotesModal?.tagMaior}</Text>
               <Text style={styles.modalSubtitle}>
@@ -3431,11 +3261,11 @@ export default function ConfiguracoesScreen() {
             {/* Barra de Busca se houver mais de 3 pacotes */}
             {grupoPacotesModal && grupoPacotesModal.pacotes.length > 3 && (
               <View style={styles.searchBarContainer}>
-                <Ionicons name="search-outline" size={18} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+                <Ionicons name="search-outline" size={18} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchBarInput}
                   placeholder="Buscar pacote de imagens..."
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   value={searchPacoteModal}
                   onChangeText={setSearchPacoteModal}
                   autoCapitalize="none"
@@ -3451,7 +3281,7 @@ export default function ConfiguracoesScreen() {
                     onPress={() => setSearchPacoteModal('')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+                    <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -3460,7 +3290,7 @@ export default function ConfiguracoesScreen() {
             {/* Lista dos Pacotes Específicos */}
             {pacotesFiltradosNoModal.length === 0 ? (
               <View style={styles.modalEmptyContainer}>
-                <Ionicons name="search-outline" size={38} color={Colors.textSecondary} />
+                <Ionicons name="search-outline" size={38} color={themeColors.textSecondary} />
                 <Text style={styles.modalEmptyTitle}>Nenhum pacote encontrado</Text>
                 <Text style={styles.modalEmptySubtitle}>
                   Nenhum pacote corresponde a "{searchPacoteModal}".
@@ -3475,7 +3305,7 @@ export default function ConfiguracoesScreen() {
               >
                 {pacotesFiltradosNoModal.map((pacote, idx) => (
                   <View key={`pacote-row-${pacote.nome}-${idx}`} style={styles.storageItemInModal}>
-                    <MaterialCommunityIcons name="folder-zip-outline" size={18} color={Colors.primary} style={{ marginRight: 10 }} />
+                    <MaterialCommunityIcons name="folder-zip-outline" size={18} color={themeColors.primary} style={{ marginRight: 10 }} />
                     <View style={{ flex: 1, marginRight: 8 }}>
                       <Text style={styles.minItemTitle} numberOfLines={1}>
                         {pacote.nome}
@@ -3490,7 +3320,7 @@ export default function ConfiguracoesScreen() {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                      <Ionicons name="trash-outline" size={16} color={themeColors.error} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -3504,7 +3334,7 @@ export default function ConfiguracoesScreen() {
                 activeOpacity={0.8}
                 onPress={() => solicitarExclusaoTodosPacotesDoGrupo(grupoPacotesModal)}
               >
-                <Ionicons name="trash-bin-outline" size={16} color={Colors.error} style={{ marginRight: 6 }} />
+                <Ionicons name="trash-bin-outline" size={16} color={themeColors.error} style={{ marginRight: 6 }} />
                 <Text style={styles.modalDeleteAllGroupBtnText}>
                   Excluir Todos os Pacotes de {grupoPacotesModal.tagMaior}
                 </Text>
@@ -3541,7 +3371,7 @@ export default function ConfiguracoesScreen() {
               <MaterialCommunityIcons
                 name={itemParaExcluir?.tipo === 'banco' ? 'database-remove' : 'folder-remove'}
                 size={34}
-                color={Colors.error}
+                color={themeColors.error}
               />
             </View>
 
@@ -3556,7 +3386,7 @@ export default function ConfiguracoesScreen() {
             </Text>
 
             <View style={styles.dangerHighlightBox}>
-              <Ionicons name="trash" size={20} color={Colors.error} style={{ marginRight: 8 }} />
+              <Ionicons name="trash" size={20} color={themeColors.error} style={{ marginRight: 8 }} />
               <Text style={styles.dangerHighlightText}>
                 {itemParaExcluir?.tipo === 'banco'
                   ? `${itemParaExcluir?.count} ${itemParaExcluir?.count === 1 ? 'questão será excluída' : 'questões serão excluídas'}`
@@ -3618,7 +3448,7 @@ export default function ConfiguracoesScreen() {
           />
           <View style={styles.importSuccessCard}>
             <View style={styles.importSuccessIconCircle}>
-              <Ionicons name="calendar" size={40} color={Colors.success} />
+              <Ionicons name="calendar" size={40} color={themeColors.success} />
             </View>
 
             <Text style={styles.importSuccessTitle}>Cronograma Carregado!</Text>
@@ -3631,14 +3461,14 @@ export default function ConfiguracoesScreen() {
                 <View style={styles.importStatsGrid}>
                   <View style={styles.importStatBox}>
                     <Text style={styles.importStatLabel}>SEMANAS</Text>
-                    <Text style={[styles.importStatValue, { color: Colors.primary }]}>
+                    <Text style={[styles.importStatValue, { color: themeColors.primary }]}>
                       {sucessoCronogramaModal.semanas}
                     </Text>
                   </View>
                   <View style={styles.importStatDivider} />
                   <View style={styles.importStatBox}>
                     <Text style={styles.importStatLabel}>TÓPICOS</Text>
-                    <Text style={[styles.importStatValue, { color: Colors.success }]}>
+                    <Text style={[styles.importStatValue, { color: themeColors.success }]}>
                       {sucessoCronogramaModal.topicos}
                     </Text>
                   </View>
@@ -3647,7 +3477,7 @@ export default function ConfiguracoesScreen() {
             )}
 
             <View style={styles.importInfoBox}>
-              <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} style={{ marginRight: 8, marginTop: 1 }} />
+              <Ionicons name="checkmark-circle-outline" size={18} color={themeColors.primary} style={{ marginRight: 8, marginTop: 1 }} />
               <Text style={styles.importInfoText}>
                 {sucessoCronogramaModal?.titulo
                   ? `"${sucessoCronogramaModal.titulo}" agora é seu cronograma ativo.`
@@ -3686,7 +3516,7 @@ export default function ConfiguracoesScreen() {
                 { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' },
               ]}
             >
-              <MaterialCommunityIcons name="alert-circle-outline" size={36} color={Colors.error} />
+              <MaterialCommunityIcons name="alert-circle-outline" size={36} color={themeColors.error} />
             </View>
 
             <Text style={styles.confirmTitle}>Erro no Cronograma</Text>
@@ -3695,7 +3525,7 @@ export default function ConfiguracoesScreen() {
             </Text>
 
             <View style={styles.syncErrorDetailsBox}>
-              <Ionicons name="alert-circle-outline" size={18} color={Colors.error} style={{ marginRight: 8 }} />
+              <Ionicons name="alert-circle-outline" size={18} color={themeColors.error} style={{ marginRight: 8 }} />
               <Text style={styles.syncErrorDetailsText}>
                 {erroCronogramaModal || 'Erro desconhecido ao carregar cronograma.'}
               </Text>
@@ -3718,8 +3548,8 @@ export default function ConfiguracoesScreen() {
                   setModalGitHubConfigVisible(true);
                 }}
               >
-                <Ionicons name="settings-outline" size={15} color={Colors.primary} style={{ marginRight: 6 }} />
-                <Text style={[styles.forceSyncBtnText, { color: Colors.primary }]}>Configurar Repositório</Text>
+                <Ionicons name="settings-outline" size={15} color={themeColors.primary} style={{ marginRight: 6 }} />
+                <Text style={[styles.forceSyncBtnText, { color: themeColors.primary }]}>Configurar Repositório</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -3741,7 +3571,7 @@ export default function ConfiguracoesScreen() {
           />
           <View style={styles.successModalCard}>
             <View style={styles.successIconCircle}>
-              <Ionicons name="checkmark-done" size={40} color={Colors.success} />
+              <Ionicons name="checkmark-done" size={40} color={themeColors.success} />
             </View>
             <Text style={styles.successModalTitle}>{sucessoAcaoCronograma?.titulo}</Text>
             <Text style={styles.successModalDescription}>{sucessoAcaoCronograma?.mensagem}</Text>
@@ -3813,7 +3643,7 @@ export default function ConfiguracoesScreen() {
           />
           <View style={styles.confirmModalCard}>
             <View style={styles.dangerIconCircle}>
-              <MaterialCommunityIcons name="calendar-remove" size={34} color={Colors.error} />
+              <MaterialCommunityIcons name="calendar-remove" size={34} color={themeColors.error} />
             </View>
             <Text style={styles.confirmTitle}>Remover Cronograma?</Text>
             <Text style={styles.confirmDescription}>
@@ -3869,13 +3699,13 @@ export default function ConfiguracoesScreen() {
             <View style={styles.pkgInputContainer}>
               <Text style={styles.pkgInputLabel}>NOME DO CALENDÁRIO</Text>
               <View style={styles.pkgInputWrapper}>
-                <Ionicons name="calendar-outline" size={17} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Ionicons name="calendar-outline" size={17} color={themeColors.primary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.pkgInput}
                   value={novoFeedNome}
                   onChangeText={setNovoFeedNome}
                   placeholder="Ex: Faculdade, Trabalho, Plantões"
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   autoCapitalize="words"
                 />
               </View>
@@ -3885,13 +3715,13 @@ export default function ConfiguracoesScreen() {
             <View style={styles.pkgInputContainer}>
               <Text style={styles.pkgInputLabel}>URL DO ICAL / WEBCAL (GOOGLE CALENDAR)</Text>
               <View style={styles.pkgInputWrapper}>
-                <Ionicons name="link-outline" size={17} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Ionicons name="link-outline" size={17} color={themeColors.primary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.pkgInput}
                   value={novoFeedUrl}
                   onChangeText={setNovoFeedUrl}
                   placeholder="https://calendar.google.com/calendar/ical/..."
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={themeColors.textSecondary}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -3911,11 +3741,11 @@ export default function ConfiguracoesScreen() {
                       key={cat}
                       style={[
                         { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#2A2E33', backgroundColor: '#16191B' },
-                        isSelected && { backgroundColor: 'rgba(234, 225, 21, 0.15)', borderColor: Colors.primary },
+                        isSelected && { backgroundColor: themeColors.primarySubtle, borderColor: themeColors.primary },
                       ]}
                       onPress={() => setNovoFeedTipo(cat)}
                     >
-                      <Text style={[{ fontSize: 13, fontWeight: '600', color: Colors.textSecondary }, isSelected && { color: Colors.primary, fontWeight: '700' }]}>
+                      <Text style={[{ fontSize: 13, fontWeight: '600', color: themeColors.textSecondary }, isSelected && { color: themeColors.primary, fontWeight: '700' }]}>
                         {cat}
                       </Text>
                     </TouchableOpacity>
@@ -3974,7 +3804,7 @@ export default function ConfiguracoesScreen() {
           />
           <View style={styles.confirmModalCard}>
             <View style={styles.dangerIconCircle}>
-              <Ionicons name="trash" size={30} color={Colors.error} />
+              <Ionicons name="trash" size={30} color={themeColors.error} />
             </View>
             <Text style={styles.confirmTitle}>Remover Calendário</Text>
             <Text style={styles.confirmDescription}>
@@ -4001,160 +3831,6 @@ export default function ConfiguracoesScreen() {
         </View>
       </Modal>
 
-      {/* Modal: Limpar Eventos do .ICS */}
-      <Modal
-        visible={modalLimparICSVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => !limpandoICS && setModalLimparICSVisible(false)}
-      >
-        <View style={styles.confirmModalOverlay}>
-          <TouchableOpacity
-            style={styles.confirmBackdropDismiss}
-            activeOpacity={1}
-            onPress={() => !limpandoICS && setModalLimparICSVisible(false)}
-          />
-          <View style={styles.confirmModalCard}>
-            <View style={styles.dangerIconCircle}>
-              <Ionicons name="trash" size={30} color={Colors.error} />
-            </View>
-            <Text style={styles.confirmTitle}>Limpar Eventos do .ICS</Text>
-            <Text style={styles.confirmDescription}>
-              {totalEventosICSParaLimpar > 0
-                ? `Deseja remover todos os ${totalEventosICSParaLimpar} eventos importados manualmente via arquivo .ICS? Suas outras tarefas, rotinas e revisões não serão afetadas.`
-                : 'Nenhum evento importado por .ICS foi encontrado para remoção.'}
-            </Text>
-            <View style={styles.confirmButtonsRow}>
-              <TouchableOpacity
-                style={styles.confirmCancelBtn}
-                activeOpacity={0.8}
-                onPress={() => setModalLimparICSVisible(false)}
-                disabled={limpandoICS}
-              >
-                <Text style={styles.confirmCancelBtnText}>
-                  {totalEventosICSParaLimpar > 0 ? 'Cancelar' : 'Fechar'}
-                </Text>
-              </TouchableOpacity>
-              {totalEventosICSParaLimpar > 0 && (
-                <TouchableOpacity
-                  style={[styles.confirmDeleteBtn, limpandoICS && styles.buttonDisabled]}
-                  activeOpacity={0.85}
-                  onPress={handleConfirmarLimparICS}
-                  disabled={limpandoICS}
-                >
-                  {limpandoICS ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.confirmDeleteBtnText}>Sim, Limpar</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal de Diagnóstico do Histórico e SM-2 */}
-      <Modal
-        visible={modalDiagnosticoVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setModalDiagnosticoVisible(false)}
-      >
-        <View style={styles.diagModalOverlay}>
-          <View style={styles.diagModalContainer}>
-            <View style={styles.diagModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="analytics" size={22} color="#3B82F6" />
-                <Text style={styles.diagModalTitle}>Diagnóstico de Coleta</Text>
-              </View>
-              <TouchableOpacity onPress={() => setModalDiagnosticoVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close" size={22} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-
-            {carregandoDiagnostico ? (
-              <View style={{ padding: 40, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text style={{ marginTop: 12, color: '#94A3B8', fontSize: 13 }}>Consultando SQLite...</Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
-                {/* Resumo em cards */}
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
-                  <View style={styles.diagStatCard}>
-                    <Text style={styles.diagStatLabel}>QuestionHistory</Text>
-                    <Text style={styles.diagStatValue}>{diagnosticoData?.totalHistory ?? 0}</Text>
-                    <Text style={styles.diagStatSub}>respostas gravadas</Text>
-                  </View>
-                  <View style={styles.diagStatCard}>
-                    <Text style={styles.diagStatLabel}>QuestionReviewState</Text>
-                    <Text style={styles.diagStatValue}>{diagnosticoData?.totalReviews ?? 0}</Text>
-                    <Text style={styles.diagStatSub}>questões no SM-2</Text>
-                  </View>
-                </View>
-
-                {/* Últimos registros de QuestionHistory */}
-                <Text style={styles.diagSectionHeader}>ÚLTIMAS QUESTÕES RESPONDIDAS</Text>
-                {diagnosticoData?.recentHistory && diagnosticoData.recentHistory.length > 0 ? (
-                  diagnosticoData.recentHistory.map((item, idx) => {
-                    const isOk = item.isCorrect === 1;
-                    const dateStr = new Date(item.answeredAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    return (
-                      <View key={item.id ?? idx} style={styles.diagItemCard}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <Text style={styles.diagItemTitle} numberOfLines={1}>{item.topic || 'Questão'}</Text>
-                          <View style={[styles.diagBadge, { backgroundColor: isOk ? 'rgba(68, 153, 104, 0.15)' : 'rgba(235, 87, 87, 0.15)' }]}>
-                            <Text style={[styles.diagBadgeText, { color: isOk ? '#449968' : '#EB5757' }]}>
-                              {isOk ? 'ACERTO' : 'ERRO'}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={styles.diagItemMeta}>⏱️ {item.timeSpentSeconds}s de resposta • {dateStr}</Text>
-                          <Text style={styles.diagItemSubMeta} numberOfLines={1}>ID: {item.questionId.slice(0, 10)}</Text>
-                        </View>
-                        {item.sessionId ? (
-                          <Text style={styles.diagSessionText} numberOfLines={1}>Sessão: {item.sessionId}</Text>
-                        ) : null}
-                      </View>
-                    );
-                  })
-                ) : (
-                  <View style={styles.diagEmptyBox}>
-                    <Text style={styles.diagEmptyText}>Nenhum registro encontrado ainda no QuestionHistory.</Text>
-                  </View>
-                )}
-
-                {/* Próximas revisões SM-2 */}
-                {diagnosticoData?.recentReviews && diagnosticoData.recentReviews.length > 0 && (
-                  <>
-                    <Text style={[styles.diagSectionHeader, { marginTop: 14 }]}>ESTADO NO ALGORITMO SM-2</Text>
-                    {diagnosticoData.recentReviews.map((r, idx) => (
-                      <View key={r.questionId ?? idx} style={styles.diagItemCard}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <Text style={styles.diagItemTitle}>ID: {r.questionId.slice(0, 16)}...</Text>
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#3B82F6' }}>Int: {r.interval}d</Text>
-                        </View>
-                        <Text style={styles.diagItemMeta}>
-                          Repetições: {r.repetitions} • Fator: {r.easeFactor.toFixed(2)} • Próxima: {new Date(r.nextReviewDate).toLocaleDateString('pt-BR')}
-                        </Text>
-                      </View>
-                    ))}
-                  </>
-                )}
-              </ScrollView>
-            )}
-
-            <TouchableOpacity style={styles.diagCloseBtn} activeOpacity={0.8} onPress={() => setModalDiagnosticoVisible(false)}>
-              <Text style={styles.diagCloseBtnText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -4286,7 +3962,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     importInfoText: { flex: 1, fontSize: 12, color: theme.textSecondary, lineHeight: 17 },
     importDoneButton: { width: '100%', backgroundColor: theme.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
     importDoneButtonText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 15, fontWeight: '800' },
-    imageSuccessIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(234, 225, 21, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
+    imageSuccessIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.primarySubtle, alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
     imagePathPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: nestedBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 12, borderWidth: 1, borderColor: cardBorder, width: '100%' },
     imagePathPillLabel: { fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginRight: 4 },
     imagePathPillText: { flex: 1, fontSize: 12, fontWeight: '700', color: theme.primary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
@@ -4302,7 +3978,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     emptyDbSecondaryButton: { width: '100%', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
     emptyDbSecondaryButtonText: { color: theme.textSecondary, fontSize: 14, fontWeight: '600' },
     pkgModalCard: { width: '100%', maxWidth: 380, backgroundColor: theme.surfaceCard, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: cardBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: isDark ? 0.5 : 0.15, shadowRadius: 20, elevation: 10 },
-    pkgIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(234, 225, 21, 0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
+    pkgIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.primarySubtle, alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1.5, borderColor: 'rgba(234, 225, 21, 0.3)' },
     pkgTitle: { fontSize: 22, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 6 },
     pkgSubtitle: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 18, paddingHorizontal: 4 },
     pkgInputContainer: { width: '100%', marginBottom: 14 },
@@ -4321,7 +3997,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     storageManagerCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: cardBorder, marginBottom: 20, ...softShadow },
     storageSubHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
     storageSubTitle: { fontSize: 14, fontWeight: '700', color: theme.text },
-    storageCountBadge: { backgroundColor: 'rgba(234, 225, 21, 0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)' },
+    storageCountBadge: { backgroundColor: theme.primarySubtle, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)' },
     storageCountBadgeText: { color: theme.primary, fontSize: 12, fontWeight: '700' },
     storageEmptyBox: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: nestedBg, borderRadius: 12, borderWidth: 1, borderColor: subtleBorder, marginBottom: 4 },
     storageEmptyText: { color: theme.textSecondary, fontSize: 12 },
@@ -4408,7 +4084,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     syncMiniBadgeText: { fontSize: 10, fontWeight: '700', color: theme.success },
     gitHubSyncCard: { backgroundColor: theme.surfaceCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: cardBorder, marginBottom: 14, ...softShadow },
     gitHubSyncHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-    gitHubSyncIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(234, 225, 21, 0.12)', borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    gitHubSyncIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.primarySubtle, borderWidth: 1, borderColor: 'rgba(234, 225, 21, 0.25)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
     gitHubSyncTitle: { fontSize: 14, fontWeight: '700', color: theme.text, flexShrink: 1, marginRight: 8 },
     gitHubSyncSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
     gitHubSyncSub: { fontSize: 11, color: theme.textSecondary, marginLeft: 4 },
@@ -4511,122 +4187,6 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       fontSize: 12,
       color: theme.textSecondary,
       textAlign: 'center',
-      lineHeight: 18,
-    },
-    diagModalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      justifyContent: 'center',
-      padding: 16,
-    },
-    diagModalContainer: {
-      backgroundColor: theme.surfaceCard,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: cardBorder,
-      padding: 18,
-      ...softShadow,
-    },
-    diagModalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 14,
-    },
-    diagModalTitle: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: theme.text,
-    },
-    diagStatCard: {
-      flex: 1,
-      backgroundColor: theme.surfaceCard,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: cardBorder,
-      padding: 12,
-      alignItems: 'center',
-    },
-    diagStatLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: theme.textSecondary,
-      marginBottom: 2,
-    },
-    diagStatValue: {
-      fontSize: 22,
-      fontWeight: '900',
-      color: theme.text,
-    },
-    diagStatSub: {
-      fontSize: 10,
-      color: theme.textMuted,
-    },
-    diagSectionHeader: {
-      fontSize: 10,
-      fontWeight: '800',
-      color: theme.textSecondary,
-      letterSpacing: 0.8,
-      marginBottom: 8,
-      marginTop: 4,
-    },
-    diagItemCard: {
-      backgroundColor: theme.surfaceCard,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: cardBorder,
-      padding: 10,
-      marginBottom: 8,
-    },
-    diagItemTitle: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: theme.text,
-      flex: 1,
-      marginRight: 8,
-    },
-    diagBadge: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    diagBadgeText: {
-      fontSize: 10,
-      fontWeight: '800',
-    },
-    diagItemMeta: {
-      fontSize: 11,
-      color: theme.textSecondary,
-    },
-    diagItemSubMeta: {
-      fontSize: 10,
-      color: theme.textMuted,
-    },
-    diagSessionText: {
-      fontSize: 9.5,
-      color: theme.textMuted,
-      marginTop: 2,
-    },
-    diagEmptyBox: {
-      padding: 18,
-      alignItems: 'center',
-    },
-    diagEmptyText: {
-      color: theme.textSecondary,
-      fontSize: 12,
-      textAlign: 'center',
-    },
-    diagCloseBtn: {
-      backgroundColor: theme.primary,
-      borderRadius: 12,
-      paddingVertical: 12,
-      alignItems: 'center',
-      marginTop: 12,
-    },
-    diagCloseBtnText: {
-      color: isDark ? '#000000' : '#FFFFFF',
-      fontWeight: '800',
-      fontSize: 13,
     },
   });
 }

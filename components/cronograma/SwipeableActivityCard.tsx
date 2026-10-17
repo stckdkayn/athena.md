@@ -10,10 +10,32 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '@/constants/Colors';
+import { Colors, hexToRgba } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { AtividadeAgenda } from '@/services/database';
 import { useAppTheme } from '@/context/ThemeContext';
+
+const FEATHER_TO_IONICONS_MAP: Record<string, string> = {
+  calendar: 'calendar-outline',
+  book: 'book-outline',
+  'book-open': 'library-outline',
+  activity: 'pulse-outline',
+  heart: 'heart-outline',
+  users: 'people-outline',
+  user: 'person-outline',
+  home: 'home-outline',
+  briefcase: 'briefcase-outline',
+  monitor: 'desktop-outline',
+  coffee: 'cafe-outline',
+  'edit-2': 'create-outline',
+  zap: 'flash-outline',
+  target: 'locate-outline',
+  award: 'ribbon-outline',
+  clock: 'time-outline',
+  'map-pin': 'location-outline',
+  folder: 'folder-outline',
+  'file-text': 'document-text-outline',
+};
 
 interface SwipeableActivityCardProps {
   item: AtividadeAgenda;
@@ -102,9 +124,21 @@ export default function SwipeableActivityCard({
     item.icone === 'document-text-outline' ||
     item.icone === 'check-square';
 
-  // No modo claro monocromático: ícones e destaques em preto/cinza Notion
-  const effectiveCorBase = isDark ? corBase : themeColors.text;
-  const playIconColor = '#FFFFFF';
+  // Ícones e destaques coloridos por especialidade / categoria
+  const effectiveCorBase = corBase || (isDark ? themeColors.primary : themeColors.text);
+  const isLightColor = effectiveCorBase === '#EAE115' || effectiveCorBase === themeColors.primary;
+  const playIconColor = isLightColor ? '#000000' : '#FFFFFF';
+
+  // Preenchimento suave (bem claro) da mesma cor do card e borda combinando
+  const cardFillBg = isDark
+    ? hexToRgba(effectiveCorBase, 0.12)
+    : hexToRgba(effectiveCorBase, 0.08);
+
+  const cardBorderColor = item.concluida
+    ? themeColors.borderSubtle
+    : isDark
+    ? hexToRgba(effectiveCorBase, 0.28)
+    : hexToRgba(effectiveCorBase, 0.20);
 
   const isAulas =
     (item as any).passo_tipo === 'videoaula' ||
@@ -147,6 +181,7 @@ export default function SwipeableActivityCard({
           styles.animatedCardContainer,
           {
             backgroundColor: themeColors.surfaceCard,
+            shadowColor: isDark ? '#000' : effectiveCorBase,
             shadowOpacity: isDark ? 0.35 : 0.08,
           },
           item.concluida && styles.activityCardCompleted,
@@ -163,12 +198,13 @@ export default function SwipeableActivityCard({
             style={[
               styles.activityCard,
               {
-                backgroundColor: themeColors.surfaceCard,
-                borderColor: item.concluida ? themeColors.borderSubtle : themeColors.border,
+                backgroundColor: item.concluida ? themeColors.surfaceCard : cardFillBg,
+                borderColor: cardBorderColor,
               },
             ]}
           >
             <View style={styles.cardContentRow}>
+              {/* Conteúdo Principal */}
               <View style={styles.cardMainContent}>
                 <Text
                   style={[
@@ -180,6 +216,21 @@ export default function SwipeableActivityCard({
                 >
                   {item.titulo}
                 </Text>
+
+                {/* Local do Evento / Atividade */}
+                {!!item.local && (
+                  <View style={styles.locationRow}>
+                    <Ionicons
+                      name="location-outline"
+                      size={12}
+                      color={themeColors.textSecondary}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[styles.locationText, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                      {item.local}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Subtítulo: Label (Material / Tipo de Atividade) */}
                 {!!item.detalhes && (
@@ -220,7 +271,7 @@ export default function SwipeableActivityCard({
                 </View>
               </View>
 
-              {/* Botão de Play para Questões ou Ícone da Atividade */}
+              {/* Botão de Play para Questões ou Ícone da Atividade (à direita) */}
               {isQuestoes ? (
                 <TouchableOpacity
                   style={styles.cardRightQuestoesWrapper}
@@ -234,7 +285,7 @@ export default function SwipeableActivityCard({
                   <View style={[styles.playButtonCircle, { backgroundColor: effectiveCorBase }]}>
                     <Ionicons
                       name="play"
-                      size={17}
+                      size={20}
                       color={playIconColor}
                       style={{ marginLeft: 2 }}
                     />
@@ -244,17 +295,21 @@ export default function SwipeableActivityCard({
               ) : (
                 <View style={styles.cardRightIconWrapper}>
                   {isAulas ? (
-                    <Ionicons name="laptop-outline" size={32} color={effectiveCorBase} />
+                    <Ionicons name="laptop-outline" size={36} color={effectiveCorBase} />
                   ) : isApostila ? (
-                    <Ionicons name="library-outline" size={32} color={effectiveCorBase} />
+                    <Ionicons name="library-outline" size={36} color={effectiveCorBase} />
                   ) : isFlashcards ? (
-                    <Ionicons name="flash-outline" size={32} color={effectiveCorBase} />
-                  ) : item.icone === 'calendar' ? (
-                    <Ionicons name="calendar-outline" size={30} color={effectiveCorBase} />
+                    <Ionicons name="flash-outline" size={36} color={effectiveCorBase} />
                   ) : (
-                    <Feather
-                      name={(item.icone as any) || 'circle'}
-                      size={30}
+                    <Ionicons
+                      name={
+                        (item.icone?.includes('-outline') || item.icone?.includes('-')
+                          ? (item.icone as any)
+                          : item.icone
+                          ? (FEATHER_TO_IONICONS_MAP[item.icone] as any)
+                          : null) || 'calendar-outline'
+                      }
+                      size={34}
                       color={effectiveCorBase}
                     />
                   )}
@@ -357,6 +412,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: Fonts.bold,
     letterSpacing: 0.4,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 1,
+  },
+  locationText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    flexShrink: 1,
   },
   detailsRow: {
     marginTop: 4,

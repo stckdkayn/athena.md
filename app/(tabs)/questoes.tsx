@@ -25,6 +25,7 @@ import HealthIcon from '@/components/HealthIcon';
 import AppHeader from '@/components/AppHeader';
 
 import { storage } from '@/services/storage'; // <-- Importando MMKV
+import { AthenaDialogModal } from '@/components/modals/AthenaDialogModal';
 
 import {
   SpecialtyItem as Specialty,
@@ -81,11 +82,11 @@ interface ActiveQuizSessionInfo {
 }
 
 const IconesEspecialidades: Record<string, string> = {
-  'Nefrologia': 'kidney',
+  'Nefrologia': 'water',
   'Gastroenterologia': 'stomach',
   'Hepatologia': 'leaf',
   'Cardiologia': 'heart-pulse',
-  'Cirurgia Geral': 'scalpel',
+  'Cirurgia Geral': 'content-cut',
   'Pneumologia': 'lungs',
   'Neurologia': 'brain',
   'Ginecologia': 'human-female',
@@ -205,6 +206,7 @@ export default function TreinoScreen() {
   const [modalSearchText, setModalSearchText] = useState<string>('');
   const [modalSelectedThemes, setModalSelectedThemes] = useState<string[]>([]);
   const [showNoThemesModal, setShowNoThemesModal] = useState<boolean>(false);
+  const [showSimuladoAvisoModal, setShowSimuladoAvisoModal] = useState<boolean>(false);
 
   // Estados do Modal de Afunilamento de Focos e Micro-focos
   const [filtroModalVisible, setFiltroModalVisible] = useState<boolean>(false);
@@ -735,18 +737,7 @@ export default function TreinoScreen() {
 
     const handleCardPress = () => {
       if (isModoSimulado) {
-        Alert.alert(
-          'Modo Simulado Ativo',
-          'No Modo Simulado, as questões são distribuídas automaticamente entre as 5 grandes áreas da residência médica.\n\nPara selecionar temas específicos manualmente, desative o Modo Simulado no menu de opções (ícone de 3 pontos).',
-          [
-            { text: 'Entendi', style: 'cancel' },
-            {
-              text: 'Desativar Simulado',
-              style: 'destructive',
-              onPress: () => toggleModoSimulado(false),
-            },
-          ]
-        );
+        setShowSimuladoAvisoModal(true);
         return;
       }
       abrirModalEspecialidade(item.nome, shouldPreFilterModal ? searchText : undefined);
@@ -760,7 +751,7 @@ export default function TreinoScreen() {
       >
         {isSelected && (
           <View style={[styles.selectedBadge, selectedThemesCount <= 1 && { width: 22, paddingHorizontal: 0 }]}>
-            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={12} color={isDark ? '#000000' : '#FFFFFF'} />
             {selectedThemesCount > 1 && <Text style={styles.selectedBadgeCount}>{selectedThemesCount}</Text>}
           </View>
         )}
@@ -977,7 +968,7 @@ export default function TreinoScreen() {
           <View style={[styles.cartActionsRow, isLandscape && { maxWidth: 560, alignSelf: 'center', width: '100%' }]}>
             {activeSession ? (
               <TouchableOpacity style={styles.cartStartButton} activeOpacity={0.7} onPress={continuarQuiz}>
-                <Ionicons name="play-forward" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Ionicons name="play-forward" size={20} color={isDark ? '#000000' : '#FFFFFF'} style={{ marginRight: 8 }} />
                 <Text style={styles.cartStartButtonText} numberOfLines={1}>
                   Continuar Questões ({activeSession.currentIndex + 1}/{activeSession.totalQuestions})
                 </Text>
@@ -985,7 +976,7 @@ export default function TreinoScreen() {
             ) : (
               <>
                 <TouchableOpacity style={styles.cartStartButton} activeOpacity={0.7} onPress={iniciarQuiz}>
-                  <Ionicons name="play" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Ionicons name="play" size={20} color={isDark ? '#000000' : '#FFFFFF'} style={{ marginRight: 8 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cartStartButtonText} numberOfLines={1}>
                       {isModoSimulado
@@ -1271,10 +1262,10 @@ export default function TreinoScreen() {
                   >
                     <View style={styles.themeCheckHeader}>
                       <View style={[styles.themeCheckCircle, isThemeSelected && styles.themeCheckCircleSelected]}>
-                        {isThemeSelected && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                        {isThemeSelected && <Ionicons name="checkmark" size={12} color={isDark ? '#000000' : '#FFFFFF'} />}
                       </View>
                       <TouchableOpacity style={styles.cardFilterIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => abrirFiltroModal(item.nome)}>
-                        <Ionicons name="ellipsis-vertical" size={15} color={hasCustomFilter ? Colors.primary : '#64748B'} />
+                        <Ionicons name="ellipsis-vertical" size={15} color={hasCustomFilter ? themeColors.primary : '#64748B'} />
                       </TouchableOpacity>
                     </View>
                     <Text style={[styles.themeCardTitle, isThemeSelected && styles.themeCardTitleSelected]} numberOfLines={3}>{item.nome}</Text>
@@ -1411,6 +1402,24 @@ export default function TreinoScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Diálogo Estilizado de Modo Simulado */}
+      <AthenaDialogModal
+        visible={showSimuladoAvisoModal}
+        onClose={() => setShowSimuladoAvisoModal(false)}
+        variant="confirm"
+        icon="school-outline"
+        title="Modo Simulado Ativo"
+        message="No Modo Simulado, as questões são distribuídas automaticamente entre as 5 grandes áreas da residência médica.&#10;&#10;Para selecionar temas específicos manualmente, desative o Modo Simulado."
+        primaryButtonText="Desativar Simulado"
+        primaryButtonVariant="danger"
+        onPrimaryPress={() => {
+          setShowSimuladoAvisoModal(false);
+          toggleModoSimulado(false);
+        }}
+        secondaryButtonText="Entendi"
+        onSecondaryPress={() => setShowSimuladoAvisoModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1734,7 +1743,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     simuladoInfoBtnText: {
       fontSize: 14,
       fontWeight: '800',
-      color: '#FFFFFF',
+      color: isDark ? '#000000' : '#FFFFFF',
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
@@ -1768,9 +1777,34 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       zIndex: 999,
     },
     cartActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    cartStartButton: { flex: 1, height: 52, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, elevation: 0, shadowOpacity: 0 },
-    cartStartButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-    cartStartButtonSubtext: { fontSize: 10, fontWeight: '600', color: 'rgba(255, 255, 255, 0.8)', marginTop: 1 },
+    cartStartButton: {
+      flex: 1,
+      height: 52,
+      backgroundColor: isDark ? theme.primary : '#2383E2',
+      borderWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      shadowColor: isDark ? '#000' : '#2383E2',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: isDark ? 0 : 0.25,
+      shadowRadius: 8,
+      elevation: isDark ? 0 : 4,
+    },
+    cartStartButtonText: {
+      color: isDark ? '#000000' : '#FFFFFF',
+      fontSize: 14.5,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+    },
+    cartStartButtonSubtext: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.85)',
+      marginTop: 1,
+    },
     limitBox: { width: 78, height: 52, backgroundColor: theme.surfaceCard, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, paddingHorizontal: 6 },
     limitLabel: { fontSize: 8.5, fontWeight: '700', color: theme.textSecondary, letterSpacing: 0.5, marginBottom: 1 },
     limitInput: { fontSize: 18, fontWeight: '800', color: theme.primary, textAlign: 'center', padding: 0, margin: 0, width: '100%' },
@@ -1798,12 +1832,12 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       elevation: isDark ? 4 : 2,
     },
     gridCardSelected: {
-      borderColor: isDark ? '#9CA3AF' : '#37352F',
+      borderColor: isDark ? theme.primary : '#2383E2',
       borderWidth: 1.5,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
-      shadowColor: '#000',
+      backgroundColor: isDark ? '#27291a' : '#F4F9FD',
+      shadowColor: isDark ? '#000' : '#2383E2',
       shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: isDark ? 0.45 : 0.10,
+      shadowOpacity: isDark ? 0.45 : 0.12,
       shadowRadius: 8,
       elevation: isDark ? 5 : 3,
     },
@@ -1811,7 +1845,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       position: 'absolute',
       top: 10,
       right: 10,
-      backgroundColor: isDark ? '#4B5563' : '#37352F',
+      backgroundColor: isDark ? theme.primary : '#2383E2',
       height: 22,
       minWidth: 22,
       borderRadius: 11,
@@ -1820,18 +1854,18 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       justifyContent: 'center',
       paddingHorizontal: 5,
       gap: 2,
-      shadowColor: '#000',
+      shadowColor: isDark ? '#000' : '#2383E2',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: isDark ? 0.3 : 0.1,
-      shadowRadius: 2,
+      shadowOpacity: isDark ? 0.3 : 0.25,
+      shadowRadius: 3,
       elevation: 2,
     },
-    selectedBadgeCount: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+    selectedBadgeCount: { fontSize: 10, fontWeight: '800', color: isDark ? '#000000' : '#FFFFFF' },
     cardIconBox: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
     cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 6 },
-    cardTitleSelected: { color: theme.text },
+    cardTitleSelected: { color: isDark ? theme.text : '#1D72C6' },
     cardCount: { fontSize: 12, fontWeight: '500', color: theme.textSecondary, textAlign: 'center' },
-    cardCountSelected: { color: theme.textSecondary, fontWeight: '700' },
+    cardCountSelected: { color: isDark ? theme.primary : '#2383E2', fontWeight: '700' },
     cardMatchThemeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySubtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: theme.primaryBorder, maxWidth: '96%', marginTop: 2 },
     cardMatchThemeText: { fontSize: 10, fontWeight: '700', color: theme.primary, textTransform: 'uppercase', flexShrink: 1 },
     emptyContainer: { marginTop: 60, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: theme.surfaceCard, borderRadius: 16, borderWidth: 1, borderColor: theme.border, elevation: 0 },
@@ -1839,7 +1873,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     emptyTitle: { fontSize: 18, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 },
     emptySubtitle: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20, paddingHorizontal: 8 },
     emptyButton: { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, elevation: 0 },
-    emptyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    emptyButtonText: { color: isDark ? '#000000' : '#FFFFFF', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'flex-end' },
     modalDismissArea: { flex: 1 },
     modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: theme.border, maxHeight: '88%', minHeight: '65%', paddingBottom: Platform.OS === 'ios' ? 32 : 20 },
@@ -1854,7 +1888,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     modalSearchInput: { flex: 1, fontSize: 14, color: theme.text, height: '100%' },
     modalActionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
     modalActionsSummary: { fontSize: 13, color: theme.textSecondary },
-    modalSelectAllButton: { fontSize: 13, fontWeight: '700', color: isDark ? '#E5E7EB' : '#37352F' },
+    modalSelectAllButton: { fontSize: 13, fontWeight: '700', color: isDark ? theme.primary : '#2383E2' },
     modalLoadingContainer: { paddingVertical: 50, alignItems: 'center', justifyContent: 'center' },
     modalLoadingText: { marginTop: 12, fontSize: 14, color: theme.textSecondary },
     modalColumnWrapper: { justifyContent: 'space-between', marginBottom: 10 },
@@ -1876,45 +1910,45 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       elevation: isDark ? 4 : 2,
     },
     themeGridCardSelected: {
-      borderColor: isDark ? '#9CA3AF' : '#37352F',
+      borderColor: isDark ? theme.primary : '#2383E2',
       borderWidth: 1.5,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
-      shadowColor: '#000',
+      backgroundColor: isDark ? '#27291a' : '#F4F9FD',
+      shadowColor: isDark ? '#000' : '#2383E2',
       shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: isDark ? 0.45 : 0.10,
+      shadowOpacity: isDark ? 0.45 : 0.12,
       shadowRadius: 8,
       elevation: isDark ? 5 : 3,
     },
     themeCheckHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
     cardFilterIconBtn: { padding: 2, borderRadius: 6 },
     themeGridCardFiltered: {
-      borderColor: isDark ? '#9CA3AF' : '#37352F',
+      borderColor: isDark ? theme.primary : '#2383E2',
       borderWidth: 1.5,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#FFFFFF',
-      shadowColor: '#000',
+      backgroundColor: isDark ? '#27291a' : '#F4F9FD',
+      shadowColor: isDark ? '#000' : '#2383E2',
       shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: isDark ? 0.45 : 0.10,
+      shadowOpacity: isDark ? 0.45 : 0.12,
       shadowRadius: 8,
       elevation: isDark ? 5 : 3,
     },
     themeCardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-    cardFilterPill: { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(55, 53, 47, 0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(55, 53, 47, 0.2)' },
-    cardFilterPillText: { fontSize: 9, fontWeight: '700', color: isDark ? '#E5E7EB' : '#37352F', letterSpacing: 0.2, textTransform: 'uppercase' },
-    cartThemeChipFiltered: { borderColor: isDark ? '#9CA3AF' : '#37352F', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(55, 53, 47, 0.06)' },
-    cartThemeChipTextFiltered: { color: isDark ? '#E5E7EB' : '#37352F', fontWeight: '700' },
+    cardFilterPill: { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(35, 131, 226, 0.10)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(35, 131, 226, 0.25)' },
+    cardFilterPillText: { fontSize: 9, fontWeight: '700', color: isDark ? theme.primary : '#2383E2', letterSpacing: 0.2, textTransform: 'uppercase' },
+    cartThemeChipFiltered: { borderColor: isDark ? theme.primary : '#2383E2', backgroundColor: isDark ? '#222518' : 'rgba(35, 131, 226, 0.08)' },
+    cartThemeChipTextFiltered: { color: isDark ? theme.primary : '#2383E2', fontWeight: '700' },
     themeCheckCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: isDark ? '#6B7280' : '#D1D5DB', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-    themeCheckCircleSelected: { backgroundColor: isDark ? '#4B5563' : '#37352F', borderColor: isDark ? '#4B5563' : '#37352F' },
+    themeCheckCircleSelected: { backgroundColor: isDark ? theme.primary : '#2383E2', borderColor: isDark ? theme.primary : '#2383E2' },
     themeCardTitle: { fontSize: 13, fontWeight: '700', color: theme.text, marginBottom: 4 },
-    themeCardTitleSelected: { color: theme.text },
-    themeMatchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(55, 53, 47, 0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(55, 53, 47, 0.2)', marginBottom: 4, alignSelf: 'flex-start', maxWidth: '100%' },
-    themeMatchBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#E5E7EB' : '#37352F', textTransform: 'uppercase', flexShrink: 1 },
+    themeCardTitleSelected: { color: isDark ? theme.text : '#1D72C6' },
+    themeMatchBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(234, 225, 21, 0.12)' : 'rgba(35, 131, 226, 0.10)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: isDark ? 'rgba(234, 225, 21, 0.3)' : 'rgba(35, 131, 226, 0.25)', marginBottom: 4, alignSelf: 'flex-start', maxWidth: '100%' },
+    themeMatchBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? theme.primary : '#2383E2', textTransform: 'uppercase', flexShrink: 1 },
     themeCardCount: { fontSize: 11, color: theme.textSecondary, fontWeight: '500' },
-    themeCardCountSelected: { color: theme.text, fontWeight: '700' },
+    themeCardCountSelected: { color: isDark ? theme.primary : '#2383E2', fontWeight: '700' },
     modalEmptyContainer: { paddingVertical: 36, alignItems: 'center', justifyContent: 'center' },
     modalEmptyText: { fontSize: 13, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
     modalFooter: { paddingHorizontal: 20, paddingTop: 10 },
-    modalDoneButton: { backgroundColor: isDark ? '#2A2E33' : '#37352F', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDark ? 0.3 : 0.1, shadowRadius: 4, elevation: 2 },
-    modalDoneButtonText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    modalDoneButton: { backgroundColor: isDark ? theme.primary : '#2383E2', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowColor: isDark ? '#000' : '#2383E2', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDark ? 0.3 : 0.25, shadowRadius: 4, elevation: 2 },
+    modalDoneButtonText: { fontSize: 14, fontWeight: '800', color: isDark ? '#000000' : '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
     activeSessionText: { color: theme.primary, fontSize: 14, fontWeight: '800', textAlign: 'center', paddingVertical: 2 },
     filtroOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, zIndex: 9999 },
     filtroBackdropDismiss: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
@@ -1944,7 +1978,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     microFocoCountText: { fontSize: 11, fontWeight: '500', color: theme.textMuted, marginLeft: 6 },
     filtroFooter: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.borderSubtle, alignItems: 'center', gap: 6 },
     filtroPrimaryBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, borderRadius: 12, height: 48 },
-    filtroPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    filtroPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: isDark ? '#000000' : '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
     filtroQuickStartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, paddingHorizontal: 12 },
     filtroQuickStartBtnText: { fontSize: 12, fontWeight: '700', color: theme.primary },
     filtroBtnDisabled: { opacity: 0.35 },
@@ -1957,7 +1991,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     noThemesTipBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: theme.backgroundSecondary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: theme.border, marginBottom: 20, width: '100%' },
     noThemesTipText: { flex: 1, fontSize: 13, color: theme.textSecondary, lineHeight: 18 },
     noThemesPrimaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, height: 48, borderRadius: 14, width: '100%', marginBottom: 8, elevation: 0, shadowOpacity: 0 },
-    noThemesPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+    noThemesPrimaryBtnText: { fontSize: 14, fontWeight: '800', color: isDark ? '#000000' : '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
     noThemesCloseBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10, width: '100%' },
     noThemesCloseBtnText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
   });

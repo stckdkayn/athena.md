@@ -22,7 +22,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({
   onClose,
   streakInfo,
 }) => {
-  const { colors: theme } = useAppTheme();
+  const { colors: theme, isDark } = useAppTheme();
   if (!streakInfo) return null;
 
   const streak = streakInfo.streak;
@@ -88,7 +88,11 @@ export const StreakModal: React.FC<StreakModalProps> = ({
                         ]}
                       >
                         {item.active ? (
-                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                          <Ionicons
+                            name="checkmark"
+                            size={16}
+                            color={isDark ? '#000000' : '#FFFFFF'}
+                          />
                         ) : (
                           <View style={[styles.dayDotEmpty, { backgroundColor: theme.textMuted }]} />
                         )}
@@ -119,7 +123,9 @@ export const StreakModal: React.FC<StreakModalProps> = ({
                 onPress={onClose}
                 activeOpacity={0.7}
               >
-                <Text style={styles.closeBtnText}>Entendido</Text>
+                <Text style={[styles.closeBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>
+                  Entendido
+                </Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

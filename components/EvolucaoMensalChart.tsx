@@ -13,7 +13,8 @@ interface MesTemplate {
   ano: number;
   mes: number;
   label: string;
-  count: number;
+  totalQuestoes: number;
+  totalAcertos: number;
 }
 
 function gerarTemplateUltimos6Meses(): MesTemplate[] {
@@ -25,7 +26,8 @@ function gerarTemplateUltimos6Meses(): MesTemplate[] {
       ano: d.getFullYear(),
       mes: d.getMonth(),
       label: MESES_ABREV[d.getMonth()],
-      count: 0,
+      totalQuestoes: 0,
+      totalAcertos: 0,
     });
   }
   return meses;
@@ -59,10 +61,23 @@ export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps)
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { width: windowWidth } = useWindowDimensions();
 
-  const [chartData, setChartData] = useState<{ labels: string[]; data: number[]; total: number }>({
+  // Largura dinâmica calculada a partir do layout do card para evitar cortes
+  const [containerWidth, setContainerWidth] = useState<number>(windowWidth - 56);
+
+  const [chartData, setChartData] = useState<{
+    labels: string[];
+    dataQuestoes: number[];
+    dataAcertos: number[];
+    totalQuestoes: number;
+    totalAcertos: number;
+    taxaGlobal: number;
+  }>({
     labels: gerarTemplateUltimos6Meses().map((m) => m.label),
-    data: [0, 0, 0, 0, 0, 0],
-    total: 0,
+    dataQuestoes: [0, 0, 0, 0, 0, 0],
+    dataAcertos: [0, 0, 0, 0, 0, 0],
+    totalQuestoes: 0,
+    totalAcertos: 0,
+    taxaGlobal: 0,
   });
 
   const carregarDados = useCallback(async () => {
@@ -72,9 +87,9 @@ export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps)
       const agora = new Date();
       const seisMesesAtras = new Date(agora.getFullYear(), agora.getMonth() - 5, 1, 0, 0, 0, 0).getTime();
 
-      // Consulta todos os registros de progresso dos últimos 6 meses
-      const rows = await database.getAllAsync<{ timestamp?: number; data?: string }>(
-        `SELECT timestamp, data FROM progresso WHERE timestamp >= ? OR timestamp IS NULL;`,
+      // Consulta todos os registros de progresso dos últimos 6 meses com dados de acerto
+      const rows = await database.getAllAsync<{ timestamp?: number; data?: string; correta?: number | boolean }>(
+        `SELECT timestamp, data, correta FROM progresso WHERE timestamp >= ? OR timestamp IS NULL;`,
         [seisMesesAtras]
       );
 
@@ -93,17 +108,26 @@ export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps)
 
           const match = meses.find((m) => m.ano === ano && m.mes === mes);
           if (match) {
-            match.count += 1;
+            match.totalQuestoes += 1;
+            const isCorreta = r.correta === 1 || r.correta === true || String(r.correta) === '1';
+            if (isCorreta) {
+              match.totalAcertos += 1;
+            }
           }
         }
       }
 
-      const total = meses.reduce((acc, m) => acc + m.count, 0);
+      const totalQuestoes = meses.reduce((acc, m) => acc + m.totalQuestoes, 0);
+      const totalAcertos = meses.reduce((acc, m) => acc + m.totalAcertos, 0);
+      const taxaGlobal = totalQuestoes > 0 ? Math.round((totalAcertos / totalQuestoes) * 100) : 0;
 
       setChartData({
         labels: meses.map((m) => m.label),
-        data: meses.map((m) => m.count),
-        total,
+        dataQuestoes: meses.map((m) => m.totalQuestoes),
+        dataAcertos: meses.map((m) => m.totalAcertos),
+        totalQuestoes,
+        totalAcertos,
+        taxaGlobal,
       });
     } catch (err) {
       console.warn('[EvolucaoMensalChart] Erro ao carregar histórico:', err);
@@ -116,8 +140,8 @@ export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps)
     }, [carregarDados])
   );
 
-  const chartWidth = Math.max(windowWidth - 64, 280);
   const activeColor = accentColor || colors.primary;
+  const acertosColor = '#10B981';
 
   const lineChartConfig = useMemo(() => {
     const cardBg = colors.surfaceCard || colors.surface;
@@ -130,51 +154,93 @@ export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps)
       labelColor: () => colors.textSecondary,
       propsForDots: {
         r: '4',
-        strokeWidth: '2',
-        stroke: activeColor,
-        fill: cardBg,
+        strokeWidth: '1.5',
+        stroke: cardBg,
       },
       propsForBackgroundLines: {
         stroke: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
         strokeDasharray: '4, 4',
       },
+      propsForHorizontalLabels: {
+        fontSize: 10,
+      },
+      propsForVerticalLabels: {
+        fontSize: 10,
+      },
+      formatYLabel: (y: string) => Math.round(Number(y)).toString(),
     };
   }, [colors, isDark, activeColor]);
 
+  // Largura do gráfico ajustada com base no card
+  const chartWidth = Math.max(containerWidth, 290);
+
   return (
     <View style={[styles.sectionCard, style]}>
+      {/* Cabeçalho sem o badge de questões */}
       <View style={styles.cardHeaderRow}>
         <View style={styles.titleWithIcon}>
           <Ionicons name="trending-up-outline" size={18} color={activeColor} style={{ marginRight: 8 }} />
-          <Text style={styles.sectionTitle}>Evolução dos Últimos 6 Meses</Text>
-        </View>
-        <View style={styles.cardBadge}>
-          <Text style={styles.cardBadgeText}>
-            {chartData.total} {chartData.total === 1 ? 'questão' : 'questões'}
-          </Text>
+          <Text style={styles.sectionTitle}>Evolução Semestral</Text>
         </View>
       </View>
 
       <Text style={styles.sectionDesc}>
-        Volume de questões praticadas mês a mês.
+        Comparativo entre volume de questões e taxa de acertos.
       </Text>
 
-      <View style={styles.chartWrapper}>
+      {/* Legenda das duas linhas */}
+      <View style={styles.legendContainer}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: activeColor }]} />
+          <Text style={styles.legendLabel}>
+            Questões: <Text style={styles.legendValue}>{chartData.totalQuestoes}</Text>
+          </Text>
+        </View>
+
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: acertosColor }]} />
+          <Text style={styles.legendLabel}>
+            Acertos: <Text style={styles.legendValue}>{chartData.totalAcertos}</Text>
+            {chartData.totalQuestoes > 0 ? (
+              <Text style={styles.legendPercent}> ({chartData.taxaGlobal}%)</Text>
+            ) : null}
+          </Text>
+        </View>
+      </View>
+
+      {/* Container do Gráfico */}
+      <View
+        style={styles.chartWrapper}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0 && Math.abs(w - containerWidth) > 5) {
+            setContainerWidth(w);
+          }
+        }}
+      >
         <LineChart
           data={{
             labels: chartData.labels,
             datasets: [
+              // Linha 1: Volume de Questões
               {
-                data: chartData.data,
+                data: chartData.dataQuestoes,
                 color: (opacity = 1) => hexToRgba(activeColor, opacity),
+                strokeWidth: 2.5,
+              },
+              // Linha 2: Desempenho / Acertos (se iguala à linha de questões com 100% de acertos)
+              {
+                data: chartData.dataAcertos,
+                color: (opacity = 1) => hexToRgba(acertosColor, opacity),
                 strokeWidth: 2.5,
               },
             ],
           }}
           width={chartWidth}
-          height={190}
+          height={185}
           bezier
           fromZero
+          segments={4}
           withInnerLines={true}
           withOuterLines={false}
           withVerticalLines={false}
@@ -219,32 +285,50 @@ function createStyles(colors: ActiveThemeColors, isDark: boolean) {
     sectionDesc: {
       fontSize: 12,
       color: colors.textSecondary,
-      marginBottom: 12,
+      marginBottom: 10,
       lineHeight: 16,
     },
-    cardBadge: {
-      backgroundColor: colors.primarySubtle,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.primaryBorder,
+    legendContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      marginBottom: 8,
+      paddingHorizontal: 2,
     },
-    cardBadgeText: {
-      fontSize: 10,
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    legendLabel: {
+      fontSize: 11.5,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    legendValue: {
+      color: colors.text,
+      fontWeight: '800',
+    },
+    legendPercent: {
+      color: '#10B981',
       fontWeight: '700',
-      color: colors.primary,
-      textTransform: 'uppercase',
+      fontSize: 10.5,
     },
     chartWrapper: {
       alignItems: 'center',
       justifyContent: 'center',
-      overflow: 'hidden',
+      width: '100%',
     },
     lineChart: {
       marginVertical: 4,
       borderRadius: 12,
-      paddingRight: 36, // Garante que o último mês (ex: Out) não seja cortado na borda direita
+      marginLeft: -10, // Compensa o padding esquerdo excessivo do Y-axis da lib
+      paddingRight: 42, // Garante que o último mês e os pontos à direita nunca fiquem cortados
     },
   });
 }

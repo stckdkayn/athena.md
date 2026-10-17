@@ -104,8 +104,8 @@ export default function TabLayout() {
             )}
           </View>
         ),
-        tabBarActiveTintColor: themeColors.primary,
-        tabBarInactiveTintColor: themeColors.textSecondary,
+        tabBarActiveTintColor: isDark ? themeColors.primary : '#37352F',
+        tabBarInactiveTintColor: isDark ? themeColors.textSecondary : '#787774',
         tabBarItemStyle: {
           flex: 1,
           height: pillHeight,

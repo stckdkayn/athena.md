@@ -16,7 +16,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { useAppTheme } from '@/context/ThemeContext';
-import { criarNovaAtividade, atualizarAtividade, excluirAtividade } from '@/services/database';
+import {
+  criarNovaAtividade,
+  atualizarAtividade,
+  excluirAtividade,
+  verificarSeEventoRepete,
+  atualizarSerieEventos,
+  excluirSerieEventos,
+} from '@/services/database';
 import { gerarPlanoDiario } from '@/services/schedulerService';
 
 interface Props {
@@ -28,10 +35,78 @@ interface Props {
 }
 
 const TIPOS_DISPONIVEIS = ['Pessoal', 'Estudo', 'Faculdade', 'Lazer'];
+
+const FEATHER_TO_IONICONS_MAP: Record<string, string> = {
+  calendar: 'calendar-outline',
+  book: 'book-outline',
+  'book-open': 'library-outline',
+  activity: 'pulse-outline',
+  heart: 'heart-outline',
+  users: 'people-outline',
+  user: 'person-outline',
+  home: 'home-outline',
+  briefcase: 'briefcase-outline',
+  monitor: 'desktop-outline',
+  coffee: 'cafe-outline',
+  'edit-2': 'create-outline',
+  zap: 'flash-outline',
+  target: 'locate-outline',
+  award: 'ribbon-outline',
+  clock: 'time-outline',
+  'map-pin': 'location-outline',
+  folder: 'folder-outline',
+  'file-text': 'document-text-outline',
+};
+
 const ICONES_DISPONIVEIS = [
-  'calendar', 'book', 'book-open', 'activity', 'heart', 'users', 'user', 'home', 
-  'briefcase', 'monitor', 'coffee', 'edit-2', 'zap', 'target', 
-  'award', 'clock', 'map-pin', 'folder', 'file-text'
+  'calendar-outline',
+  'time-outline',
+  'alarm-outline',
+  'book-outline',
+  'school-outline',
+  'library-outline',
+  'document-text-outline',
+  'clipboard-outline',
+  'checkmark-circle-outline',
+  'medkit-outline',
+  'bandage-outline',
+  'fitness-outline',
+  'heart-outline',
+  'pulse-outline',
+  'flask-outline',
+  'body-outline',
+  'briefcase-outline',
+  'business-outline',
+  'home-outline',
+  'bed-outline',
+  'cafe-outline',
+  'restaurant-outline',
+  'car-outline',
+  'airplane-outline',
+  'bus-outline',
+  'bicycle-outline',
+  'walk-outline',
+  'barbell-outline',
+  'bulb-outline',
+  'chatbubble-ellipses-outline',
+  'mail-outline',
+  'call-outline',
+  'notifications-outline',
+  'flag-outline',
+  'star-outline',
+  'sparkles-outline',
+  'trophy-outline',
+  'ribbon-outline',
+  'wallet-outline',
+  'card-outline',
+  'laptop-outline',
+  'desktop-outline',
+  'headset-outline',
+  'musical-notes-outline',
+  'camera-outline',
+  'newspaper-outline',
+  'folder-outline',
+  'water-outline',
 ];
 const CORES_DISPONIVEIS = [
   { id: '#3B82F6', label: 'Azul' },
@@ -70,8 +145,9 @@ export default function ModalNovaAtividade({
   const { theme, isDark } = useAppTheme();
   const [titulo, setTitulo] = useState('');
   const [detalhes, setDetalhes] = useState('');
+  const [local, setLocal] = useState('');
   const [tipo, setTipo] = useState('Pessoal');
-  const [iconeSelecionado, setIconeSelecionado] = useState('calendar');
+  const [iconeSelecionado, setIconeSelecionado] = useState('calendar-outline');
   const [corSelecionada, setCorSelecionada] = useState<string | null>(null);
   const [showCategoriaDrop, setShowCategoriaDrop] = useState(false);
   const [horaInicio, setHoraInicio] = useState(new Date());
@@ -82,6 +158,9 @@ export default function ModalNovaAtividade({
   const [frequencia, setFrequencia] = useState<'unica' | 'diaria' | 'dias_uteis' | 'semanal'>('unica');
   const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<number[]>([1, 3, 5]);
   const [isChecking, setIsChecking] = useState(false);
+  const [infoRepeticao, setInfoRepeticao] = useState<{ ehRepeticao: boolean; seriePrefix: string | null; total: number } | null>(null);
+  const [showPromptRepeticao, setShowPromptRepeticao] = useState(false);
+  const [acaoPendente, setAcaoPendente] = useState<'salvar' | 'excluir' | null>(null);
 
   const formatTimeStr = (d: Date) => {
     const h = String(d.getHours()).padStart(2, '0');
@@ -91,11 +170,19 @@ export default function ModalNovaAtividade({
 
   useEffect(() => {
     if (visible) {
+      setShowPromptRepeticao(false);
+      setInfoRepeticao(null);
+      setAcaoPendente(null);
+
       if (atividadeEmEdicao) {
         setTitulo(atividadeEmEdicao.titulo || '');
         setDetalhes(atividadeEmEdicao.detalhes || '');
+        setLocal(atividadeEmEdicao.local || '');
         setTipo(atividadeEmEdicao.tipo || 'Pessoal');
-        setIconeSelecionado(atividadeEmEdicao.icone || 'calendar');
+        const iconeSalvo = atividadeEmEdicao.icone;
+        setIconeSelecionado(
+          (iconeSalvo && FEATHER_TO_IONICONS_MAP[iconeSalvo]) || iconeSalvo || 'calendar-outline'
+        );
         setCorSelecionada(atividadeEmEdicao.cor || null);
         setFrequencia('unica');
         setShowIconMenu(false);
@@ -117,8 +204,9 @@ export default function ModalNovaAtividade({
       } else {
         setTitulo('');
         setDetalhes('');
+        setLocal('');
         setTipo('Pessoal');
-        setIconeSelecionado('calendar');
+        setIconeSelecionado('calendar-outline');
         setCorSelecionada(null);
         setShowIconMenu(false);
         const now = new Date();
@@ -139,8 +227,17 @@ export default function ModalNovaAtividade({
     );
   };
 
-  const handleExcluir = () => {
+  const handleExcluir = async () => {
     if (!atividadeEmEdicao) return;
+
+    const repete = await verificarSeEventoRepete(atividadeEmEdicao.id);
+    if (repete.ehRepeticao) {
+      setInfoRepeticao(repete);
+      setAcaoPendente('excluir');
+      setShowPromptRepeticao(true);
+      return;
+    }
+
     Alert.alert(
       'Excluir Evento',
       'Tem certeza que deseja excluir esta atividade da sua agenda?',
@@ -149,25 +246,32 @@ export default function ModalNovaAtividade({
         {
           text: 'Excluir',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await excluirAtividade(atividadeEmEdicao.id);
-              try {
-                const dataRef = dataInicial || toLocalDateStr(new Date());
-                await gerarPlanoDiario(dataRef);
-              } catch (planErr) {
-                console.warn('[ModalNovaAtividade] Erro ao re-planejar após exclusão:', planErr);
-              }
-              onSaveSuccess();
-              onClose();
-            } catch (err) {
-              console.error('[ModalNovaAtividade] Erro ao excluir:', err);
-              Alert.alert('Erro', 'Não foi possível excluir a atividade.');
-            }
-          },
+          onPress: () => executarExclusao(false),
         },
       ]
     );
+  };
+
+  const executarExclusao = async (todasAsRepeticoes: boolean) => {
+    if (!atividadeEmEdicao) return;
+    try {
+      if (todasAsRepeticoes && infoRepeticao?.seriePrefix) {
+        await excluirSerieEventos(infoRepeticao.seriePrefix);
+      } else {
+        await excluirAtividade(atividadeEmEdicao.id);
+      }
+      try {
+        const dataRef = dataInicial || toLocalDateStr(new Date());
+        await gerarPlanoDiario(dataRef);
+      } catch (planErr) {
+        console.warn('[ModalNovaAtividade] Erro ao re-planejar após exclusão:', planErr);
+      }
+      onSaveSuccess();
+      onClose();
+    } catch (err) {
+      console.error('[ModalNovaAtividade] Erro ao excluir:', err);
+      Alert.alert('Erro', 'Não foi possível excluir a atividade.');
+    }
   };
 
   const handleSave = async () => {
@@ -177,30 +281,75 @@ export default function ModalNovaAtividade({
     }
     if (isChecking) return;
 
+    if (atividadeEmEdicao) {
+      const repete = await verificarSeEventoRepete(atividadeEmEdicao.id);
+      if (repete.ehRepeticao) {
+        setInfoRepeticao(repete);
+        setAcaoPendente('salvar');
+        setShowPromptRepeticao(true);
+        return;
+      }
+    }
+
     const dataSelecionada = dataInicial || toLocalDateStr(new Date());
-    await executarSalvamento(dataSelecionada);
+    await executarSalvamento(dataSelecionada, false);
+  };
+
+  const handleConfirmarApenasEste = async () => {
+    setShowPromptRepeticao(false);
+    const dataSelecionada = dataInicial || toLocalDateStr(new Date());
+    if (acaoPendente === 'salvar') {
+      await executarSalvamento(dataSelecionada, false);
+    } else if (acaoPendente === 'excluir') {
+      await executarExclusao(false);
+    }
+  };
+
+  const handleConfirmarTodasRepeticoes = async () => {
+    setShowPromptRepeticao(false);
+    const dataSelecionada = dataInicial || toLocalDateStr(new Date());
+    if (acaoPendente === 'salvar') {
+      await executarSalvamento(dataSelecionada, true);
+    } else if (acaoPendente === 'excluir') {
+      await executarExclusao(true);
+    }
   };
 
   // 3. Função auxiliar de salvamento real (isola o código do banco)
-  const executarSalvamento = async (data: string) => {
+  const executarSalvamento = async (data: string, todasAsRepeticoes: boolean = false) => {
     setIsChecking(true);
     try {
       if (atividadeEmEdicao) {
-        await atualizarAtividade(atividadeEmEdicao.id, {
-          titulo: titulo.trim(),
-          tipo,
-          icone: iconeSelecionado,
-          detalhes: detalhes.trim(),
-          cor: corSelecionada || undefined,
-          hora_inicio: formatTimeStr(horaInicio),
-          hora_fim: formatTimeStr(horaFim),
-        });
+        if (todasAsRepeticoes && infoRepeticao?.seriePrefix) {
+          await atualizarSerieEventos(infoRepeticao.seriePrefix, {
+            titulo: titulo.trim(),
+            tipo,
+            icone: iconeSelecionado,
+            detalhes: detalhes.trim() || undefined,
+            local: local.trim() || undefined,
+            cor: corSelecionada || undefined,
+            hora_inicio: formatTimeStr(horaInicio),
+            hora_fim: formatTimeStr(horaFim),
+          });
+        } else {
+          await atualizarAtividade(atividadeEmEdicao.id, {
+            titulo: titulo.trim(),
+            tipo,
+            icone: iconeSelecionado,
+            detalhes: detalhes.trim() || undefined,
+            local: local.trim() || undefined,
+            cor: corSelecionada || undefined,
+            hora_inicio: formatTimeStr(horaInicio),
+            hora_fim: formatTimeStr(horaFim),
+          });
+        }
       } else {
         await criarNovaAtividade({
           titulo: titulo.trim(),
           tipo,
           icone: iconeSelecionado,
-          detalhes: detalhes.trim(),
+          detalhes: detalhes.trim() || undefined,
+          local: local.trim() || undefined,
           cor: corSelecionada || undefined,
           frequencia,
           data_inicio: data,
@@ -219,14 +368,18 @@ export default function ModalNovaAtividade({
 
       setTitulo('');
       setDetalhes('');
+      setLocal('');
       setTipo('Pessoal');
-      setIconeSelecionado('calendar');
+      setIconeSelecionado('calendar-outline');
       setCorSelecionada(null);
       const now = new Date();
       setHoraInicio(now);
       setHoraFim(new Date(now.getTime() + 60 * 60 * 1000));
       setFrequencia('unica'); // reseta
       setShowCategoriaDrop(false);
+      setShowPromptRepeticao(false);
+      setInfoRepeticao(null);
+      setAcaoPendente(null);
       onSaveSuccess();
       onClose();
     } catch (error) {
@@ -238,7 +391,8 @@ export default function ModalNovaAtividade({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[
@@ -284,21 +438,28 @@ export default function ModalNovaAtividade({
                 style={[
                   styles.iconBox,
                   {
-                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                     borderColor: theme.border,
                   },
                 ]} 
                 onPress={() => setShowIconMenu(!showIconMenu)}
                 activeOpacity={0.7}
               >
-                <Feather name={iconeSelecionado as any} size={22} color={theme.primary} />
+                <Ionicons
+                  name={
+                    ((FEATHER_TO_IONICONS_MAP[iconeSelecionado] || iconeSelecionado) as any) ||
+                    'calendar-outline'
+                  }
+                  size={24}
+                  color={theme.primary}
+                />
               </TouchableOpacity>
               
               <TextInput
                 style={[
                   styles.textInputBox,
                   {
-                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                     borderColor: theme.border,
                     color: theme.text,
                   },
@@ -310,17 +471,45 @@ export default function ModalNovaAtividade({
               />
             </View>
 
-            {/* NOVO CAMPO: Detalhes */}
+            {/* Campo Local */}
+            <View
+              style={[
+                styles.localInputContainer,
+                {
+                  backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="location-outline"
+                size={18}
+                color={theme.textSecondary}
+                style={{ marginLeft: 14, marginRight: 8 }}
+              />
+              <TextInput
+                style={[
+                  styles.localTextInput,
+                  { color: theme.text },
+                ]}
+                placeholder="Local (sala, hospital, bloco...)"
+                value={local}
+                onChangeText={setLocal}
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+
+            {/* Detalhes / Anotações */}
             <TextInput
               style={[
                 styles.detailsInputBox,
                 {
-                  backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                  backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                   borderColor: theme.border,
                   color: theme.text,
                 },
               ]}
-              placeholder="Detalhes..."
+              placeholder="Anotações ou detalhes..."
               value={detalhes}
               onChangeText={setDetalhes}
               placeholderTextColor={theme.textSecondary}
@@ -342,16 +531,19 @@ export default function ModalNovaAtividade({
                   style={[
                     styles.colorCircle,
                     {
-                      backgroundColor: isDark ? '#2e3235' : '#E9E9E7',
-                      borderColor: isDark ? '#4E5358' : '#D3D3D0',
+                      backgroundColor: isDark ? theme.surfaceCard : '#E9E9E7',
+                      borderColor: isDark ? theme.border : '#D3D3D0',
                     },
-                    corSelecionada === null && styles.colorCircleSelected,
+                    corSelecionada === null && [
+                      styles.colorCircleSelected,
+                      { borderColor: isDark ? theme.primary : '#2383E2' },
+                    ],
                   ]}
                   onPress={() => setCorSelecionada(null)}
                   activeOpacity={0.7}
                 >
                   {corSelecionada === null ? (
-                    <Ionicons name="checkmark" size={16} color={isDark ? '#FFFFFF' : '#37352F'} />
+                    <Ionicons name="checkmark" size={16} color={isDark ? theme.primary : '#2383E2'} />
                   ) : (
                     <Ionicons name="color-palette-outline" size={14} color={theme.textSecondary} />
                   )}
@@ -363,13 +555,20 @@ export default function ModalNovaAtividade({
                     style={[
                       styles.colorCircle,
                       { backgroundColor: c.id, borderColor: c.id },
-                      corSelecionada === c.id && styles.colorCircleSelected,
+                      corSelecionada === c.id && [
+                        styles.colorCircleSelected,
+                        { borderColor: isDark ? theme.primary : '#2383E2' },
+                      ],
                     ]}
                     onPress={() => setCorSelecionada(c.id)}
                     activeOpacity={0.7}
                   >
                     {corSelecionada === c.id && (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={c.id === '#EAE115' ? '#000000' : '#FFFFFF'}
+                      />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -396,31 +595,39 @@ export default function ModalNovaAtividade({
                       },
                     ]}
                   >
+                    <View style={[styles.gridHeader, { borderBottomColor: theme.border }]}>
+                      <Text style={[styles.gridHeaderTitle, { color: theme.text }]}>Escolha um Ícone</Text>
+                      <TouchableOpacity
+                        onPress={() => setShowIconMenu(false)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="close" size={22} color={theme.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+
                     <ScrollView contentContainerStyle={styles.gridGrid} showsVerticalScrollIndicator={false}>
                       {ICONES_DISPONIVEIS.map((ic) => {
-                        const isSelected = iconeSelecionado === ic;
+                        const isSelected =
+                          iconeSelecionado === ic ||
+                          FEATHER_TO_IONICONS_MAP[iconeSelecionado] === ic;
                         return (
                           <TouchableOpacity 
                             key={ic} 
-                            style={[
-                              styles.gridItem,
-                              {
-                                backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
-                                borderColor: theme.border,
-                              },
-                              isSelected && {
-                                backgroundColor: theme.primary,
-                                borderColor: theme.primary,
-                              },
-                            ]} 
+                            style={styles.gridItem} 
                             onPress={() => { setIconeSelecionado(ic); setShowIconMenu(false); }}
-                            activeOpacity={0.7}
+                            activeOpacity={0.6}
                           >
-                            <Feather
+                            <Ionicons
                               name={ic as any}
-                              size={24}
-                              color={isSelected ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary}
+                              size={28}
+                              color={isSelected ? theme.primary : theme.textSecondary}
                             />
+                            {isSelected ? (
+                              <View style={[styles.gridSelectedDot, { backgroundColor: theme.primary }]} />
+                            ) : (
+                              <View style={{ height: 4, marginTop: 4 }} />
+                            )}
                           </TouchableOpacity>
                         );
                       })}
@@ -439,7 +646,7 @@ export default function ModalNovaAtividade({
                     style={[
                       styles.nativeTimeButton,
                       {
-                        backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                        backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                         borderColor: theme.border,
                       },
                     ]}
@@ -458,7 +665,7 @@ export default function ModalNovaAtividade({
                     style={[
                       styles.nativeTimeButton,
                       {
-                        backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                        backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                         borderColor: theme.border,
                       },
                     ]}
@@ -484,7 +691,7 @@ export default function ModalNovaAtividade({
                           style={[
                             styles.freqPill,
                             {
-                              backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                              backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                               borderColor: theme.border,
                             },
                             isActive && {
@@ -524,7 +731,7 @@ export default function ModalNovaAtividade({
                             style={[
                               styles.weekDayCircle,
                               {
-                                backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                                backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                                 borderColor: theme.border,
                               },
                               isSelected && {
@@ -595,7 +802,7 @@ export default function ModalNovaAtividade({
                 style={[
                   styles.dropdownButton,
                   {
-                    backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                    backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                     borderColor: theme.border,
                   },
                 ]}
@@ -610,7 +817,7 @@ export default function ModalNovaAtividade({
                   style={[
                     styles.dropdownList,
                     {
-                      backgroundColor: isDark ? '#1b1d1f' : '#FFFFFF',
+                      backgroundColor: isDark ? theme.surfaceCard : '#FFFFFF',
                       borderColor: theme.border,
                     },
                   ]}
@@ -691,6 +898,126 @@ export default function ModalNovaAtividade({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+
+    {/* Modal Elegante de Escolha de Repetição */}
+    <Modal
+      visible={showPromptRepeticao}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowPromptRepeticao(false)}
+      statusBarTranslucent
+    >
+      <TouchableOpacity
+        style={[
+          styles.repeticaoOverlay,
+          { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(0, 0, 0, 0.45)' },
+        ]}
+        activeOpacity={1}
+        onPress={() => setShowPromptRepeticao(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[
+            styles.repeticaoCard,
+            {
+              backgroundColor: theme.surfaceCard,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <View style={[styles.repeticaoBadge, { backgroundColor: theme.primarySubtle }]}>
+            <Ionicons name="repeat" size={26} color={theme.primary} />
+          </View>
+
+          <Text style={[styles.repeticaoTitle, { color: theme.text }]}>
+            Evento Recorrente
+          </Text>
+
+          <Text style={[styles.repeticaoMessage, { color: theme.textSecondary }]}>
+            {acaoPendente === 'salvar'
+              ? 'Este evento se repete no calendário. Onde deseja aplicar as alterações de ícone, cor e informações?'
+              : 'Este evento se repete no calendário. Deseja excluir apenas esta ocorrência ou todas as repetições?'}
+          </Text>
+
+          {/* Opção 1: Todas as repetições */}
+          <TouchableOpacity
+            style={[
+              styles.repeticaoOptionBtn,
+              {
+                backgroundColor: acaoPendente === 'excluir' ? 'rgba(239, 68, 68, 0.10)' : (isDark ? theme.surface : '#F7F6F3'),
+                borderColor: acaoPendente === 'excluir' ? theme.error : theme.border,
+              },
+            ]}
+            onPress={handleConfirmarTodasRepeticoes}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={acaoPendente === 'excluir' ? 'trash-outline' : 'copy-outline'}
+              size={20}
+              color={acaoPendente === 'excluir' ? theme.error : theme.primary}
+              style={{ marginRight: 12 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.repeticaoOptionTitle,
+                  { color: acaoPendente === 'excluir' ? theme.error : theme.text },
+                ]}
+              >
+                {acaoPendente === 'excluir' ? 'Excluir todas as repetições' : 'Em todas as repetições'}
+              </Text>
+              <Text style={[styles.repeticaoOptionSub, { color: theme.textSecondary }]}>
+                {acaoPendente === 'excluir'
+                  ? 'Remove todas as ocorrências deste evento no calendário'
+                  : 'Aplica ícone, cor e detalhes em todos os dias que se repetem'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Opção 2: Apenas este evento */}
+          <TouchableOpacity
+            style={[
+              styles.repeticaoOptionBtn,
+              {
+                backgroundColor: isDark ? theme.surface : '#F7F6F3',
+                borderColor: theme.border,
+              },
+            ]}
+            onPress={handleConfirmarApenasEste}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={theme.text}
+              style={{ marginRight: 12 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.repeticaoOptionTitle, { color: theme.text }]}>
+                {acaoPendente === 'excluir' ? 'Excluir apenas este evento' : 'Apenas neste evento'}
+              </Text>
+              <Text style={[styles.repeticaoOptionSub, { color: theme.textSecondary }]}>
+                {acaoPendente === 'excluir'
+                  ? 'Mantém as outras repetições nas demais semanas'
+                  : 'Modifica somente a ocorrência deste dia específico'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Botão Cancelar */}
+          <TouchableOpacity
+            style={styles.repeticaoCancelBtn}
+            onPress={() => setShowPromptRepeticao(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.repeticaoCancelText, { color: theme.textSecondary }]}>Cancelar</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+    </>
   );
 }
 
@@ -762,6 +1089,21 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontWeight: '500',
   },
+  localInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 46,
+    borderWidth: 1,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  localTextInput: {
+    flex: 1,
+    height: '100%',
+    paddingRight: 14,
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+  },
   detailsInputBox: {
     minHeight: 80,
     fontSize: 14,
@@ -811,27 +1153,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gridContainer: {
-    borderRadius: 16,
-    width: '85%',
-    maxHeight: '70%',
+    borderRadius: 20,
+    width: '88%',
+    maxHeight: '72%',
     padding: 20,
     borderWidth: 1,
     elevation: 0,
     shadowOpacity: 0,
   },
+  gridHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  gridHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
+  },
   gridGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'flex-start',
   },
   gridItem: {
-    width: '22%',
-    aspectRatio: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    justifyContent: 'center',
+    width: '20%',
+    paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridSelectedDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 4,
   },
   timeRow: {
     flexDirection: 'row',
@@ -959,7 +1317,73 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   colorCircleSelected: {
-    borderColor: '#37352F',
+    borderColor: '#2383E2',
     transform: [{ scale: 1.15 }],
+  },
+  repeticaoOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  repeticaoCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 22,
+    alignItems: 'center',
+  },
+  repeticaoBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  repeticaoTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.extraBold,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  repeticaoMessage: {
+    fontSize: 13,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  repeticaoOptionBtn: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  repeticaoOptionTitle: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  repeticaoOptionSub: {
+    fontSize: 11,
+    fontFamily: Fonts.regular,
+    lineHeight: 14,
+  },
+  repeticaoCancelBtn: {
+    marginTop: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  repeticaoCancelText: {
+    fontSize: 13,
+    fontFamily: Fonts.medium,
   },
 });

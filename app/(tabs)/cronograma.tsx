@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { storage } from '@/services/storage';
-import { Colors } from '@/constants/Colors';
+import { Colors, ActiveThemeColors, hexToRgba } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 import AppHeader from '@/components/AppHeader';
 import CircularProgressRing from '@/components/CircularProgressRing';
@@ -217,6 +217,7 @@ export type AbaDiaCronograma = DiaSemana;
 export default function CronogramaScreen() {
   const router = useRouter();
   const { colors: themeColors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
 
   // Estados principais
   const [cronograma, setCronograma] = useState<CronogramaData | null>(null);
@@ -1038,11 +1039,19 @@ export default function CronogramaScreen() {
           }
           renderItem={({ item }) => {
             const topicColor = getTopicColor(item.area, item.especialidade, item.grandeArea, item.topicoTitulo);
+            const cardFillBg = isDark ? hexToRgba(topicColor, 0.12) : hexToRgba(topicColor, 0.08);
+            const cardBorderColor = isDark ? hexToRgba(topicColor, 0.28) : hexToRgba(topicColor, 0.20);
             return (
               <View style={styles.topicCardWrapper}>
                 <View style={[styles.topicLeftIndicator, { backgroundColor: topicColor }]} />
                 <TouchableOpacity
-                  style={styles.searchResultCard}
+                  style={[
+                    styles.searchResultCard,
+                    {
+                      backgroundColor: cardFillBg,
+                      borderColor: cardBorderColor,
+                    },
+                  ]}
                   activeOpacity={0.7}
                   onPress={() => {
                     setSemanaAtiva(item.semanaNumero);
@@ -1153,10 +1162,25 @@ export default function CronogramaScreen() {
                 : isCardDone;
 
               if (isLembrete) {
+                const lembreteColor = '#F59E0B';
+                const lembreteFillBg = isDark ? hexToRgba(lembreteColor, 0.12) : hexToRgba(lembreteColor, 0.08);
+                const lembreteBorder = lembreteConcluido
+                  ? themeColors.success
+                  : (isDark ? hexToRgba(lembreteColor, 0.28) : hexToRgba(lembreteColor, 0.20));
+
                 return (
                   <View style={styles.topicCardWrapper}>
-                    <View style={[styles.topicLeftIndicator, { backgroundColor: lembreteConcluido ? Colors.success : '#F59E0B' }]} />
-                    <View style={[styles.topicCardContainer, lembreteConcluido && styles.topicCardContainerDone, { backgroundColor: '#181A1D' }]}>
+                    <View style={[styles.topicLeftIndicator, { backgroundColor: lembreteConcluido ? Colors.success : lembreteColor }]} />
+                    <View
+                      style={[
+                        styles.topicCardContainer,
+                        {
+                          backgroundColor: lembreteConcluido ? themeColors.success : lembreteFillBg,
+                          borderColor: lembreteBorder,
+                        },
+                        lembreteConcluido && styles.topicCardContainerDone,
+                      ]}
+                    >
                       <TouchableOpacity
                         style={[styles.lembreteCardClosed, lembreteConcluido && styles.lembreteCardClosedDone]}
                         onPress={() => passoLembrete && handleToggleStep(item.id, stepUniqueIdLembrete)}
@@ -1224,10 +1248,26 @@ export default function CronogramaScreen() {
                 );
               }
 
+              const cardFillBg = isDark ? hexToRgba(topicColor, 0.12) : hexToRgba(topicColor, 0.08);
+              const cardBorderColor = isCardDone
+                ? themeColors.success
+                : isDark
+                ? hexToRgba(topicColor, 0.28)
+                : hexToRgba(topicColor, 0.20);
+
               return (
                 <View style={styles.topicCardWrapper}>
                   <View style={[styles.topicLeftIndicator, { backgroundColor: isCardDone ? Colors.success : topicColor }]} />
-                  <View style={[styles.topicCardContainer, isCardDone && styles.topicCardContainerDone]}>
+                  <View
+                    style={[
+                      styles.topicCardContainer,
+                      {
+                        backgroundColor: isCardDone ? themeColors.success : cardFillBg,
+                        borderColor: cardBorderColor,
+                      },
+                      isCardDone && styles.topicCardContainerDone,
+                    ]}
+                  >
                   <TouchableOpacity
                     style={[styles.topicCardClosed, isCardDone && styles.topicCardClosedDone, isExpanded && (isCardDone ? styles.topicCardOpenHeaderDone : styles.topicCardOpenHeader)]}
                     onPress={() => toggleCardExpand(cardItem.cardKey, item.id)}
@@ -1302,7 +1342,7 @@ export default function CronogramaScreen() {
                                 {concluido && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
                               </TouchableOpacity>
                               <View style={[styles.stepIconBox, concluido && styles.stepIconBoxConcluido]}>
-                                <Ionicons name={stepConfig.icon} size={18} color={concluido ? '#34D399' : isQuestoes ? Colors.primary : '#FFFFFF'} />
+                                <Ionicons name={stepConfig.icon} size={22} color={concluido ? '#34D399' : isQuestoes ? Colors.primary : '#FFFFFF'} />
                               </View>
                               <View style={styles.stepInfoCol}>
                                 <View style={styles.stepTitleLine}>
@@ -1389,7 +1429,7 @@ export default function CronogramaScreen() {
         accessibilityLabel="Adicionar lembrete"
         accessibilityRole="button"
       >
-        <Ionicons name="add" size={30} color="#0D0E11" />
+        <Ionicons name="add" size={30} color={isDark ? '#000000' : '#FFFFFF'} />
       </TouchableOpacity>
 
       <ModalNovoTopico
@@ -1408,730 +1448,736 @@ export default function CronogramaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#141617',
-  },
-  centerBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#8E959E',
-    fontSize: 14,
-  },
-  headerContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2e3235',
-    backgroundColor: '#141617',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 20,
-    textAlign: 'left',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    paddingHorizontal: 12,
-    height: 44,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2e3235',
-    paddingHorizontal: 12,
-    height: 42,
-    marginTop: 10,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 14,
-    padding: 0,
-    paddingVertical: 0,
-  },
-  weekSelectorWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 10,
-    backgroundColor: 'transparent',
-  },
-  weekNavRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  searchIconButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchIconButtonActive: {
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-    borderRadius: 16,
-  },
-  weekStepperCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
-  },
-  weekTextOnly: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  weekProgressRingButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchResultsList: {
-    padding: 16,
-    gap: 10,
-  },
-  searchResultCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#16181B',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#24282D',
-    overflow: 'hidden',
-  },
-  searchResultContent: {
-    flex: 1,
-    paddingVertical: 10,
-  },
-  searchResultTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  searchResultArea: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  searchResultWeekBadge: {
-    fontSize: 10,
-    color: '#8E959E',
-  },
-  searchResultTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  searchMatchedDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    backgroundColor: 'rgba(234, 225, 21, 0.08)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
-  },
-  searchMatchedDetailLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  searchMatchedDetailText: {
-    fontSize: 11,
-    color: '#D1D5DB',
-  },
-  noSearchBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  noSearchText: {
-    color: '#8E959E',
-    fontSize: 14,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  daySelectorWrapper: {
-    backgroundColor: '#141617',
-    paddingVertical: 10,
-  },
-  daySelectorContent: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  dayPillVertical: {
-    width: 48,
-    height: 58,
-    borderRadius: 12,
-    backgroundColor: '#181A1E',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 7,
-  },
-  dayPillVerticalSelected: {
-    backgroundColor: '#1F2229',
-    borderColor: Colors.primary,
-  },
-  dayPillRevSelected: {
-    backgroundColor: 'rgba(167, 139, 250, 0.15)',
-    borderColor: '#A78BFA',
-  },
-  dayPillRevDone: {
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    borderColor: '#8B5CF6',
-  },
-  dayPillRevDoneSelected: {
-    backgroundColor: 'rgba(139, 92, 246, 0.25)',
-    borderColor: '#A78BFA',
-  },
-  dayRevBadgeCircle: {
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#8B5CF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  dayRevBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  dayPillVerticalDone: {
-    backgroundColor: '#122019',
-    borderColor: '#10B981',
-  },
-  dayPillVerticalDoneSelected: {
-    backgroundColor: 'rgba(16, 185, 129, 0.22)',
-    borderColor: '#34D399',
-  },
-  dayPillVerticalLate: {
-    backgroundColor: '#261416',
-    borderColor: '#EF4444',
-  },
-  dayPillVerticalLateSelected: {
-    backgroundColor: 'rgba(239, 68, 68, 0.25)',
-    borderColor: '#F87171',
-  },
-  dayPillTopSegment: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  dayPillAbbrText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8E95A0',
-    letterSpacing: -0.2,
-  },
-  dayPillAbbrTextSelected: {
-    color: Colors.primary,
-    fontWeight: '800',
-  },
-  dayPillAbbrTextDone: {
-    color: '#10B981',
-    fontWeight: '800',
-  },
-  dayPillRevAbbrTextDone: {
-    color: '#A78BFA',
-    fontWeight: '800',
-  },
-  dayPillAbbrTextLate: {
-    color: '#EF4444',
-    fontWeight: '800',
-  },
-  dayPillBottomSegment: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  dayStatusDoneCircle: {
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: '#10B981',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayStatusRevDoneCircle: {
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: '#8B5CF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayStatusLateCircle: {
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayStatusProgressOuter: {
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayStatusProgressInner: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#141617',
-  },
-  dayStatusEmptyCircle: {
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    borderWidth: 1.5,
-    borderColor: '#2B3038',
-    backgroundColor: 'transparent',
-  },
-  topicsListContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 96,
-  },
-  topicCardWrapper: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 8,
-  },
-  topicLeftIndicator: {
-    width: 4.5,
-    borderRadius: 3,
-    alignSelf: 'stretch',
-  },
-  topicCardContainer: {
-    flex: 1,
-    backgroundColor: '#16181B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#24282D',
-    overflow: 'hidden',
-  },
-  topicCardContainerDone: {
-    borderColor: Colors.success,
-  },
-  topicCardClosed: {
-    height: 65,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 16,
-    paddingRight: 12,
-  },
-  topicCardClosedDone: {
-    backgroundColor: Colors.success,
-  },
-  topicCardOpenHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#20242A',
-  },
-  topicCardOpenHeaderDone: {
-    backgroundColor: Colors.success,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.15)',
-  },
-  topicCenterContent: {
-    flex: 1,
-    paddingRight: 12,
-    justifyContent: 'center',
-  },
-  specialtyBadgePill: {
-    alignSelf: 'flex-start',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderWidth: 1,
-    marginBottom: 4,
-  },
-  specialtyBadgePillDone: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  topicAreaText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  topicTitleText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-  },
-  topicRightControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  threeDotsButton: {
-    padding: 4,
-  },
-  accordionBody: {
-    padding: 14,
-    backgroundColor: '#121417',
-  },
-  accordionBodyDone: {
-    backgroundColor: '#388E3C',
-  },
-  secondaryTopicsBox: {
-    backgroundColor: '#181B20',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#22262D',
-  },
-  secondaryTopicsTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E959E',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  secondaryTopicsText: {
-    fontSize: 12,
-    color: '#D1D5DB',
-    lineHeight: 17,
-  },
-  studyTrailHeading: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E959E',
-    textTransform: 'uppercase',
-    marginBottom: 10,
-    letterSpacing: 0.5,
-  },
-  checklistContainer: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  checklistItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#181B20',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#242830',
-    gap: 12,
-  },
-  checklistItemRowConcluido: {
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderColor: 'rgba(16, 185, 129, 0.28)',
-    opacity: 0.95,
-  },
-  checklistItemRowDoneCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderColor: 'rgba(0, 0, 0, 0.25)',
-    opacity: 0.95,
-  },
-  checkboxBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#424855',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  checkboxBoxConcluido: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  checkboxBoxDoneCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  stepIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#20242C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepIconBoxConcluido: {
-    backgroundColor: 'rgba(16, 185, 129, 0.16)',
-  },
-  stepIconBoxDoneCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  stepInfoCol: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  stepTitleLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepTitleText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  stepTitleTextConcluido: {
-    color: '#A7F3D0',
-    textDecorationLine: 'line-through',
-  },
-  stepTitleTextDoneCard: {
-    color: '#FFFFFF',
-    textDecorationLine: 'line-through',
-  },
-  stepDetailText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  stepDetailTextConcluido: {
-    color: 'rgba(167, 243, 208, 0.65)',
-    textDecorationLine: 'line-through',
-  },
-  stepDetailTextDoneCard: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    textDecorationLine: 'line-through',
-  },
-  stepMetaBadge: {
-    backgroundColor: 'rgba(234, 225, 21, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(234, 225, 21, 0.3)',
-  },
-  stepMetaBadgeConcluido: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  stepMetaBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  stepMetaBadgeTextConcluido: {
-    color: '#A7F3D0',
-    textDecorationLine: 'line-through',
-  },
-  stepActionQuizBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 5,
-  },
-  stepActionQuizText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0D0E11',
-    letterSpacing: -0.2,
-  },
-  accordionFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#1F232A',
-  },
-  accordionFooterProgress: {
-    fontSize: 11,
-    color: '#8E959E',
-    fontWeight: '600',
-  },
-  emptyDayContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-    paddingHorizontal: 20,
-  },
-  emptyDayTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  emptyDaySub: {
-    fontSize: 13,
-    color: '#8E959E',
-    marginTop: 6,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  emptyIconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(234, 225, 21, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyDescription: {
-    fontSize: 14,
-    color: '#8E959E',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  demoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 12,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  demoButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0D0E11',
-  },
-  settingsRedirectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#16181B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#24282D',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    gap: 8,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  settingsRedirectText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  fabButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 8,
-    zIndex: 99,
-  },
-  lembreteCardClosed: {
-    minHeight: 65,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 14,
-    paddingRight: 12,
-    paddingVertical: 12,
-  },
-  lembreteCardClosedDone: {
-    backgroundColor: Colors.success,
-  },
-  lembreteBadgePill: {
-    alignSelf: 'flex-start',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lembreteBadgePillDone: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  lembreteTitleDone: {
-    textDecorationLine: 'line-through',
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-  lembreteDescText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  lembreteDescDone: {
-    textDecorationLine: 'line-through',
-    color: 'rgba(255, 255, 255, 0.65)',
-  },
-});
+function createStyles(theme: ActiveThemeColors, isDark: boolean) {
+  const cardBorder = theme.border;
+  const subtleBorder = theme.borderSubtle;
+  const cardBg = theme.surfaceCard;
+
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    centerBox: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    loadingText: {
+      marginTop: 12,
+      color: theme.textSecondary,
+      fontSize: 14,
+    },
+    headerContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: cardBorder,
+      backgroundColor: theme.background,
+    },
+    headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    headerIcon: {
+      marginRight: 10,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.5,
+    },
+    headerSubtitle: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 4,
+      lineHeight: 20,
+      textAlign: 'left',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cardBg,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      paddingHorizontal: 12,
+      height: 44,
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchBarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cardBg,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      paddingHorizontal: 12,
+      height: 42,
+      marginTop: 10,
+    },
+    searchInput: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 14,
+      padding: 0,
+      paddingVertical: 0,
+    },
+    weekSelectorWrapper: {
+      paddingHorizontal: 16,
+      paddingTop: 0,
+      paddingBottom: 10,
+      backgroundColor: 'transparent',
+    },
+    weekNavRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    searchIconButton: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchIconButtonActive: {
+      backgroundColor: theme.primarySubtle,
+      borderRadius: 16,
+    },
+    weekStepperCenter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 18,
+    },
+    weekTextOnly: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: theme.text,
+      letterSpacing: -0.3,
+    },
+    weekProgressRingButton: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchResultsList: {
+      padding: 16,
+      gap: 10,
+    },
+    searchResultCard: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cardBg,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      overflow: 'hidden',
+    },
+    searchResultContent: {
+      flex: 1,
+      paddingVertical: 10,
+    },
+    searchResultTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    searchResultArea: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    searchResultWeekBadge: {
+      fontSize: 10,
+      color: theme.textSecondary,
+    },
+    searchResultTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+    },
+    searchMatchedDetailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 6,
+      alignSelf: 'flex-start',
+      maxWidth: '100%',
+    },
+    searchMatchedDetailLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    searchMatchedDetailText: {
+      fontSize: 11,
+      color: theme.text,
+    },
+    noSearchBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+    },
+    noSearchText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      marginTop: 10,
+      textAlign: 'center',
+    },
+    daySelectorWrapper: {
+      backgroundColor: theme.background,
+      paddingVertical: 10,
+    },
+    daySelectorContent: {
+      paddingHorizontal: 16,
+      gap: 8,
+    },
+    dayPillVertical: {
+      width: 48,
+      height: 58,
+      borderRadius: 12,
+      backgroundColor: cardBg,
+      borderWidth: 1.5,
+      borderColor: isDark ? 'transparent' : subtleBorder,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 7,
+    },
+    dayPillVerticalSelected: {
+      backgroundColor: isDark ? '#27291a' : theme.surface,
+      borderColor: theme.primary,
+    },
+    dayPillRevSelected: {
+      backgroundColor: isDark ? 'rgba(167, 139, 250, 0.15)' : 'rgba(139, 92, 246, 0.10)',
+      borderColor: '#A78BFA',
+    },
+    dayPillRevDone: {
+      backgroundColor: isDark ? 'rgba(139, 92, 246, 0.12)' : 'rgba(139, 92, 246, 0.08)',
+      borderColor: '#8B5CF6',
+    },
+    dayPillRevDoneSelected: {
+      backgroundColor: isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(139, 92, 246, 0.16)',
+      borderColor: '#A78BFA',
+    },
+    dayRevBadgeCircle: {
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: '#8B5CF6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    dayRevBadgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#FFFFFF',
+    },
+    dayPillVerticalDone: {
+      backgroundColor: isDark ? '#122019' : 'rgba(16, 185, 129, 0.08)',
+      borderColor: '#10B981',
+    },
+    dayPillVerticalDoneSelected: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(16, 185, 129, 0.15)',
+      borderColor: '#34D399',
+    },
+    dayPillVerticalLate: {
+      backgroundColor: isDark ? '#261416' : 'rgba(239, 68, 68, 0.08)',
+      borderColor: '#EF4444',
+    },
+    dayPillVerticalLateSelected: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.15)',
+      borderColor: '#F87171',
+    },
+    dayPillTopSegment: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: 1,
+    },
+    dayPillAbbrText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: theme.textSecondary,
+      letterSpacing: -0.2,
+    },
+    dayPillAbbrTextSelected: {
+      color: theme.primary,
+      fontWeight: '800',
+    },
+    dayPillAbbrTextDone: {
+      color: '#10B981',
+      fontWeight: '800',
+    },
+    dayPillRevAbbrTextDone: {
+      color: '#A78BFA',
+      fontWeight: '800',
+    },
+    dayPillAbbrTextLate: {
+      color: '#EF4444',
+      fontWeight: '800',
+    },
+    dayPillBottomSegment: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: 1,
+    },
+    dayStatusDoneCircle: {
+      width: 17,
+      height: 17,
+      borderRadius: 8.5,
+      backgroundColor: '#10B981',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayStatusRevDoneCircle: {
+      width: 17,
+      height: 17,
+      borderRadius: 8.5,
+      backgroundColor: '#8B5CF6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayStatusLateCircle: {
+      width: 17,
+      height: 17,
+      borderRadius: 8.5,
+      backgroundColor: '#EF4444',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayStatusProgressOuter: {
+      width: 17,
+      height: 17,
+      borderRadius: 8.5,
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayStatusProgressInner: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      backgroundColor: theme.background,
+    },
+    dayStatusEmptyCircle: {
+      width: 17,
+      height: 17,
+      borderRadius: 8.5,
+      borderWidth: 1.5,
+      borderColor: cardBorder,
+      backgroundColor: 'transparent',
+    },
+    topicsListContent: {
+      padding: 16,
+      gap: 12,
+      paddingBottom: 96,
+    },
+    topicCardWrapper: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      gap: 8,
+    },
+    topicLeftIndicator: {
+      width: 4.5,
+      borderRadius: 3,
+      alignSelf: 'stretch',
+    },
+    topicCardContainer: {
+      flex: 1,
+      backgroundColor: cardBg,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      overflow: 'hidden',
+    },
+    topicCardContainerDone: {
+      borderColor: theme.success,
+    },
+    topicCardClosed: {
+      height: 65,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingLeft: 16,
+      paddingRight: 12,
+    },
+    topicCardClosedDone: {
+      backgroundColor: theme.success,
+    },
+    topicCardOpenHeader: {
+      borderBottomWidth: 1,
+      borderBottomColor: cardBorder,
+    },
+    topicCardOpenHeaderDone: {
+      backgroundColor: theme.success,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(0, 0, 0, 0.15)',
+    },
+    topicCenterContent: {
+      flex: 1,
+      paddingRight: 12,
+      justifyContent: 'center',
+    },
+    specialtyBadgePill: {
+      alignSelf: 'flex-start',
+      borderRadius: 6,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderWidth: 1,
+      marginBottom: 4,
+    },
+    specialtyBadgePillDone: {
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+    },
+    topicAreaText: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+    topicTitleText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.text,
+      letterSpacing: -0.2,
+    },
+    topicRightControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    threeDotsButton: {
+      padding: 4,
+    },
+    accordionBody: {
+      padding: 14,
+      backgroundColor: isDark ? '#141618' : '#F7F7F6',
+    },
+    accordionBodyDone: {
+      backgroundColor: '#388E3C',
+    },
+    secondaryTopicsBox: {
+      backgroundColor: theme.surface,
+      padding: 10,
+      borderRadius: 8,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+    },
+    secondaryTopicsTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textSecondary,
+      marginBottom: 4,
+      textTransform: 'uppercase',
+    },
+    secondaryTopicsText: {
+      fontSize: 12,
+      color: theme.text,
+      lineHeight: 17,
+    },
+    studyTrailHeading: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textSecondary,
+      textTransform: 'uppercase',
+      marginBottom: 10,
+      letterSpacing: 0.5,
+    },
+    checklistContainer: {
+      gap: 8,
+      marginBottom: 12,
+    },
+    checklistItemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.surface,
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      gap: 12,
+    },
+    checklistItemRowConcluido: {
+      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+      borderColor: 'rgba(16, 185, 129, 0.28)',
+      opacity: 0.95,
+    },
+    checklistItemRowDoneCard: {
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+      borderColor: 'rgba(0, 0, 0, 0.25)',
+      opacity: 0.95,
+    },
+    checkboxBox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: isDark ? '#424855' : '#D1D5DB',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    checkboxBoxConcluido: {
+      backgroundColor: '#10B981',
+      borderColor: '#10B981',
+    },
+    checkboxBoxDoneCard: {
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      borderColor: 'rgba(255, 255, 255, 0.4)',
+    },
+    stepIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 9,
+      backgroundColor: isDark ? '#20242C' : 'rgba(0, 0, 0, 0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepIconBoxConcluido: {
+      backgroundColor: 'rgba(16, 185, 129, 0.16)',
+    },
+    stepIconBoxDoneCard: {
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    stepInfoCol: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    stepTitleLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    stepTitleText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    stepTitleTextConcluido: {
+      color: '#A7F3D0',
+      textDecorationLine: 'line-through',
+    },
+    stepTitleTextDoneCard: {
+      color: '#FFFFFF',
+      textDecorationLine: 'line-through',
+    },
+    stepDetailText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
+      lineHeight: 16,
+    },
+    stepDetailTextConcluido: {
+      color: 'rgba(167, 243, 208, 0.65)',
+      textDecorationLine: 'line-through',
+    },
+    stepDetailTextDoneCard: {
+      color: 'rgba(255, 255, 255, 0.8)',
+      textDecorationLine: 'line-through',
+    },
+    stepMetaBadge: {
+      backgroundColor: theme.primarySubtle,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: theme.primaryBorder,
+    },
+    stepMetaBadgeConcluido: {
+      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+      borderColor: 'rgba(16, 185, 129, 0.25)',
+    },
+    stepMetaBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    stepMetaBadgeTextConcluido: {
+      color: '#A7F3D0',
+      textDecorationLine: 'line-through',
+    },
+    stepActionQuizBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 8,
+      gap: 5,
+    },
+    stepActionQuizText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: isDark ? '#000000' : '#FFFFFF',
+      letterSpacing: -0.2,
+    },
+    accordionFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: cardBorder,
+    },
+    accordionFooterProgress: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    emptyDayContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 50,
+      paddingHorizontal: 20,
+    },
+    emptyDayTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.text,
+      marginTop: 12,
+      textAlign: 'center',
+    },
+    emptyDaySub: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      marginTop: 6,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+    },
+    emptyIconCircle: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: theme.primarySubtle,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: theme.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    emptyDescription: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 24,
+    },
+    demoButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      gap: 8,
+      marginBottom: 12,
+      width: '100%',
+      justifyContent: 'center',
+    },
+    demoButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: isDark ? '#000000' : '#FFFFFF',
+    },
+    settingsRedirectButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cardBg,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: cardBorder,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      gap: 8,
+      width: '100%',
+      justifyContent: 'center',
+    },
+    settingsRedirectText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.primary,
+    },
+    fabButton: {
+      position: 'absolute',
+      bottom: 24,
+      right: 20,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.35 : 0.15,
+      shadowRadius: 6,
+      elevation: 8,
+      zIndex: 99,
+    },
+    lembreteCardClosed: {
+      minHeight: 65,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingLeft: 14,
+      paddingRight: 12,
+      paddingVertical: 12,
+    },
+    lembreteCardClosedDone: {
+      backgroundColor: theme.success,
+    },
+    lembreteBadgePill: {
+      alignSelf: 'flex-start',
+      borderRadius: 6,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderWidth: 1,
+      borderColor: 'rgba(245, 158, 11, 0.4)',
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    lembreteBadgePillDone: {
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+    },
+    lembreteTitleDone: {
+      textDecorationLine: 'line-through',
+      color: 'rgba(255, 255, 255, 0.85)',
+    },
+    lembreteDescText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
+      lineHeight: 16,
+    },
+    lembreteDescDone: {
+      textDecorationLine: 'line-through',
+      color: 'rgba(255, 255, 255, 0.65)',
+    },
+  });
+}

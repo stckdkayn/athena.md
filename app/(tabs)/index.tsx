@@ -42,7 +42,6 @@ import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
 import { StreakModal } from '@/components/modals/StreakModal';
-import { NomeUsuarioModal } from '@/components/modals/NomeUsuarioModal';
 import { PersonalizacaoModal } from '@/components/modals/PersonalizacaoModal';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -93,7 +92,7 @@ export default function DashboardScreen() {
   const [blocosEstudo, setBlocosEstudo] = useState<DbBlocoEstudo[]>([]);
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => toLocalDateStr(new Date()));
   const [loading, setLoading] = useState<boolean>(true);
-  const [modalNovaVisible, setModalNovaVisible] = useState<boolean>(false);
+  const [modalEditarVisible, setModalEditarVisible] = useState<boolean>(false);
   const [atividadeParaEditar, setAtividadeParaEditar] = useState<AtividadeAgenda | null>(null);
   const [calendarVisible, setCalendarVisible] = useState<boolean>(false);
   const [atividadeDetalhes, setAtividadeDetalhes] = useState<any | null>(null);
@@ -134,7 +133,6 @@ export default function DashboardScreen() {
   const [userPhoto, setUserPhoto] = useState<string | null>(() => storage.getString('@athena_user_photo') || null);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
-  const [modalNomeVisible, setModalNomeVisible] = useState<boolean>(false);
   const [modalPersonalizacaoVisible, setModalPersonalizacaoVisible] = useState<boolean>(false);
 
   // Carrega as informações determinísticas de Streak
@@ -640,8 +638,9 @@ export default function DashboardScreen() {
             );
           }
 
-          // Senão, renderiza a bolinha contínua normal
-          const dotColor = (isPastDot || timePassed > threshold) ? themeColors.primary : (isDark ? '#2E3236' : '#D1D5DB');
+          // Senão, renderiza a bolinha contínua normal (verde apenas quando preenchida)
+          const isFilled = isPastDot || timePassed > threshold;
+          const dotColor = isFilled ? '#10B981' : (isDark ? '#2E3236' : '#E2E4E8');
           return <View key={i} style={[styles.smallDot, { backgroundColor: dotColor }]} />;
         })}
       </View>
@@ -654,7 +653,12 @@ export default function DashboardScreen() {
       return (
         <View style={styles.anchorRow}>
           <View style={styles.timeColumn}>
-            <Feather name="sunrise" size={20} color={isPastOrCurrent ? themeColors.text : themeColors.textMuted} style={{ marginBottom: 4 }} />
+            <Feather
+              name="sunrise"
+              size={20}
+              color={isPastOrCurrent ? '#F97316' : (isDark ? 'rgba(249, 115, 22, 0.4)' : '#FDBA74')}
+              style={{ marginBottom: 4 }}
+            />
             <Text style={[styles.timeText, isPastOrCurrent ? { color: themeColors.text } : styles.timeTextPast]}>07:00</Text>
             {renderDottedProgress(timePassed)}
           </View>
@@ -670,7 +674,7 @@ export default function DashboardScreen() {
             <Ionicons
               name="moon"
               size={20}
-              color={isPastOrCurrent ? themeColors.text : themeColors.textMuted}
+              color={isPastOrCurrent ? '#818CF8' : (isDark ? 'rgba(129, 140, 248, 0.4)' : '#C7D2FE')}
               style={{ marginTop: 2, marginBottom: 4 }}
             />
             <Text style={[styles.timeText, isPastOrCurrent ? { color: themeColors.text } : styles.timeTextPast]}>
@@ -690,11 +694,6 @@ export default function DashboardScreen() {
     const isCurrentHour = horaItemStr ? (isToday && timePassed >= 0 && timePassed < 60) : false;
 
     const getCardColor = (it: any): string => {
-      // No tema claro: monochrome Notion (#37352F)
-      if (!isDark) {
-        return themeColors.text;
-      }
-
       // 1. Cor personalizada salva pelo usuário no evento
       if (it.cor) return it.cor;
 
@@ -726,7 +725,7 @@ export default function DashboardScreen() {
             <Feather
               name="sunrise"
               size={20}
-              color={(isDayPast || (isToday && currentHour >= 7)) ? themeColors.text : themeColors.textMuted}
+              color={(isDayPast || (isToday && currentHour >= 7)) ? '#F97316' : (isDark ? 'rgba(249, 115, 22, 0.4)' : '#FDBA74')}
               style={{ marginBottom: 4 }}
             />
           )}
@@ -997,6 +996,7 @@ export default function DashboardScreen() {
                   styles.dayPill,
                   isToday && styles.dayPillToday,
                   isSelected && styles.dayPillActive,
+                  (isToday && isSelected) && styles.dayPillTodayActive,
                 ]}
                 onPress={() => setDataSelecionada(item.dataISO)}
                 activeOpacity={0.7}
@@ -1006,6 +1006,7 @@ export default function DashboardScreen() {
                     styles.dayWeekContainer,
                     isToday && styles.dayWeekContainerToday,
                     isSelected && styles.dayWeekContainerActive,
+                    (isToday && isSelected) && styles.dayWeekContainerTodayActive,
                   ]}
                 >
                   <Text
@@ -1013,6 +1014,7 @@ export default function DashboardScreen() {
                       styles.dayWeekText,
                       isToday && styles.dayWeekTextToday,
                       isSelected && styles.dayWeekTextActive,
+                      (isToday && isSelected) && styles.dayWeekTextTodayActive,
                     ]}
                   >
                     {item.diaSemana}
@@ -1024,6 +1026,7 @@ export default function DashboardScreen() {
                       styles.dayMonthText,
                       isToday && styles.dayMonthTextToday,
                       isSelected && styles.dayMonthTextActive,
+                      (isToday && isSelected) && styles.dayMonthTextTodayActive,
                     ]}
                   >
                     {item.diaMes}
@@ -1048,22 +1051,6 @@ export default function DashboardScreen() {
         <View style={styles.boardHeaderRow}>
           <View style={styles.boardTitleRow}>
             <Text style={styles.boardTitle}>{getRelativeDateTitle(dataSelecionada)}</Text>
-            <TouchableOpacity
-              style={styles.addActivityButton}
-              activeOpacity={0.8}
-              onPress={() => {
-                setAtividadeParaEditar(null);
-                setModalNovaVisible(true);
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Adicionar nova atividade"
-            >
-              <Ionicons
-                name="add"
-                size={22}
-                color={themeColors.primary === '#EAE115' ? '#000000' : '#FFFFFF'}
-              />
-            </TouchableOpacity>
           </View>
           <Text style={styles.boardSubtitle}>
             Você completou <Text style={styles.boardSubtitleBold}>{concluidas}</Text> de{' '}
@@ -1098,29 +1085,13 @@ export default function DashboardScreen() {
                 <Ionicons name="calendar-outline" size={38} color="#383D42" style={{ marginBottom: 10 }} />
                 <Text style={styles.emptyTitle}>Nenhuma atividade programada</Text>
                 <Text style={styles.emptySubtitle}>
-                  Toque no botão + acima para adicionar uma tarefa pessoal, plantão ou aula.
+                  Nenhum evento ou bloco de estudo programado para este dia.
                 </Text>
               </View>
             ) : null
           }
         />
       </View>
-
-      {/* Modal para Adicionar ou Editar Atividade */}
-      <ModalNovaAtividade
-        visible={modalNovaVisible}
-        atividadeEmEdicao={atividadeParaEditar}
-        onClose={() => {
-          setModalNovaVisible(false);
-          setAtividadeParaEditar(null);
-        }}
-        onSaveSuccess={async () => {
-          // Replanejamento reativo automático: re-alinha os blocos pendentes de estudo nos novos horários livres
-          await gerarPlanoDiario(dataSelecionada);
-          await carregarAgenda();
-        }}
-        dataInicial={dataSelecionada}
-      />
 
       {/* Modal Interativo do Calendário Mensal */}
       <ModalCalendarioMensal
@@ -1148,7 +1119,7 @@ export default function DashboardScreen() {
         onEditAtividade={(it) => {
           setAtividadeDetalhes(null);
           setAtividadeParaEditar(it);
-          setModalNovaVisible(true);
+          setModalEditarVisible(true);
         }}
         onDeleteAtividade={async (it) => {
           setAtividadeDetalhes(null);
@@ -1156,6 +1127,21 @@ export default function DashboardScreen() {
           await gerarPlanoDiario(dataSelecionada);
           await carregarAgenda();
         }}
+      />
+
+      {/* Modal para Editar Atividade / Evento */}
+      <ModalNovaAtividade
+        visible={modalEditarVisible}
+        atividadeEmEdicao={atividadeParaEditar}
+        onClose={() => {
+          setModalEditarVisible(false);
+          setAtividadeParaEditar(null);
+        }}
+        onSaveSuccess={async () => {
+          await gerarPlanoDiario(dataSelecionada);
+          await carregarAgenda();
+        }}
+        dataInicial={dataSelecionada}
       />
 
       {/* Modal detalhado de Streak / Ofensiva */}
@@ -1173,14 +1159,6 @@ export default function DashboardScreen() {
         currentPhoto={userPhoto}
         onSaveName={(novoNome) => setUserName(novoNome)}
         onSavePhoto={(novaFoto) => setUserPhoto(novaFoto)}
-      />
-
-      {/* Modal para Editar Nome do Usuário */}
-      <NomeUsuarioModal
-        visible={modalNomeVisible}
-        onClose={() => setModalNomeVisible(false)}
-        initialName={userName}
-        onSave={(novoNome) => setUserName(novoNome)}
       />
     </SafeAreaView>
   );
@@ -1461,42 +1439,62 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       width: 48,
       height: 60,
       borderRadius: 10,
-      backgroundColor: theme.surface,
+      backgroundColor: isDark ? theme.surface : '#FAF8FD',
       marginHorizontal: 6,
       borderWidth: 1,
-      borderColor: theme.border,
-      shadowColor: '#000',
+      borderColor: isDark ? theme.border : '#EDE9FE',
+      shadowColor: isDark ? '#000' : '#8B5CF6',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: isDark ? 0.25 : 0.04,
+      shadowOpacity: isDark ? 0.25 : 0.05,
       shadowRadius: 3,
       elevation: 1,
     },
     dayPillToday: {
-      borderColor: isDark ? '#383D42' : '#DCDCD8',
-      backgroundColor: isDark ? '#222528' : '#F2F2EF',
+      borderColor: isDark ? '#EAE115' : '#DDD6FE',
+      borderWidth: isDark ? 1.5 : 1,
+      backgroundColor: isDark ? '#23251A' : '#F3EFFE',
+      shadowColor: isDark ? '#EAE115' : '#8B5CF6',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.35 : 0.05,
+      shadowRadius: isDark ? 6 : 3,
+      elevation: isDark ? 3 : 1,
     },
     dayPillActive: {
-      borderColor: isDark ? '#484D55' : '#D0D0CB',
+      borderColor: isDark ? '#484D55' : '#C4B5FD',
       borderWidth: 1,
-      backgroundColor: isDark ? '#2D3136' : '#E8E8E5',
+      backgroundColor: isDark ? '#2D3136' : '#EDE9FE',
+    },
+    dayPillTodayActive: {
+      borderColor: isDark ? '#EAE115' : '#C4B5FD',
+      borderWidth: 1.5,
+      backgroundColor: isDark ? '#2A2C1C' : '#EDE9FE',
+      shadowColor: isDark ? '#EAE115' : '#8B5CF6',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: isDark ? 0.45 : 0.08,
+      shadowRadius: isDark ? 8 : 4,
+      elevation: isDark ? 4 : 2,
     },
     dayWeekContainer: {
-      backgroundColor: isDark ? '#1C1F22' : '#F7F7F5',
+      backgroundColor: isDark ? '#1C1F22' : '#F5F3FF',
       width: '100%',
       alignItems: 'center',
       paddingVertical: 4,
       borderBottomWidth: 1,
-      borderBottomColor: theme.borderSubtle,
+      borderBottomColor: isDark ? theme.borderSubtle : '#EDE9FE',
       borderTopLeftRadius: 9,
       borderTopRightRadius: 9,
     },
     dayWeekContainerToday: {
-      backgroundColor: isDark ? '#282C30' : '#E8E8E4',
-      borderBottomColor: isDark ? '#383D42' : '#DCDCD8',
+      backgroundColor: isDark ? 'rgba(234, 225, 21, 0.18)' : '#EDE9FE',
+      borderBottomColor: isDark ? 'rgba(234, 225, 21, 0.35)' : '#DDD6FE',
     },
     dayWeekContainerActive: {
-      backgroundColor: isDark ? '#383E45' : '#DDDDD8',
-      borderBottomColor: isDark ? '#484D55' : '#D0D0CB',
+      backgroundColor: isDark ? '#383E45' : '#DDD6FE',
+      borderBottomColor: isDark ? '#484D55' : '#C4B5FD',
+    },
+    dayWeekContainerTodayActive: {
+      backgroundColor: isDark ? 'rgba(234, 225, 21, 0.28)' : '#DDD6FE',
+      borderBottomColor: isDark ? '#EAE115' : '#C4B5FD',
     },
     dayMonthContainer: {
       flex: 1,
@@ -1508,41 +1506,50 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     },
     dayWeekText: {
       fontSize: 10,
-      color: theme.textSecondary,
+      color: isDark ? theme.textSecondary : '#7C6F99',
       textTransform: 'uppercase',
       fontWeight: '700',
       fontFamily: Fonts.bold,
     },
     dayWeekTextToday: {
-      color: theme.text,
+      color: isDark ? '#EAE115' : '#5B21B6',
       fontWeight: '700',
     },
     dayWeekTextActive: {
-      color: theme.text,
+      color: isDark ? theme.text : '#4C1D95',
+      fontWeight: '800',
+    },
+    dayWeekTextTodayActive: {
+      color: isDark ? '#EAE115' : '#4C1D95',
       fontWeight: '800',
     },
     dayMonthText: {
       fontSize: 16,
-      color: theme.text,
+      color: isDark ? theme.text : '#37352F',
       fontWeight: 'bold',
       fontFamily: Fonts.bold,
     },
     dayMonthTextToday: {
+      color: isDark ? '#FFFFFF' : '#5B21B6',
       fontWeight: '800',
     },
     dayMonthTextActive: {
-      color: theme.text,
+      color: isDark ? theme.text : '#4C1D95',
+      fontWeight: '800',
+    },
+    dayMonthTextTodayActive: {
+      color: isDark ? '#EAE115' : '#4C1D95',
       fontWeight: '800',
     },
     todayIndicatorDot: {
       width: 4,
       height: 4,
       borderRadius: 2,
-      backgroundColor: isDark ? '#7E858E' : '#9B9A97',
+      backgroundColor: isDark ? '#EAE115' : '#8B5CF6',
       marginTop: 2,
     },
     todayIndicatorDotActive: {
-      backgroundColor: isDark ? '#AEB4BC' : '#5A5852',
+      backgroundColor: isDark ? '#EAE115' : '#6D28D9',
     },
 
     /* 3. Board Container */
@@ -1577,19 +1584,6 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       fontWeight: '800',
       fontFamily: Fonts.extraBold,
       color: theme.text,
-    },
-    addActivityButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: theme.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.25 : 0.08,
-      shadowRadius: 3,
-      elevation: 2,
     },
     boardSubtitle: {
       fontSize: 13,
@@ -1787,7 +1781,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
     praticarBtnText: {
       fontSize: 10,
       fontWeight: '800',
-      color: '#FFFFFF',
+      color: isDark ? '#000000' : '#FFFFFF',
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },
