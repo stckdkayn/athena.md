@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { Colors, CATEGORIA_CORES, getTopicColor, ActiveThemeColors } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 import { storage } from '@/services/storage';
@@ -44,6 +43,7 @@ import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
 import { StreakModal } from '@/components/modals/StreakModal';
 import { NomeUsuarioModal } from '@/components/modals/NomeUsuarioModal';
+import { PersonalizacaoModal } from '@/components/modals/PersonalizacaoModal';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
@@ -135,6 +135,7 @@ export default function DashboardScreen() {
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
   const [modalNomeVisible, setModalNomeVisible] = useState<boolean>(false);
+  const [modalPersonalizacaoVisible, setModalPersonalizacaoVisible] = useState<boolean>(false);
 
   // Carrega as informações determinísticas de Streak
   const carregarStreak = useCallback(async () => {
@@ -383,78 +384,9 @@ export default function DashboardScreen() {
     }, [carregarAgenda, carregarStreak])
   );
 
-  // Manipulação de Foto de Perfil
-  const handlePickPhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permissão necessária',
-          'Precisamos de acesso às suas fotos para atualizar sua imagem de perfil.'
-        );
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setUserPhoto(uri);
-        storage.set('@athena_user_photo', uri);
-      }
-    } catch (e) {
-      console.error('[Dashboard] Erro ao selecionar foto:', e);
-      Alert.alert('Erro', 'Não foi possível selecionar a foto.');
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permissão necessária',
-          'Precisamos de acesso à câmera para tirar sua foto de perfil.'
-        );
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setUserPhoto(uri);
-        storage.set('@athena_user_photo', uri);
-      }
-    } catch (e) {
-      console.error('[Dashboard] Erro ao tirar foto:', e);
-      Alert.alert('Erro', 'Não foi possível tirar a foto.');
-    }
-  };
-
+  // Personalização de Perfil (Foto, Nome e Tema)
   const handleAvatarPress = () => {
-    const buttons: any[] = [
-      { text: 'Escolher da Galeria', onPress: handlePickPhoto },
-      { text: 'Tirar Foto', onPress: handleTakePhoto },
-    ];
-    if (userPhoto) {
-      buttons.push({
-        text: 'Remover Foto',
-        style: 'destructive',
-        onPress: () => {
-          setUserPhoto(null);
-          storage.remove('@athena_user_photo');
-        },
-      });
-    }
-    buttons.push({ text: 'Cancelar', style: 'cancel' });
-
-    Alert.alert('Foto de Perfil', 'Escolha como deseja alterar sua foto:', buttons);
+    setModalPersonalizacaoVisible(true);
   };
 
   // Recarrega automaticamente a timeline se a sincronização do iCal atualizar eventos
@@ -858,7 +790,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setModalNomeVisible(true)}
+              onPress={() => setModalPersonalizacaoVisible(true)}
               activeOpacity={0.7}
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               style={styles.greetingContainer}
@@ -1231,6 +1163,16 @@ export default function DashboardScreen() {
         visible={modalStreakVisible}
         onClose={() => setModalStreakVisible(false)}
         streakInfo={streakInfo}
+      />
+
+      {/* Modal Unificado de Personalização (Foto, Nome, Tema Claro/Escuro) */}
+      <PersonalizacaoModal
+        visible={modalPersonalizacaoVisible}
+        onClose={() => setModalPersonalizacaoVisible(false)}
+        currentName={userName}
+        currentPhoto={userPhoto}
+        onSaveName={(novoNome) => setUserName(novoNome)}
+        onSavePhoto={(novaFoto) => setUserPhoto(novaFoto)}
       />
 
       {/* Modal para Editar Nome do Usuário */}
