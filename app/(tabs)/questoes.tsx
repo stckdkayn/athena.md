@@ -12,9 +12,7 @@ import {
   Platform,
   ScrollView,
   Animated,
-  PanResponder,
   useWindowDimensions,
-  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -35,7 +33,6 @@ import {
   getQuestionTema,
   getQuestionFoco,
   getQuestionMicroFoco,
-  getQuestionContentHash,
   getQuestionId,
   getQuestionCategoryKey,
   getSpecialtiesWithCounts,
@@ -48,19 +45,6 @@ import {
   loadActiveQuizSession,
   clearActiveQuizSession,
 } from '@/services/questionService';
-
-export {
-  Specialty,
-  ThemeItem,
-  CartItem,
-  getQuestionEspecialidade,
-  getQuestionTema,
-  getQuestionFoco,
-  getQuestionMicroFoco,
-  getQuestionContentHash,
-  getQuestionId,
-  getQuestionCategoryKey,
-};
 
 interface MicroFocoItem {
   microFocoNome: string;
@@ -80,32 +64,6 @@ interface ActiveQuizSessionInfo {
   currentIndex: number;
   totalQuestions: number;
 }
-
-const IconesEspecialidades: Record<string, string> = {
-  'Nefrologia': 'water',
-  'Gastroenterologia': 'stomach',
-  'Hepatologia': 'leaf',
-  'Cardiologia': 'heart-pulse',
-  'Cirurgia Geral': 'content-cut',
-  'Pneumologia': 'lungs',
-  'Neurologia': 'brain',
-  'Ginecologia': 'human-female',
-  'Obstetrícia': 'human-pregnant',
-  'Pediatria': 'baby-face-outline',
-  'Dermatologia': 'hand-back-right-outline',
-  'Endocrinologia': 'pill',
-  'Hematologia': 'water',
-  'Infectologia': 'virus',
-  'Medicina Preventiva': 'shield-check',
-  'Oftalmologia': 'eye',
-  'Ortopedia': 'bone',
-  'Otorrinolaringologia': 'ear-hearing',
-  'Psiquiatria': 'head-snowflake-outline',
-  'Reumatologia': 'arm-flex',
-  'Urologia': 'water',
-  'Bagagem': 'folder',
-  'default': 'medical-bag',
-};
 
 const normalizeText = (text: string): string => {
   if (!text) return '';

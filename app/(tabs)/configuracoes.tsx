@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { unzip } from 'react-native-zip-archive';
 import { useNavigation } from 'expo-router';
 import Colors, { ActiveThemeColors } from '@/constants/Colors';
@@ -212,7 +212,6 @@ export default function ConfiguracoesScreen() {
   const {
     colors: themeColors,
     isDark,
-    accentColor,
   } = useAppTheme();
 
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);

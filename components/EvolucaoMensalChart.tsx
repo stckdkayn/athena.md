@@ -57,7 +57,7 @@ export interface EvolucaoMensalChartProps {
 }
 
 export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps) {
-  const { colors, isDark, accentColor } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { width: windowWidth } = useWindowDimensions();
 
@@ -140,7 +140,7 @@ export default function EvolucaoMensalChart({ style }: EvolucaoMensalChartProps)
     }, [carregarDados])
   );
 
-  const activeColor = accentColor || colors.primary;
+  const activeColor = colors.primary;
   const acertosColor = '#10B981';
 
   const lineChartConfig = useMemo(() => {

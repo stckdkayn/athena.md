@@ -1,59 +1,5 @@
 export type ThemeMode = 'dark' | 'light' | 'system';
 
-export type AccentColorKey = 'monocromatico' | 'amarelo' | 'azul' | 'verde' | 'roxo' | 'coral';
-
-export interface AccentOption {
-  key: AccentColorKey;
-  label: string;
-  color: string;
-  subtle: string;
-  border: string;
-}
-
-export const ACCENT_PALETTE: Record<AccentColorKey, AccentOption> = {
-  monocromatico: {
-    key: 'monocromatico',
-    label: 'Notion Padrão',
-    color: '#2383E2',
-    subtle: 'rgba(35, 131, 226, 0.10)',
-    border: 'rgba(35, 131, 226, 0.25)',
-  },
-  amarelo: {
-    key: 'amarelo',
-    label: 'Athena Dourado',
-    color: '#EAE115',
-    subtle: 'rgba(234, 225, 21, 0.12)',
-    border: 'rgba(234, 225, 21, 0.35)',
-  },
-  azul: {
-    key: 'azul',
-    label: 'Azul Notion',
-    color: '#2383E2',
-    subtle: 'rgba(35, 131, 226, 0.10)',
-    border: 'rgba(35, 131, 226, 0.25)',
-  },
-  verde: {
-    key: 'verde',
-    label: 'Verde Cirúrgico',
-    color: '#10B981',
-    subtle: 'rgba(16, 185, 129, 0.12)',
-    border: 'rgba(16, 185, 129, 0.35)',
-  },
-  roxo: {
-    key: 'roxo',
-    label: 'Índigo Noturno',
-    color: '#8B5CF6',
-    subtle: 'rgba(139, 92, 246, 0.12)',
-    border: 'rgba(139, 92, 246, 0.35)',
-  },
-  coral: {
-    key: 'coral',
-    label: 'Coral Plantão',
-    color: '#EF4444',
-    subtle: 'rgba(239, 68, 68, 0.12)',
-    border: 'rgba(239, 68, 68, 0.35)',
-  },
-};
 
 export interface ThemeTokens {
   background: string;

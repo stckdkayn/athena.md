@@ -8,7 +8,6 @@ import {
   StatusBar,
   Modal,
   Image,
-  Alert,
   TextInput,
   ActivityIndicator,
   Platform,
@@ -42,11 +41,8 @@ import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
 import AppHeader from '@/components/AppHeader';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
 import { subscribeToICalSync } from '@/services/icsService';
-
-export { CATEGORIA_CORES };
 
 function toLocalDateStr(date: Date): string {
   const year = date.getFullYear();

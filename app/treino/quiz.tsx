@@ -25,7 +25,6 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   AppState,
   BackHandler,
   Image,
@@ -565,7 +564,6 @@ export default function QuizScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [wrongCount, setWrongCount] = useState<number>(0);
-  const [streakAcertos, setStreakAcertos] = useState<number>(0);
   const [discardedAlts, setDiscardedAlts] = useState<string[]>([]);
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
   const [showFinishModal, setShowFinishModal] = useState<boolean>(false);
@@ -599,7 +597,6 @@ export default function QuizScreen() {
     currentIndex,
     correctCount,
     wrongCount,
-    streakAcertos,
     answersHistory,
     isReviewMode,
     selectedAlt,
@@ -614,7 +611,6 @@ export default function QuizScreen() {
       currentIndex,
       correctCount,
       wrongCount,
-      streakAcertos,
       answersHistory,
       isReviewMode,
       selectedAlt,
@@ -627,7 +623,6 @@ export default function QuizScreen() {
     currentIndex,
     correctCount,
     wrongCount,
-    streakAcertos,
     answersHistory,
     isReviewMode,
     selectedAlt,
@@ -654,7 +649,6 @@ export default function QuizScreen() {
     currentIndex,
     correctCount,
     wrongCount,
-    streakAcertos,
     answersHistory,
     selectedAlt,
     isAnswered,
@@ -683,94 +677,6 @@ export default function QuizScreen() {
     };
   }, [loading, isReviewMode]);
 
-  // Estados e animação para o Toast não-intrusivo de Streak de Acertos
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const [toastVisible, setToastVisible] = useState<boolean>(false);
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-  const toastTranslateY = useRef(new Animated.Value(-24)).current;
-  const toastScale = useRef(new Animated.Value(0.9)).current;
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Dicionário de Frases (Milestones) de Streak de Acertos
-  const getStreakMilestoneMessage = (streak: number): string | null => {
-    switch (streak) {
-      case 3:
-        return '🔥 3 seguidas. Bom ritmo.';
-      case 5:
-        return '🎉 Parabéns! 5 acertos em sequência.';
-      case 10:
-        return '⚡ 10 seguidas. Precisão clínica.';
-      case 15:
-        return '🧠 15 acertos. Alto rendimento.';
-      case 20:
-        return '📚 20 invictas. Domínio do tema.';
-      default:
-        if (streak > 20 && streak % 10 === 0) {
-          return `🔥 ${streak} seguidas. Domínio absoluto.`;
-        }
-        return null;
-    }
-  };
-
-  const showStreakToast = (msg: string) => {
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = null;
-    }
-
-    setToastMessage(msg);
-    setToastVisible(true);
-
-    toastOpacity.setValue(0);
-    toastTranslateY.setValue(-36);
-    toastScale.setValue(0.95);
-
-    Animated.parallel([
-      Animated.timing(toastOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(toastTranslateY, {
-        toValue: 0,
-        friction: 8,
-        tension: 45,
-        useNativeDriver: true,
-      }),
-      Animated.spring(toastScale, {
-        toValue: 1,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Desaparece sozinho após 5 segundos (por volta de 5s, conforme solicitado)
-    toastTimerRef.current = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(toastOpacity, {
-          toValue: 0,
-          duration: 380,
-          useNativeDriver: true,
-        }),
-        Animated.timing(toastTranslateY, {
-          toValue: -28,
-          duration: 380,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setToastVisible(false);
-      });
-    }, 5000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-    };
-  }, []);
 
   // Estado da imagem offline dinâmica
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -959,7 +865,6 @@ export default function QuizScreen() {
           setCurrentIndex(restoredIndex);
           setCorrectCount(typeof parsed.correctCount === 'number' ? parsed.correctCount : 0);
           setWrongCount(typeof parsed.wrongCount === 'number' ? parsed.wrongCount : 0);
-          setStreakAcertos(typeof parsed.streakAcertos === 'number' ? parsed.streakAcertos : 0);
           const history = parsed.answersHistory || {};
           setAnswersHistory(history);
           setIsReviewMode(!!parsed.isReviewMode);
@@ -1197,7 +1102,6 @@ export default function QuizScreen() {
         setIsAnswered(false);
         setCorrectCount(0);
         setWrongCount(0);
-        setStreakAcertos(0);
         setAnswersHistory({});
         setLoading(false);
         return;
@@ -1457,7 +1361,6 @@ export default function QuizScreen() {
       setIsAnswered(false);
       setCorrectCount(0);
       setWrongCount(0);
-      setStreakAcertos(0);
       setAnswersHistory({});
       setIsReviewMode(false);
       setDiscardedAlts([]);
@@ -1469,7 +1372,6 @@ export default function QuizScreen() {
           currentIndex: 0,
           correctCount: 0,
           wrongCount: 0,
-          streakAcertos: 0,
           answersHistory: {},
           isReviewMode: false,
           selectedAlt: null,
@@ -1647,15 +1549,8 @@ export default function QuizScreen() {
 
     if (isCorrect) {
       setCorrectCount((prev) => prev + 1);
-      setStreakAcertos((prev) => prev + 1);
-      const nextStreak = streakAcertos + 1;
-      const milestoneMsg = getStreakMilestoneMessage(nextStreak);
-      if (milestoneMsg) {
-        showStreakToast(milestoneMsg);
-      }
     } else {
       setWrongCount((prev) => prev + 1);
-      setStreakAcertos(0);
     }
 
     // Registra no histórico de respostas da sessão
@@ -1684,7 +1579,6 @@ export default function QuizScreen() {
     const wasCorrect = selectedAlt ? selectedAlt.toUpperCase() === correctKey : false;
     if (wasCorrect) {
       setCorrectCount((prev) => Math.max(0, prev - 1));
-      setStreakAcertos((prev) => Math.max(0, prev - 1));
     } else {
       setWrongCount((prev) => Math.max(0, prev - 1));
     }
@@ -1788,7 +1682,6 @@ export default function QuizScreen() {
         currentIndex,
         correctCount,
         wrongCount,
-        streakAcertos,
         answersHistory,
         isReviewMode,
         selectedAlt,
@@ -2780,34 +2673,6 @@ export default function QuizScreen() {
         </View>
       </Modal>
 
-      {/* Toast de Streak de Acertos (Estilo Notificação iOS) */}
-      {toastVisible && (
-        <View pointerEvents="none" style={styles.streakToastOverlay}>
-          <Animated.View
-            style={[
-              styles.streakToastCard,
-              {
-                opacity: toastOpacity,
-                transform: [
-                  { translateY: toastTranslateY },
-                  { scale: toastScale },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.streakToastIconBox}>
-              <Ionicons name="flame" size={18} color={isDark ? "#000000" : "#FFFFFF"} />
-            </View>
-            <View style={styles.streakToastContent}>
-              <View style={styles.streakToastHeaderRow}>
-                <Text style={styles.streakToastAppName}>ATHENA MD</Text>
-                <Text style={styles.streakToastTime}>agora</Text>
-              </View>
-              <Text style={styles.streakToastText}>{toastMessage}</Text>
-            </View>
-          </Animated.View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -3704,68 +3569,6 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       fontSize: 14,
       fontWeight: '700',
       color: theme.text,
-    },
-    streakToastOverlay: {
-      position: 'absolute',
-      top: 54,
-      left: 0,
-      right: 0,
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      zIndex: 9999,
-    },
-    streakToastCard: {
-      width: '100%',
-      maxWidth: 400,
-      backgroundColor: theme.surface,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 14,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: theme.border,
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: isDark ? 0.45 : 0.12,
-      shadowRadius: 16,
-      elevation: 12,
-    },
-    streakToastIconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: 9,
-      backgroundColor: theme.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    streakToastContent: {
-      flex: 1,
-      justifyContent: 'center',
-    },
-    streakToastHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 2,
-    },
-    streakToastAppName: {
-      fontSize: 10.5,
-      fontWeight: '700',
-      color: theme.textMuted,
-      letterSpacing: 0.6,
-    },
-    streakToastTime: {
-      fontSize: 10.5,
-      color: theme.textMuted,
-      fontWeight: '500',
-    },
-    streakToastText: {
-      fontSize: 13.5,
-      fontWeight: '700',
-      color: theme.text,
-      lineHeight: 18,
     },
     reviewBadgeHeader: {
       flexDirection: 'row',
