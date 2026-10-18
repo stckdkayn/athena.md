@@ -1,15 +1,19 @@
 import { Link, Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { useAppTheme } from '@/context/ThemeContext';
+import { Fonts } from '@/constants/Typography';
 
 export default function NotFoundScreen() {
+  const { colors } = useAppTheme();
+
   return (
     <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
+      <Stack.Screen options={{ title: 'Não Encontrado' }} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.title, { color: colors.text }]}>Esta página não existe.</Text>
 
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
+        <Link href="/" style={[styles.link, { backgroundColor: colors.primarySubtle, borderColor: colors.primaryBorder }]}>
+          <Text style={[styles.linkText, { color: colors.primary }]}>Voltar para o início</Text>
         </Link>
       </View>
     </>
@@ -21,18 +25,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: Fonts.bold,
+    marginBottom: 16,
   },
   link: {
-    marginTop: 15,
-    paddingVertical: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   linkText: {
     fontSize: 14,
-    color: '#2e78b7',
+    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
 });

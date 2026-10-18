@@ -291,5 +291,3 @@ export {
   QuestionTimeStats,
 } from './database';
 
-export { getHeatmapData, HeatmapData } from './streakService';
-
