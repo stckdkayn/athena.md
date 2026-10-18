@@ -37,12 +37,10 @@ import {
 } from '@/services/database';
 import { getSemanaDoCronogramaPorData } from '@/services/scheduleService';
 import { gerarPlanoDiario, verificarEPlanejarAutomaticamente, sincronizarLimitesHorarioUtil } from '@/services/schedulerService';
-import { getStreakInfo, StreakInfo } from '@/services/streakService';
 import ModalNovaAtividade from '@/components/cronograma/ModalNovaAtividade';
 import ModalCalendarioMensal from '@/components/cronograma/ModalCalendarioMensal';
 import ModalDetalhesAtividade from '@/components/cronograma/ModalDetalhesAtividade';
-import { StreakModal } from '@/components/modals/StreakModal';
-import { PersonalizacaoModal } from '@/components/modals/PersonalizacaoModal';
+import AppHeader from '@/components/AppHeader';
 import SwipeableActivityCard from '@/components/cronograma/SwipeableActivityCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from '@/constants/Typography';
@@ -128,31 +126,6 @@ export default function DashboardScreen() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // Perfil do usuário, foto e streak
-  const [userName, setUserName] = useState<string>(() => storage.getString('@athena_user_name') || '');
-  const [userPhoto, setUserPhoto] = useState<string | null>(() => storage.getString('@athena_user_photo') || null);
-  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
-  const [modalStreakVisible, setModalStreakVisible] = useState<boolean>(false);
-  const [modalPersonalizacaoVisible, setModalPersonalizacaoVisible] = useState<boolean>(false);
-
-  // Carrega as informações determinísticas de Streak
-  const carregarStreak = useCallback(async () => {
-    try {
-      const info = await getStreakInfo();
-      setStreakInfo(info);
-    } catch (e) {
-      console.warn('[Dashboard] Erro ao carregar streak:', e);
-    }
-  }, []);
-
-  // Lógica de Saudação (sem o nome embutido, pois agora fica ao lado do avatar)
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'Bom dia';
-    if (hour >= 12 && hour < 18) return 'Boa tarde';
-    return 'Boa noite';
-  };
-  const greeting = getGreeting();
 
   // Lógica de Título Relativo de Datas
   const getRelativeDateTitle = (dateString: string) => {
@@ -369,23 +342,12 @@ export default function DashboardScreen() {
     }
   }, [dataSelecionada]);
 
-  // Busca as atividades e streak sempre que a tela ganha foco ou a data muda
+  // Busca as atividades sempre que a tela ganha foco ou a data muda
   useFocusEffect(
     useCallback(() => {
-      const savedName = storage.getString('@athena_user_name') || '';
-      setUserName(savedName);
-      const savedPhoto = storage.getString('@athena_user_photo') || null;
-      setUserPhoto(savedPhoto);
-
-      carregarStreak();
       carregarAgenda();
-    }, [carregarAgenda, carregarStreak])
+    }, [carregarAgenda])
   );
-
-  // Personalização de Perfil (Foto, Nome e Tema)
-  const handleAvatarPress = () => {
-    setModalPersonalizacaoVisible(true);
-  };
 
   // Recarrega automaticamente a timeline se a sincronização do iCal atualizar eventos
   useEffect(() => {
@@ -761,71 +723,7 @@ export default function DashboardScreen() {
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       {/* 1. Header Dinâmico de 2 Linhas */}
-      <View style={styles.header}>
-        {/* Primeira linha: Foto (à esquerda), Saudação menor em cinza e Nome abaixo */}
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerProfileGroup}>
-            <TouchableOpacity
-              style={styles.avatarContainer}
-              onPress={handleAvatarPress}
-              activeOpacity={0.8}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <View style={styles.avatarCircle}>
-                {userPhoto ? (
-                  <Image source={{ uri: userPhoto }} style={styles.avatarImage} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    {userName && userName.trim() ? (
-                      <Text style={styles.avatarInitials}>
-                        {userName.trim().charAt(0).toUpperCase()}
-                      </Text>
-                    ) : (
-                      <Ionicons name="person" size={24} color={themeColors.textSecondary} />
-                    )}
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setModalPersonalizacaoVisible(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-              style={styles.greetingContainer}
-            >
-              <Text style={styles.greetingSubtitleText}>{greeting},</Text>
-              <Text style={styles.bigGreetingText} numberOfLines={1}>
-                {userName && userName.trim() ? userName.trim() : 'Gabriel'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Feature de Streak Alinhada à Direita no Nível do Nome */}
-          <TouchableOpacity
-            style={[
-              styles.streakBadge,
-              streakInfo?.activeToday ? styles.streakBadgeActive : styles.streakBadgeInactive,
-            ]}
-            onPress={() => setModalStreakVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={streakInfo?.activeToday ? 'flame' : 'flame-outline'}
-              size={18}
-              color={streakInfo?.activeToday ? '#FF8800' : '#8E959E'}
-            />
-            <Text
-              style={[
-                styles.streakBadgeText,
-                streakInfo?.activeToday ? styles.streakBadgeTextActive : styles.streakBadgeTextInactive,
-              ]}
-            >
-              {streakInfo?.streak || 0}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
+      <AppHeader>
         {/* Segunda linha: Lupa à esquerda, Semana centralizada e Calendário à direita */}
         <View style={styles.headerSubRow}>
           <TouchableOpacity
@@ -972,7 +870,7 @@ export default function DashboardScreen() {
             )}
           </View>
         )}
-      </View>
+      </AppHeader>
 
       {/* 2. Seletor de Semana Estilo Calendário Folha */}
       <View style={styles.weekSelector}>
@@ -1144,22 +1042,6 @@ export default function DashboardScreen() {
         dataInicial={dataSelecionada}
       />
 
-      {/* Modal detalhado de Streak / Ofensiva */}
-      <StreakModal
-        visible={modalStreakVisible}
-        onClose={() => setModalStreakVisible(false)}
-        streakInfo={streakInfo}
-      />
-
-      {/* Modal Unificado de Personalização (Foto, Nome, Tema Claro/Escuro) */}
-      <PersonalizacaoModal
-        visible={modalPersonalizacaoVisible}
-        onClose={() => setModalPersonalizacaoVisible(false)}
-        currentName={userName}
-        currentPhoto={userPhoto}
-        onSaveName={(novoNome) => setUserName(novoNome)}
-        onSavePhoto={(novaFoto) => setUserPhoto(novaFoto)}
-      />
     </SafeAreaView>
   );
 }
@@ -1171,82 +1053,11 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       flex: 1,
       backgroundColor: theme.background,
     },
-    header: {
-      paddingTop: 8,
-      paddingHorizontal: 16,
-      marginBottom: 14,
-      gap: 12,
-      zIndex: 100,
-    },
-    headerTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    headerProfileGroup: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    avatarContainer: {
-      position: 'relative',
-      marginRight: 12,
-    },
-    avatarCircle: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: theme.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1.5,
-      borderColor: theme.border,
-      overflow: 'hidden',
-    },
-    avatarImage: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-    },
-    avatarPlaceholder: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: theme.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarInitials: {
-      fontSize: 22,
-      fontFamily: Fonts.extraBold,
-      fontWeight: '800',
-      color: theme.primary,
-    },
-    greetingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-    },
-    greetingSubtitleText: {
-      fontSize: 13,
-      fontFamily: Fonts.semiBold,
-      fontWeight: '600',
-      color: theme.textSecondary,
-      lineHeight: 16,
-    },
-    bigGreetingText: {
-      fontSize: 22,
-      fontFamily: Fonts.extraBold,
-      fontWeight: '800',
-      color: theme.text,
-      letterSpacing: -0.4,
-      lineHeight: 26,
-      marginTop: -1,
-    },
     headerSubRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingTop: 2,
+      height: 38,
     },
     weekLabel: {
       flex: 1,
@@ -1395,37 +1206,6 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       color: theme.textSecondary,
       textAlign: 'center',
       fontFamily: Fonts.regular,
-    },
-    streakBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      height: 36,
-      paddingHorizontal: 9,
-      borderRadius: 18,
-      borderWidth: 1,
-    },
-    streakBadgeActive: {
-      backgroundColor: 'rgba(255, 136, 0, 0.12)',
-      borderColor: 'rgba(255, 136, 0, 0.35)',
-    },
-    streakBadgeInactive: {
-      backgroundColor: theme.surface,
-      borderColor: theme.border,
-    },
-    streakBadgeText: {
-      fontSize: 13,
-      fontFamily: Fonts.bold,
-      fontWeight: '800',
-    },
-    streakBadgeTextActive: {
-      color: '#FF8800',
-    },
-    streakBadgeTextInactive: {
-      color: theme.textSecondary,
-    },
-    calendarIconEmoji: {
-      fontSize: 18,
     },
 
     /* 2. Seletor de Semana Folha */

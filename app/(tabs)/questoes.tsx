@@ -847,13 +847,13 @@ export default function TreinoScreen() {
 
           {/* Título Especialidades Centralizado */}
           <View style={styles.topHeaderCenter}>
-            <Text style={styles.screenMainTitle}>Especialidades</Text>
+            <Text style={styles.screenMainTitle} numberOfLines={1}>Especialidades</Text>
             {isModoSimulado ? (
               <View style={styles.headerSimuladoPill}>
-                <Text style={styles.headerSimuladoPillText}>SIMULADO ATIVO</Text>
+                <Text style={styles.headerSimuladoPillText} numberOfLines={1}>SIMULADO ATIVO</Text>
               </View>
             ) : cartCount > 0 ? (
-              <Text style={styles.topHeaderCartSubtext}>
+              <Text style={styles.topHeaderCartSubtext} numberOfLines={1}>
                 {cartCount} {cartCount === 1 ? 'tema ativo' : 'temas ativos'}
               </Text>
             ) : null}
@@ -1464,7 +1464,7 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingTop: 2,
+      height: 38,
     },
     searchIconButton: {
       width: 38,
@@ -1485,19 +1485,22 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 8,
+      height: 38,
     },
     screenMainTitle: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '700',
       color: theme.text,
       letterSpacing: -0.3,
       textAlign: 'center',
+      lineHeight: 19,
     },
     topHeaderCartSubtext: {
-      fontSize: 11,
+      fontSize: 10,
       color: theme.primary,
       fontWeight: '700',
-      marginTop: 2,
+      marginTop: 1,
+      lineHeight: 12,
     },
     menuIconButton: {
       width: 38,
@@ -1541,19 +1544,20 @@ function createStyles(theme: ActiveThemeColors, isDark: boolean) {
 
     headerSimuladoPill: {
       backgroundColor: theme.primarySubtle,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
       borderRadius: 4,
       borderWidth: 1,
       borderColor: theme.primaryBorder,
-      marginTop: 3,
+      marginTop: 1,
     },
     headerSimuladoPillText: {
       color: theme.primary,
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '700',
       letterSpacing: 0.5,
       textTransform: 'uppercase',
+      lineHeight: 11,
     },
 
     simuladoBottomBanner: {
