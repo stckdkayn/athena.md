@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, ActiveThemeColors } from '@/constants/Colors';
+import { ActiveThemeColors } from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 import { storage } from '@/services/storage';
 
@@ -82,7 +82,7 @@ export function MetaDiariaModal({ visible, onClose, onSave, initialMeta }: MetaD
         <View style={styles.nameModalCard}>
           <View style={styles.nameModalHeader}>
             <View style={styles.nameModalIconCircle}>
-              <Ionicons name="flag-outline" size={24} color={Colors.primary} />
+              <Ionicons name="flag-outline" size={24} color={theme.primary} />
             </View>
             <Text style={styles.nameModalTitle}>Meta Diária de Questões</Text>
             <Text style={styles.nameModalSubtitle}>
@@ -154,7 +154,7 @@ export function MetaDiariaModal({ visible, onClose, onSave, initialMeta }: MetaD
               onPress={handleRemover}
               activeOpacity={0.7}
             >
-              <Ionicons name="trash-outline" size={14} color={Colors.error} style={{ marginRight: 5 }} />
+              <Ionicons name="trash-outline" size={14} color={theme.error} style={{ marginRight: 5 }} />
               <Text style={styles.metaModalRemoveText}>Remover meta diária</Text>
             </TouchableOpacity>
           )}

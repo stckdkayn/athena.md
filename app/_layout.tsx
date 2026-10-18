@@ -16,7 +16,6 @@ import { NavigationBar, addVisibilityListener } from 'expo-navigation-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { ThemeProvider as AthenaThemeProvider } from '@/context/ThemeContext';
 import { migrateAsyncStorageToMMKV } from '@/services/storage';
 import { ensureQuestionsDatabaseReady } from '@/services/questionService';
@@ -86,7 +85,6 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
 
   useEffect(() => {
     const applyFullscreen = () => {

@@ -8,9 +8,8 @@ import {
   TouchableOpacity,
   Easing,
 } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, hexToRgba } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+import { hexToRgba } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { AtividadeAgenda } from '@/services/database';
 import { useAppTheme } from '@/context/ThemeContext';

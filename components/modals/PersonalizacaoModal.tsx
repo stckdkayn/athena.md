@@ -9,7 +9,6 @@ import {
   Platform,
   StyleSheet,
   Image,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

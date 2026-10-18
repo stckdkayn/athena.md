@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { Colors, CATEGORIA_CORES } from '@/constants/Colors';
+import { CATEGORIA_CORES } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { useAppTheme } from '@/context/ThemeContext';
 

@@ -23,7 +23,7 @@ interface AppHeaderProps {
 }
 
 export default function AppHeader({ children, style }: AppHeaderProps) {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
 
   const [userName, setUserName] = useState<string>('');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);

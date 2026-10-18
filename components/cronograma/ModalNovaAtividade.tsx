@@ -11,9 +11,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Colors } from '@/constants/Colors';
 import { Fonts } from '@/constants/Typography';
 import { useAppTheme } from '@/context/ThemeContext';
 import {
@@ -810,7 +809,7 @@ export default function ModalNovaAtividade({
                 activeOpacity={0.7}
               >
                 <Text style={[styles.dropdownButtonText, { color: theme.text }]}>{tipo}</Text>
-                <Feather name="chevron-down" size={16} color={theme.textSecondary} />
+                <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
               </TouchableOpacity>
               {showCategoriaDrop && (
                 <View
