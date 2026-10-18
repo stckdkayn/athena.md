@@ -157,12 +157,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="cronograma"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
         name="configuracoes"
         options={{
           title: 'Configurações',
